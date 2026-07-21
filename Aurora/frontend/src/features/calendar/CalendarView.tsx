@@ -1,0 +1,167 @@
+import { useState } from 'react';
+import { ChevronLeft, ChevronRight, Plus, Filter, Calendar as CalendarIcon } from 'lucide-react';
+import { CALENDAR_STAFF, CALENDAR_APPOINTMENTS, TIME_SLOTS } from './data/calendarData';
+import { NewBookingModal } from './components/NewBookingModal';
+import { cn, formatCurrency } from '../../lib/utils';
+import type { Appointment } from '../../shared/types';
+
+export function CalendarView() {
+  const [appointments, setAppointments] = useState<Appointment[]>(CALENDAR_APPOINTMENTS);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedStaffFilter, setSelectedStaffFilter] = useState<string>('all');
+
+  const filteredStaff = selectedStaffFilter === 'all' 
+    ? CALENDAR_STAFF 
+    : CALENDAR_STAFF.filter((s) => s.id === selectedStaffFilter);
+
+  const handleAddAppointment = (newApt: Appointment) => {
+    setAppointments((prev) => [...prev, newApt]);
+  };
+
+  return (
+    <div className="space-y-6 max-w-7xl mx-auto">
+      {/* Calendar Top Action Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Schedule & Calendar</h1>
+          <p className="text-xs text-slate-500 mt-1">Manage staff timetables & daily bookings</p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {/* Staff Filter Dropdown */}
+          <div className="flex items-center gap-2 bg-white px-3 py-1.5 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 shadow-sm">
+            <Filter className="w-3.5 h-3.5 text-slate-400" />
+            <select
+              value={selectedStaffFilter}
+              onChange={(e) => setSelectedStaffFilter(e.target.value)}
+              className="bg-transparent focus:outline-none cursor-pointer"
+            >
+              <option value="all">All Stylists & Specialists</option>
+              {CALENDAR_STAFF.map((staff) => (
+                <option key={staff.id} value={staff.id}>
+                  {staff.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Date Selector Controls */}
+          <div className="flex items-center bg-white border border-slate-200 rounded-xl p-1 shadow-sm text-xs font-semibold text-slate-800">
+            <button className="p-1 hover:bg-slate-100 rounded-lg text-slate-600">
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <span className="px-3 flex items-center gap-1.5">
+              <CalendarIcon className="w-3.5 h-3.5 text-purple-600" />
+              Today, May 24
+            </span>
+            <button className="p-1 hover:bg-slate-100 rounded-lg text-slate-600">
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Add Booking Button */}
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-600 text-white text-xs font-bold hover:bg-purple-700 transition-colors shadow-md shadow-purple-900/20"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Book Appointment</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Multi-Staff Daily Grid View */}
+      <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
+        {/* Staff Columns Header */}
+        <div className="grid grid-cols-12 border-b border-slate-200 bg-slate-50/80">
+          <div className="col-span-2 p-4 text-xs font-bold text-slate-400 uppercase tracking-wider border-r border-slate-200">
+            Time Slot
+          </div>
+          <div className="col-span-10 grid grid-cols-3 divide-x divide-slate-200">
+            {filteredStaff.map((staff) => (
+              <div key={staff.id} className="p-3 flex items-center gap-3">
+                <img
+                  src={staff.avatar}
+                  alt={staff.name}
+                  className="w-8 h-8 rounded-full object-cover ring-2 ring-purple-500/20"
+                />
+                <div>
+                  <h4 className="text-xs font-bold text-slate-900">{staff.name}</h4>
+                  <p className="text-[10px] text-slate-500">{staff.role}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Timeline Slots */}
+        <div className="divide-y divide-slate-100">
+          {TIME_SLOTS.map((slot) => (
+            <div key={slot} className="grid grid-cols-12 min-h-[80px]">
+              {/* Time Column */}
+              <div className="col-span-2 p-3 text-xs font-semibold text-slate-500 border-r border-slate-200/80 bg-slate-50/40 flex items-start">
+                {slot}
+              </div>
+
+              {/* Staff Grid Slots */}
+              <div className="col-span-10 grid grid-cols-3 divide-x divide-slate-100 relative">
+                {filteredStaff.map((staff) => {
+                  const matchedApt = appointments.find(
+                    (a) => a.staffId === staff.id && a.startTime === slot
+                  );
+
+                  return (
+                    <div key={staff.id} className="p-2 relative group hover:bg-slate-50/50 transition-colors">
+                      {matchedApt ? (
+                        <div
+                          className={cn(
+                            'p-2.5 rounded-xl border text-xs h-full flex flex-col justify-between shadow-xs transition-all hover:scale-[1.01]',
+                            matchedApt.status === 'completed' && 'bg-emerald-50/80 border-emerald-200 text-emerald-950',
+                            matchedApt.status === 'in_progress' && 'bg-purple-50 border-purple-300 text-purple-950 ring-2 ring-purple-500/20',
+                            matchedApt.status === 'confirmed' && 'bg-blue-50/80 border-blue-200 text-blue-950',
+                            matchedApt.status === 'scheduled' && 'bg-amber-50/80 border-amber-200 text-amber-950'
+                          )}
+                        >
+                          <div>
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-slate-900">{matchedApt.customerName}</span>
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/80 border border-slate-200/60">
+                                {matchedApt.startTime}
+                              </span>
+                            </div>
+                            <p className="text-[11px] font-medium text-slate-600 mt-0.5">
+                              {matchedApt.serviceName}
+                            </p>
+                          </div>
+                          <div className="mt-2 flex items-center justify-between text-[11px] font-semibold border-t border-slate-200/40 pt-1">
+                            <span>{formatCurrency(matchedApt.amount)}</span>
+                            <span className="capitalize text-[10px] opacity-75">{matchedApt.status}</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setIsModalOpen(true)}
+                          className="w-full h-full min-h-[60px] rounded-xl border border-dashed border-transparent group-hover:border-slate-300 flex items-center justify-center text-slate-400 opacity-0 group-hover:opacity-100 transition-all hover:bg-white"
+                        >
+                          <Plus className="w-4 h-4 text-slate-400" />
+                          <span className="text-xs font-medium ml-1">Book</span>
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* New Booking Form Modal */}
+      <NewBookingModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSave={handleAddAppointment}
+      />
+    </div>
+  );
+}
