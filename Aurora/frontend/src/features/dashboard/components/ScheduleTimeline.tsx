@@ -17,7 +17,7 @@ const STATUS_CONFIG: Record<AppointmentStatus, { label: string; className: strin
 };
 
 export function ScheduleTimeline() {
-  const [appointments, setAppointments] = useState<Appointment[]>(CALENDAR_APPOINTMENTS);
+  const [_, setAppointments] = useState<Appointment[]>(CALENDAR_APPOINTMENTS);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const handleAddAppointment = (newApt: Appointment) => {
     setAppointments((prev) => [...prev, newApt]);

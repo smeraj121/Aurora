@@ -20,7 +20,7 @@ import {
   Pie,
   Cell,
 } from 'recharts';
-import { REVENUE_TRENDS, CATEGORY_BREAKDOWN, TOP_STAFF } from './data/reportsdata';
+import { REVENUE_TRENDS, CATEGORY_BREAKDOWN, TOP_STAFF } from './data/reportsData';
 import { formatCurrency } from '../../lib/utils';
 
 export function ReportsView() {
@@ -187,7 +187,7 @@ export function ReportsView() {
                     paddingAngle={4}
                     dataKey="value"
                   >
-                    {CATEGORY_BREAKDOWN.map((entry, index) => (
+                    {CATEGORY_BREAKDOWN.map((entry: any, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>

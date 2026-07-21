@@ -15,7 +15,6 @@ import {
 import { CUSTOMERS_DATA, type CustomerDetail } from './data/customerData';
 import { cn, formatCurrency } from '../../lib/utils';
 import { AddCustomerDrawer } from './components/AddCustomerDrawer';
-import defaultAvatar from "C:\\sampleproject\\Aurora\\frontend\\src\\assets\\user.png";
 
 export function CustomersView() {
   const [customers, setCustomers] = useState<CustomerDetail[]>(CUSTOMERS_DATA);
