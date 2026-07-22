@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, Plus, Filter, Calendar as CalendarIcon } from 'lucide-react';
 import { CALENDAR_STAFF, CALENDAR_APPOINTMENTS, TIME_SLOTS } from './data/calendarData';
 import { NewBookingModal } from './components/NewBookingModal';
@@ -8,14 +8,28 @@ import type { Appointment } from '../../shared/types';
 export function CalendarView() {
   const [appointments, setAppointments] = useState<Appointment[]>(CALENDAR_APPOINTMENTS);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const [selectedStaffFilter, setSelectedStaffFilter] = useState<string>('all');
 
-  const filteredStaff = selectedStaffFilter === 'all' 
-    ? CALENDAR_STAFF 
-    : CALENDAR_STAFF.filter((s) => s.id === selectedStaffFilter);
+  const filteredStaff = useMemo(() => {
+    return selectedStaffFilter === 'all'
+      ? CALENDAR_STAFF
+      : CALENDAR_STAFF.filter((s) => s.id === selectedStaffFilter);
+  }, [selectedStaffFilter]);
 
-  const handleAddAppointment = (newApt: Appointment) => {
-    setAppointments((prev) => [...prev, newApt]);
+  const handleSaveAppointment = (savedApt: Appointment) => {
+    setAppointments((prev) => {
+      const exists = prev.some((item) => item.id === savedApt.id);
+      if (exists) {
+        return prev.map((item) => (item.id === savedApt.id ? savedApt : item));
+      }
+      return [...prev, savedApt];
+    });
+  };
+
+  const handleOpenModal = (apt: Appointment | null = null) => {
+    setEditingAppointment(apt);
+    setIsModalOpen(true);
   };
 
   return (
@@ -61,7 +75,7 @@ export function CalendarView() {
 
           {/* Add Booking Button */}
           <button
-            onClick={() => setIsModalOpen(true)}
+            onClick={() => handleOpenModal()}
             className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-600 text-white text-xs font-bold hover:bg-purple-700 transition-colors shadow-md shadow-purple-900/20"
           >
             <Plus className="w-4 h-4" />
@@ -111,11 +125,12 @@ export function CalendarView() {
                   );
 
                   return (
-                    <div key={staff.id} className="p-2 relative group hover:bg-slate-50/50 transition-colors">
+                    <div key={staff.id} className="p-2 relative group hover:bg-slate-50/50 transition-colors cursor-pointer">
                       {matchedApt ? (
                         <div
+                          onClick={() => handleOpenModal(matchedApt)}
                           className={cn(
-                            'p-2.5 rounded-xl border text-xs h-full flex flex-col justify-between shadow-xs transition-all hover:scale-[1.01]',
+                            'p-2.5 rounded-xl border text-xs h-full flex flex-col justify-between shadow-xs transition-all hover:scale-[1.01] cursor-pointer',
                             matchedApt.status === 'completed' && 'bg-emerald-50/80 border-emerald-200 text-emerald-950',
                             matchedApt.status === 'in_progress' && 'bg-purple-50 border-purple-300 text-purple-950 ring-2 ring-purple-500/20',
                             matchedApt.status === 'confirmed' && 'bg-blue-50/80 border-blue-200 text-blue-950',
@@ -140,7 +155,7 @@ export function CalendarView() {
                         </div>
                       ) : (
                         <button
-                          onClick={() => setIsModalOpen(true)}
+                          onClick={() => handleOpenModal()}
                           className="w-full h-full min-h-[60px] rounded-xl border border-dashed border-transparent group-hover:border-slate-300 flex items-center justify-center text-slate-400 opacity-0 group-hover:opacity-100 transition-all hover:bg-white"
                         >
                           <Plus className="w-4 h-4 text-slate-400" />
@@ -159,8 +174,9 @@ export function CalendarView() {
       {/* New Booking Form Modal */}
       <NewBookingModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSave={handleAddAppointment}
+        onClose={() => { setIsModalOpen(false); setEditingAppointment(null); }}
+        onSave={handleSaveAppointment}
+        initialData={editingAppointment}
       />
     </div>
   );

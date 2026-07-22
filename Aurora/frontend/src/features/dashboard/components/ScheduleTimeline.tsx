@@ -1,11 +1,10 @@
-import { Plus, ChevronRight } from 'lucide-react';
+import { Plus, Pencil } from 'lucide-react';
 import { TODAY_SCHEDULE } from '../data/mockData';
 import { cn, formatCurrency } from '../../../lib/utils';
-import type { AppointmentStatus } from '../../../shared/types/domain';
+import type { Appointment, AppointmentStatus } from '../../../shared/types';
 import { NewBookingModal } from '../../calendar/components/NewBookingModal';
 import { useState } from 'react';
-import type { Appointment } from '../../../shared/types';
-import { CALENDAR_APPOINTMENTS } from '../../calendar/data/calendarData';
+//import { CALENDAR_APPOINTMENTS } from '../../calendar/data/calendarData';
 
 const STATUS_CONFIG: Record<AppointmentStatus, { label: string; className: string }> = {
   completed: { label: 'Completed', className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
@@ -17,11 +16,30 @@ const STATUS_CONFIG: Record<AppointmentStatus, { label: string; className: strin
 };
 
 export function ScheduleTimeline() {
-  const [_, setAppointments] = useState<Appointment[]>(CALENDAR_APPOINTMENTS);
+  const [appointments, setAppointments] = useState<Appointment[]>(TODAY_SCHEDULE);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const handleAddAppointment = (newApt: Appointment) => {
-    setAppointments((prev) => [...prev, newApt]);
+  const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
+
+  const handleSaveAppointment = (savedApt: Appointment) => {
+    setAppointments((prev) => {
+      const exists = prev.some((item) => item.id === savedApt.id);
+      if (exists) {
+        return prev.map((item) => (item.id === savedApt.id ? savedApt : item));
+      }
+      return [savedApt, ...prev];
+    });
   };
+
+  const handleOpenAddModal = () => {
+    setEditingAppointment(null);
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEditModal = (apt: Appointment) => {
+    setEditingAppointment(apt);
+    setIsModalOpen(true);
+  };
+
   return (
     <div className="p-6 rounded-2xl bg-white border border-slate-200/80 shadow-sm flex flex-col h-full">
       <div className="flex items-center justify-between mb-5">
@@ -30,19 +48,20 @@ export function ScheduleTimeline() {
           <p className="text-xs text-slate-500">4 appointments remaining</p>
         </div>
         <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-600 text-white text-xs font-semibold hover:bg-purple-700 transition-colors shadow-sm"
-          onClick={() => setIsModalOpen(true)}>
+          onClick={handleOpenAddModal}>
           <Plus className="w-3.5 h-3.5" />
           <span>New Booking</span>
         </button>
       </div>
 
       <div className="flex-1 space-y-3 overflow-y-auto">
-        {TODAY_SCHEDULE.map((item) => {
+        {appointments.map((item) => {
           const statusInfo = STATUS_CONFIG[item.status];
           return (
             <div
               key={item.id}
-              className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/60 hover:bg-purple-50/40 hover:border-purple-200 transition-all flex items-center justify-between"
+              onClick={() => handleOpenEditModal(item)}
+              className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/60 hover:bg-purple-50/40 hover:border-purple-200 transition-all flex items-center justify-between group cursor-pointer"
             >
               <div className="flex items-center gap-3">
                 <div className="text-center min-w-[65px] pr-3 border-r border-slate-200">
@@ -69,7 +88,9 @@ export function ScheduleTimeline() {
 
               <div className="flex items-center gap-3">
                 <span className="text-xs font-bold text-slate-800">{formatCurrency(item.amount)}</span>
-                <ChevronRight className="w-4 h-4 text-slate-400" />
+                <div className="p-1.5 rounded-lg text-slate-400 group-hover:text-purple-600 group-hover:bg-purple-100 border border-transparent group-hover:border-purple-200 transition-all">
+                  <Pencil className="w-3 h-3" />
+                </div>
               </div>
             </div>
           );
@@ -80,7 +101,8 @@ export function ScheduleTimeline() {
       <NewBookingModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onSave={handleAddAppointment}
+        onSave={handleSaveAppointment}
+        initialData={editingAppointment}
       />
     </div>
   );

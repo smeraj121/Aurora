@@ -21,7 +21,7 @@ interface StaffFormDrawerProps {
   initialData?: StaffMember | null; // Pass staff object when editing
 }
 
-const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
 export function StaffFormDrawer({
   isOpen,
@@ -36,7 +36,7 @@ export function StaffFormDrawer({
   const [specialization, setSpecialization] = useState('');
   const [phone, setPhone] = useState('');
   const [commissionRate, setCommissionRate] = useState('15');
-  const [selectedDays, setSelectedDays] = useState<string[]>(['Mon', 'Tue', 'Wed', 'Thu', 'Fri']);
+  const [selectedDays, setSelectedDays] = useState<string[]>(['M', 'T', 'W', 'T', 'F']);
   const [startTime, setStartTime] = useState('10:00 AM');
   const [endTime, setEndTime] = useState('07:00 PM');
   const [status, setStatus] = useState<'Active' | 'On Leave'>('Active');
@@ -65,7 +65,7 @@ export function StaffFormDrawer({
       setSpecialization('');
       setPhone('');
       setCommissionRate('15');
-      setSelectedDays(['Mon', 'Tue', 'Wed', 'Thu', 'Fri']);
+      setSelectedDays(['M', 'T', 'W', 'T', 'F']);
       setStartTime('10:00 AM');
       setEndTime('07:00 PM');
       setStatus('Active');

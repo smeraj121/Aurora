@@ -1,30 +1,52 @@
-import { useState } from 'react';
-import { X, Calendar, Clock, User, Scissors } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { X, Calendar, Clock, User, Scissors, CheckCircle2 } from 'lucide-react';
 import { CALENDAR_STAFF } from '../data/calendarData';
-import type { Appointment } from '../../../shared/types';
+import type { Appointment, AppointmentStatus } from '../../../shared/types';
 
 interface NewBookingModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (appointment: Appointment) => void;
+  initialData?: Appointment | null;
 }
 
-export function NewBookingModal({ isOpen, onClose, onSave }: NewBookingModalProps) {
+export function NewBookingModal({ isOpen, onClose, onSave, initialData }: NewBookingModalProps) {
+  const isEditing = Boolean(initialData);
   const [customerName, setCustomerName] = useState('');
   const [serviceName, setServiceName] = useState('');
   const [staffId, setStaffId] = useState(CALENDAR_STAFF[0].id);
   const [startTime, setStartTime] = useState('11:00 AM');
   const [amount, setAmount] = useState('2500');
+  const [status, setStatus] = useState<AppointmentStatus>('scheduled');
+
+  useEffect(() => {
+    if (initialData && isOpen) {
+      setCustomerName(initialData.customerName);
+      setServiceName(initialData.serviceName);
+      setStaffId(initialData.staffId);
+      setStartTime(initialData.startTime);
+      setAmount(String(initialData.amount));
+      setStatus(initialData.status);
+    } else {
+      // Reset for new booking
+      setCustomerName('');
+      setServiceName('');
+      setStaffId(CALENDAR_STAFF[0].id);
+      setStartTime('11:00 AM');
+      setAmount('2500');
+      setStatus('scheduled');
+    }
+  }, [initialData, isOpen]);
 
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const staff = CALENDAR_STAFF.find((s) => s.id === staffId);
-    
+
     const newApt: Appointment = {
-      id: `apt-${Date.now()}`,
-      customerId: `c-${Date.now()}`,
+      id: initialData ? initialData.id : `apt-${Date.now()}`,
+      customerId: initialData ? initialData.customerId : `c-${Date.now()}`,
       customerName: customerName || 'Walk-in Customer',
       serviceName: serviceName || 'Standard Service',
       staffId: staffId,
@@ -32,7 +54,7 @@ export function NewBookingModal({ isOpen, onClose, onSave }: NewBookingModalProp
       startTime: startTime,
       endTime: '12:00 PM',
       durationMinutes: 60,
-      status: 'scheduled',
+      status: status,
       amount: Number(amount) || 2000,
     };
 
@@ -49,7 +71,7 @@ export function NewBookingModal({ isOpen, onClose, onSave }: NewBookingModalProp
             <div className="p-1.5 rounded-lg bg-purple-500/20 text-purple-300">
               <Calendar className="w-4 h-4" />
             </div>
-            <h3 className="text-base font-bold">New Appointment</h3>
+            <h3 className="text-base font-bold">{isEditing ? 'Edit Appointment' : 'New Appointment'}</h3>
           </div>
           <button
             onClick={onClose}
@@ -127,6 +149,27 @@ export function NewBookingModal({ isOpen, onClose, onSave }: NewBookingModalProp
             </div>
           </div>
 
+          {isEditing && (
+            <div>
+              <label className="text-xs font-semibold text-slate-700 block mb-1.5 flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-slate-400" />
+                Status
+              </label>
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value as AppointmentStatus)}
+                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 bg-white"
+              >
+                <option value="scheduled">Scheduled</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="in_progress">In Progress</option>
+                <option value="completed">Completed</option>
+                <option value="cancelled">Cancelled</option>
+                <option value="no_show">No Show</option>
+              </select>
+            </div>
+          )}
+
           <div>
             <label className="text-xs font-semibold text-slate-700 block mb-1.5">Estimated Price (₹)</label>
             <input
@@ -149,7 +192,7 @@ export function NewBookingModal({ isOpen, onClose, onSave }: NewBookingModalProp
               type="submit"
               className="px-4 py-2 text-xs font-bold text-white bg-purple-600 hover:bg-purple-700 rounded-xl transition-colors shadow-md shadow-purple-900/20"
             >
-              Book Appointment
+              {isEditing ? 'Save Changes' : 'Book Appointment'}
             </button>
           </div>
         </form>

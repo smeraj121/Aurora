@@ -191,7 +191,7 @@ export function ReportsView() {
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value) => [`${value}%`, 'Share']} />  
+                  <Tooltip formatter={(value, name) => [`${value}%`, `${name}`]} />  
                 </PieChart>
               </ResponsiveContainer>
             </div>

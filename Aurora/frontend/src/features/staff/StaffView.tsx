@@ -10,7 +10,7 @@ const INITIAL_STAFF: StaffMember[] = [
     specialization: 'HydraFacial & Keratin Treatments',
     phone: '+91 98112 23344',
     commissionRate: 20,
-    workDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+    workDays: ['M', 'T', 'W', 'T', 'F', 'S'],
     workingHours: '10:00 AM - 07:00 PM',
     status: 'Active',
     avatarColor: 'bg-purple-600',
@@ -22,7 +22,7 @@ const INITIAL_STAFF: StaffMember[] = [
     specialization: 'Beard Grooming & Executive Haircuts',
     phone: '+91 97223 34455',
     commissionRate: 15,
-    workDays: ['Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+    workDays: ['T', 'W', 'T', 'F', 'S', 'S'],
     workingHours: '11:00 AM - 08:00 PM',
     status: 'Active',
     avatarColor: 'bg-blue-600',
@@ -34,7 +34,7 @@ const INITIAL_STAFF: StaffMember[] = [
     specialization: 'Gel Extensions & Nail Art',
     phone: '+91 96334 45566',
     commissionRate: 15,
-    workDays: ['Mon', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+    workDays: ['M', 'W', 'T', 'F', 'S', 'S'],
     workingHours: '10:00 AM - 06:30 PM',
     status: 'Active',
     avatarColor: 'bg-pink-600',
@@ -101,7 +101,7 @@ export function StaffView() {
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
                 <div
-                  className={`w-11 h-11 rounded-full ${staff.avatarColor} text-white flex items-center justify-center font-medium text-sm shadow-xs`}
+                  className={`w-11 h-11 rounded-full bg-purple-600 text-white flex items-center justify-center font-medium text-sm shadow-xs`}
                 >
                   {staff.name.charAt(0)}{staff.name.split(' ')[1]?.charAt(0) || ''}
                 </div>
@@ -169,8 +169,8 @@ export function StaffView() {
               <span className="text-[10px] text-slate-400 font-bold uppercase block mb-1.5">
                 Active Workdays
               </span>
-              <div className="flex flex-wrap gap-1">
-                {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => {
+              <div className="flex flex-wrap gap-1 justify-center">
+                {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day) => {
                   const isActive = staff.workDays.includes(day);
                   return (
                     <span
