@@ -78,6 +78,7 @@ export const TODAY_SCHEDULE: Appointment[] = [
     durationMinutes: 120,
     status: 'completed',
     amount: 4500,
+    date: '2026-05-24',
   },
   {
     id: 'apt-102',
@@ -91,6 +92,7 @@ export const TODAY_SCHEDULE: Appointment[] = [
     durationMinutes: 60,
     status: 'in_progress',
     amount: 1800,
+    date: '2026-05-20',
   },
   {
     id: 'apt-103',
@@ -104,6 +106,7 @@ export const TODAY_SCHEDULE: Appointment[] = [
     durationMinutes: 75,
     status: 'confirmed',
     amount: 2200,
+    date: '2026-05-20',
   },
   {
     id: 'apt-104',
@@ -117,6 +120,7 @@ export const TODAY_SCHEDULE: Appointment[] = [
     durationMinutes: 60,
     status: 'scheduled',
     amount: 3500,
+    date: '2026-05-24',
   },
 ];
 
