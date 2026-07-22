@@ -1,22 +1,25 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Calendar, Clock, User, Scissors, CheckCircle2, DollarSign, Phone, UserCheck, AlertCircle } from 'lucide-react';
-import { CALENDAR_STAFF } from '../data/calendarData';
+import {
+  X,
+  User,
+  Scissors,
+  Clock,
+  UserCheck,
+  DollarSign,
+  Phone,
+  AlertCircle,
+  Calendar as CalendarIcon,
+  CheckCircle2,
+  Clock3,
+  XCircle,
+  Tag,
+  Save
+} from 'lucide-react';
 import type { Appointment, AppointmentStatus } from '../../../shared/types';
-
-//import { useState, useEffect, useRef } from 'react';
-//import { X, User, Scissors, Clock, UserCheck, DollarSign, Phone, AlertCircle } from 'lucide-react';
-//import type { Appointment } from '../../shared/types';
 
 interface StaffMember {
   id: number | string;
   name: string;
-}
-
-interface NewBookingModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSave: (appointment: any) => Promise<void> | void;
-  initialData?: Appointment | null;
 }
 
 interface ServiceItem {
@@ -26,64 +29,39 @@ interface ServiceItem {
   durationMinutes?: number;
 }
 
+interface NewBookingModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (appointment: any) => Promise<void> | void;
+  initialData?: Appointment | null;
+}
+
+const STATUS_OPTIONS = [
+  { id: 'scheduled' as AppointmentStatus, label: 'Scheduled', icon: CalendarIcon },
+  { id: 'confirmed' as AppointmentStatus, label: 'Confirmed', icon: CheckCircle2, color: 'text-blue-500' },
+  { id: 'in_progress' as AppointmentStatus, label: 'In Progress', icon: Clock3, color: 'text-purple-500' },
+  { id: 'completed' as AppointmentStatus, label: 'Completed', icon: CheckCircle2, color: 'text-emerald-500' },
+  { id: 'cancelled' as AppointmentStatus, label: 'Cancelled', icon: XCircle, color: 'text-rose-500' }
+];
+
 export function NewBookingModal({ isOpen, onClose, onSave, initialData }: NewBookingModalProps) {
   const [formData, setFormData] = useState({
-  id: '',
-  customerId: '',
-  customerName: '',
-  phone: '',
-  serviceId: '',
-  serviceName: '',
-  staffId: '',
-  startTime: '11:00 AM',
-  durationMinutes: '30', // <--- Default duration in minutes
-  date: new Date().toISOString().split('T')[0],
-  amount: '',
-  status: 'scheduled'
-});
+    id: '',
+    customerId: '',
+    customerName: '',
+    phone: '',
+    serviceId: '',
+    serviceName: '',
+    staffId: '',
+    startTime: '11:00 AM',
+    durationMinutes: '30',
+    date: new Date().toISOString().split('T')[0],
+    amount: '',
+    status: 'scheduled'
+  });
 
-  const [serviceList, setServiceList] = useState<ServiceItem[]>([]);
-const [selectedServiceId, setSelectedServiceId] = useState<string>('');
-
-// 2. Fetch Services when modal opens
-useEffect(() => {
-  if (isOpen) {
-    fetchServices();
-  }
-}, [isOpen]);
-
-const fetchServices = async () => {
-  try {
-    const res = await fetch('http://localhost:5000/api/services');
-    const json = await res.json();
-    if (json.success && Array.isArray(json.data)) {
-      setServiceList(json.data);
-    }
-  } catch (err) {
-    console.error('Failed to load services:', err);
-  }
-};
-
-// 3. Handle Service Selection (Auto-populates amount if price exists)
-const handleServiceChange = (serviceId: string) => {
-  setSelectedServiceId(serviceId);
-  const foundService = serviceList.find((s) => String(s.id) === String(serviceId));
-
-  setFormData((prev) => ({
-    ...prev,
-    serviceId: serviceId,
-    serviceName: foundService ? foundService.name : '',
-    // Auto-fill price from service if amount is empty or default
-    amount: foundService?.price ? String(foundService.price) : prev.amount,
-    // Auto-fill default duration if available, otherwise keep existing
-    durationMinutes: foundService?.durationMinutes 
-      ? String(foundService.durationMinutes) 
-      : prev.durationMinutes
-  }));
-};
-
-  // Staff and Search States
   const [staffList, setStaffList] = useState<StaffMember[]>([]);
+  const [serviceList, setServiceList] = useState<ServiceItem[]>([]);
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
@@ -93,11 +71,12 @@ const handleServiceChange = (serviceId: string) => {
 
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // 1. Fetch Staff Members on Open
+  // Fetch staff and services on open
   useEffect(() => {
     if (isOpen) {
       setErrorMessage(null);
       fetchStaffMembers();
+      fetchServices();
     }
   }, [isOpen]);
 
@@ -107,16 +86,25 @@ const handleServiceChange = (serviceId: string) => {
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
         setStaffList(json.data);
-        if (json.data.length > 0 && !formData.staffId) {
-          setFormData((prev) => ({ ...prev, staffId: String(json.data[0].id) }));
-        }
       }
     } catch (err) {
       console.error('Failed to load staff list:', err);
     }
   };
 
-  // 2. Load Initial Data or Reset Form
+  const fetchServices = async () => {
+    try {
+      const res = await fetch('http://localhost:5000/api/services');
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) {
+        setServiceList(json.data);
+      }
+    } catch (err) {
+      console.error('Failed to load services:', err);
+    }
+  };
+
+  // Populate data when editing
   useEffect(() => {
     if (initialData) {
       setFormData({
@@ -126,9 +114,9 @@ const handleServiceChange = (serviceId: string) => {
         phone: (initialData as any).phone || (initialData as any).customerPhone || '',
         serviceId: String((initialData as any).serviceId || ''),
         serviceName: initialData.serviceName || '',
-        durationMinutes: String((initialData as any).durationMinutes || '30'),
         staffId: String(initialData.staffId || ''),
         startTime: initialData.startTime || '11:00 AM',
+        durationMinutes: String((initialData as any).durationMinutes || '30'),
         date: initialData.date || new Date().toISOString().split('T')[0],
         amount: String(initialData.amount || ''),
         status: initialData.status || 'scheduled'
@@ -142,9 +130,9 @@ const handleServiceChange = (serviceId: string) => {
         phone: '',
         serviceId: '',
         serviceName: '',
-        durationMinutes: '30',
         staffId: staffList[0] ? String(staffList[0].id) : '',
         startTime: '11:00 AM',
+        durationMinutes: '30',
         date: new Date().toISOString().split('T')[0],
         amount: '',
         status: 'scheduled'
@@ -164,14 +152,10 @@ const handleServiceChange = (serviceId: string) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // 3. Customer Name Search as user types
+  // Customer Name Search
   const handleNameChange = (value: string) => {
     setErrorMessage(null);
-    setFormData((prev) => ({
-      ...prev,
-      customerName: value,
-      customerId: ''
-    }));
+    setFormData((prev) => ({ ...prev, customerName: value, customerId: '' }));
     setIsExistingCustomer(false);
 
     if (value.trim().length > 1) {
@@ -182,9 +166,7 @@ const handleServiceChange = (serviceId: string) => {
         try {
           const res = await fetch(`http://localhost:5000/api/customers?search=${encodeURIComponent(value)}`);
           const json = await res.json();
-          if (json.success) {
-            setSearchResults(json.data || []);
-          }
+          if (json.success) setSearchResults(json.data || []);
         } catch (err) {
           console.error('Customer search error:', err);
         } finally {
@@ -199,22 +181,46 @@ const handleServiceChange = (serviceId: string) => {
     }
   };
 
-  // Select customer from search suggestions dropdown
   const handleSelectCustomer = (customer: any) => {
-    const selectedName = customer.fullName || customer.name || '';
-    const selectedPhone = customer.phone || '';
-
     setFormData((prev) => ({
       ...prev,
       customerId: String(customer.id),
-      customerName: selectedName,
-      phone: selectedPhone
+      customerName: customer.fullName || customer.name || '',
+      phone: customer.phone || ''
     }));
-
     setIsExistingCustomer(true);
     setShowDropdown(false);
     setSearchResults([]);
     setErrorMessage(null);
+  };
+
+  // Handle Service Selection
+  const handleServiceChange = (serviceId: string) => {
+    const selectedService = serviceList.find((s) => String(s.id) === String(serviceId));
+
+    setFormData((prev) => ({
+      ...prev,
+      serviceId,
+      serviceName: selectedService ? selectedService.name : '',
+      amount: selectedService?.price ? String(selectedService.price) : prev.amount,
+      durationMinutes: selectedService?.durationMinutes
+        ? String(selectedService.durationMinutes)
+        : prev.durationMinutes
+    }));
+  };
+
+  // Format Display Date for Banner
+  const formatDisplayDate = (dateStr: string) => {
+    if (!dateStr) return '';
+    const dateObj = new Date(dateStr);
+    if (isNaN(dateObj.getTime())) return dateStr;
+
+    const day = dateObj.getDate();
+    const month = dateObj.toLocaleString('en-US', { month: 'long' });
+    const year = dateObj.getFullYear();
+    const weekday = dateObj.toLocaleString('en-US', { weekday: 'long' });
+
+    return `${day} ${month} ${year} (${weekday})`;
   };
 
   // Submit Handler
@@ -230,16 +236,13 @@ const handleServiceChange = (serviceId: string) => {
     }
 
     if (!isExistingCustomer && !formData.phone.trim()) {
-      setErrorMessage('Phone number is required for new customers to register.');
+      setErrorMessage('Phone number is required for new customers.');
       return;
     }
 
     try {
       setIsSubmitting(true);
-      await onSave({
-        ...formData,
-        customerName: trimmedName
-      });
+      await onSave({ ...formData, customerName: trimmedName });
       onClose();
     } catch (err: any) {
       setErrorMessage(err.message || 'Failed to save appointment');
@@ -251,176 +254,209 @@ const handleServiceChange = (serviceId: string) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
-      <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-100 dark:border-slate-800 transition-all">
-
-        {/* Header */}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-xl overflow-hidden border border-slate-100 transition-all">
+        
+        {/* Modal Header */}
         <div className="bg-slate-900 px-6 py-4 flex items-center justify-between text-white">
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-xl bg-purple-600/30 text-purple-400 flex items-center justify-center">
               <UserCheck className="w-4 h-4" />
             </div>
-            <h3 className="font-bold text-base">
-              {initialData ? 'Edit Appointment' : 'New Appointment'}
-            </h3>
+            <div>
+              <h3 className="font-bold text-base">
+                {initialData ? 'Edit Appointment' : 'New Appointment'}
+              </h3>
+            </div>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors"
+            className="text-slate-400 hover:text-slate-600 p-2 rounded-xl hover:bg-slate-50 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Error Banner */}
+        {/* Error Alert */}
         {errorMessage && (
-          <div className="bg-red-50 dark:bg-red-950/50 border-b border-red-100 dark:border-red-900/50 p-3 px-6 flex items-start gap-2.5 text-xs text-red-600 dark:text-red-400">
+          <div className="bg-red-50 border-b border-red-100 p-3 px-6 flex items-start gap-2.5 text-xs text-red-600">
             <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
             <p>{errorMessage}</p>
           </div>
         )}
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-
-          {/* Customer Name Field with Suggestions */}
-          <div className="relative" ref={dropdownRef}>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                <User className="w-3.5 h-3.5 text-slate-400" />
-                Customer Name *
-              </label>
-              {isExistingCustomer && (
-                <span className="text-[10px] font-bold bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400 px-2 py-0.5 rounded-full">
-                  Registered User
-                </span>
-              )}
+        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+          
+          {/* Appointment Status Section */}
+          <div>
+            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 mb-1">
+              <Tag className="w-3.5 h-3.5 text-purple-600" />
+              <span>Appointment Status</span>
             </div>
+            <p className="text-[11px] text-slate-400 mb-3">Set the current status of this appointment</p>
 
-            <div className="relative">
-              <input
-                type="text"
-                required
-                value={formData.customerName}
-                onChange={(e) => handleNameChange(e.target.value)}
-                placeholder="e.g. Aditi Sharma"
-                className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-purple-600 transition-all"
-              />
-              {isSearching && (
-                <div className="absolute right-3 top-3">
-                  <div className="w-3.5 h-3.5 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />
+            <div className="flex items-center gap-1 pb-1 overflow-x-auto">
+              {STATUS_OPTIONS.map((opt) => {
+                const Icon = opt.icon;
+                const isSelected = formData.status === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => setFormData({ ...formData, status: opt.id })}
+                    className={`relative flex items-center gap-1 px-2.5 py-2 rounded-xl border text-xs transition-all whitespace-nowrap ${
+                      isSelected
+                        ? 'border-2 border-purple-600 bg-purple-50/50 text-purple-700 font-bold shadow-md shadow-purple-600/20'
+                        : 'border-slate-200/80 bg-white text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    <Icon className={`w-3 h-3 ${isSelected ? 'text-purple-600' : opt.color || 'text-slate-400'}`} />
+                    <span className='text-[12px]'>{opt.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Customer Name & Phone */}
+          <div className="grid grid-cols-2 gap-4">
+            {/* Customer Name */}
+            <div className="relative" ref={dropdownRef}>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                  <User className="w-3.5 h-3.5 text-purple-600" />
+                  Customer Name <span className="text-rose-500">*</span>
+                </label>
+                {isExistingCustomer && (
+                  <span className="text-[10px] font-semibold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">
+                    Registered User
+                  </span>
+                )}
+              </div>
+
+              <div className="relative">
+                <input
+                  type="text"
+                  required
+                  value={formData.customerName}
+                  onChange={(e) => handleNameChange(e.target.value)}
+                  placeholder="e.g. Saba"
+                  className="w-full bg-slate-50/80 border border-slate-200/80 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-medium focus:outline-none focus:border-purple-600 transition-all"
+                />
+                {isSearching && (
+                  <div className="absolute right-3 top-3">
+                    <div className="w-3.5 h-3.5 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />
+                  </div>
+                )}
+              </div>
+
+              {/* Suggestions Popup */}
+              {showDropdown && searchResults.length > 0 && (
+                <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto divide-y divide-slate-100">
+                  {searchResults.map((cust) => (
+                    <div
+                      key={cust.id}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        handleSelectCustomer(cust);
+                      }}
+                      className="p-2.5 hover:bg-purple-50 cursor-pointer flex items-center justify-between transition-colors"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-full bg-purple-100 text-purple-600 font-bold flex items-center justify-center text-xs">
+                          {(cust.fullName || cust.name || 'C').charAt(0)}
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-slate-800">
+                            {cust.fullName || cust.name}
+                          </p>
+                          <p className="text-[10px] text-slate-500 flex items-center gap-1 mt-0.5">
+                            <Phone className="w-2.5 h-2.5" />
+                            {cust.phone || 'No phone'}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-semibold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-md">
+                        Select
+                      </span>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
 
-            {/* Suggestions Popup */}
-            {showDropdown && searchResults.length > 0 && (
-              <div className="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-700/50">
-                {searchResults.map((cust) => (
-                  <div
-                    key={cust.id}
-                    // Change onClick to onMouseDown to prevent blur/click race conditions
-                    onMouseDown={(e) => {
-                      e.preventDefault(); // Prevents input blur before selection
-                      handleSelectCustomer(cust);
-                    }}
-                    className="p-2.5 hover:bg-purple-50 dark:hover:bg-slate-700/60 cursor-pointer flex items-center justify-between transition-colors"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-300 font-bold flex items-center justify-center text-xs">
-                        {(cust.fullName || cust.name || 'C').charAt(0)}
-                      </div>
-                      <div>
-                        <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">
-                          {cust.fullName || cust.name}
-                        </p>
-                        <p className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5">
-                          <Phone className="w-2.5 h-2.5" />
-                          {cust.phone || 'No phone number'}
-                        </p>
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-semibold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/60 px-2 py-0.5 rounded-md">
-                      Select
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Phone Field */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
-              <Phone className="w-3.5 h-3.5 text-slate-400" />
-              Phone Number {!isExistingCustomer && <span className="text-red-500">* (Required)</span>}
-            </label>
-            <input
-              type="text"
-              required={!isExistingCustomer}
-              value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              placeholder="e.g. +91 98765 43210"
-              className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-purple-600 transition-all"
-            />
-          </div>
-
-          {/* Available Services Dropdown */}
-<div>
-  {/* Service & Duration Grid */}
-<div className="grid grid-cols-3 gap-3">
-  
-  {/* Service Dropdown (2 cols) */}
-  <div className="col-span-2">
-    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
-      <Scissors className="w-3.5 h-3.5 text-slate-400" />
-      Service Name
-    </label>
-    <select
-      value={formData.serviceId}
-      onChange={(e) => handleServiceChange(e.target.value)}
-      className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-purple-600 cursor-pointer"
-    >
-      <option value="">-- Select Service --</option>
-      {serviceList.map((srv) => (
-        <option key={srv.id} value={srv.id}>
-          {srv.name} {srv.price ? `(₹${srv.price})` : ''}
-        </option>
-      ))}
-    </select>
-  </div>
-
-  {/* Custom Duration Input (1 col) */}
-  <div>
-    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
-      <Clock className="w-3.5 h-3.5 text-slate-400" />
-      Duration (Mins)
-    </label>
-    <input
-      type="number"
-      min="5"
-      step="5"
-      value={formData.durationMinutes}
-      onChange={(e) => setFormData({ ...formData, durationMinutes: e.target.value })}
-      placeholder="30"
-      className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-purple-600 transition-all"
-    />
-  </div>
-
-</div>
-</div>
-
-          {/* Dynamic Staff Dropdown & Time Slot */}
-          <div className="grid grid-cols-2 gap-3">
+            {/* Phone Number */}
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
-                <UserCheck className="w-3.5 h-3.5 text-slate-400" />
+              <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
+                <Phone className="w-3.5 h-3.5 text-purple-600" />
+                Phone Number
+              </label>
+              <input
+                type="text"
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                placeholder="9910821180"
+                className="w-full bg-slate-50/80 border border-slate-200/80 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-medium focus:outline-none focus:border-purple-600 transition-all"
+              />
+            </div>
+          </div>
+
+          {/* Service & Duration */}
+          <div className="grid grid-cols-2 gap-4">
+            {/* Service Dropdown */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
+                <Scissors className="w-3.5 h-3.5 text-purple-600" />
+                Service Name
+                <span className="text-rose-500">*</span>
+              </label>
+              <select
+                value={formData.serviceId}
+                onChange={(e) => handleServiceChange(e.target.value)}
+                className="w-full bg-slate-50/80 border border-slate-200/80 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-medium focus:outline-none focus:border-purple-600 cursor-pointer"
+                required
+              >
+                
+                <option value="">-- Select Service --</option>
+                {serviceList.map((srv) => (
+                  <option key={srv.id} value={srv.id}>
+                    {srv.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Duration */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-purple-600" />
+                Duration (Mins)
+              </label>
+              <input
+                type="number"
+                min="5"
+                step="5"
+                value={formData.durationMinutes}
+                onChange={(e) => setFormData({ ...formData, durationMinutes: e.target.value })}
+                placeholder="30"
+                className="w-full bg-slate-50/80 border border-slate-200/80 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-medium focus:outline-none focus:border-purple-600 transition-all"
+              />
+            </div>
+          </div>
+
+          {/* Assigned Staff & Time Slot */}
+          <div className="grid grid-cols-2 gap-4">
+            {/* Staff */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
+                <UserCheck className="w-3.5 h-3.5 text-purple-600" />
                 Assigned Staff
               </label>
               <select
                 value={formData.staffId}
                 onChange={(e) => setFormData({ ...formData, staffId: e.target.value })}
-                className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-purple-600 cursor-pointer"
+                className="w-full bg-slate-50/80 border border-slate-200/80 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-medium focus:outline-none focus:border-purple-600 cursor-pointer"
               >
                 <option value="">Select Staff</option>
                 {staffList.map((s) => (
@@ -431,100 +467,75 @@ const handleServiceChange = (serviceId: string) => {
               </select>
             </div>
 
+            {/* Time Slot */}
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5 text-slate-400" />
+              <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-purple-600" />
                 Time Slot
               </label>
               <select
                 value={formData.startTime}
                 onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
-                className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-purple-600 cursor-pointer"
+                className="w-full bg-slate-50/80 border border-slate-200/80 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-medium focus:outline-none focus:border-purple-600 cursor-pointer"
               >
                 <option value="09:00 AM">09:00 AM</option>
-<option value="09:15 AM">09:15 AM</option>
-<option value="09:30 AM">09:30 AM</option>
-<option value="09:45 AM">09:45 AM</option>
-<option value="10:00 AM">10:00 AM</option>
-<option value="10:15 AM">10:15 AM</option>
-<option value="10:30 AM">10:30 AM</option>
-<option value="10:45 AM">10:45 AM</option>
-<option value="11:00 AM">11:00 AM</option>
-<option value="11:15 AM">11:15 AM</option>
-<option value="11:30 AM">11:30 AM</option>
-<option value="11:45 AM">11:45 AM</option>
-<option value="12:00 PM">12:00 PM</option>
-<option value="12:15 PM">12:15 PM</option>
-<option value="12:30 PM">12:30 PM</option>
-<option value="12:45 PM">12:45 PM</option>
-<option value="01:00 PM">01:00 PM</option>
-<option value="01:15 PM">01:15 PM</option>
-<option value="01:30 PM">01:30 PM</option>
-<option value="01:45 PM">01:45 PM</option>
-<option value="02:00 PM">02:00 PM</option>
-<option value="02:15 PM">02:15 PM</option>
-<option value="02:30 PM">02:30 PM</option>
-<option value="02:45 PM">02:45 PM</option>
-<option value="03:00 PM">03:00 PM</option>
-<option value="03:15 PM">03:15 PM</option>
-<option value="03:30 PM">03:30 PM</option>
-<option value="03:45 PM">03:45 PM</option>
-<option value="04:00 PM">04:00 PM</option>
-<option value="04:15 PM">04:15 PM</option>
-<option value="04:30 PM">04:30 PM</option>
-<option value="04:45 PM">04:45 PM</option>
-<option value="05:00 PM">05:00 PM</option>
-<option value="05:15 PM">05:15 PM</option>
-<option value="05:30 PM">05:30 PM</option>
-<option value="05:45 PM">05:45 PM</option>
-<option value="06:00 PM">06:00 PM</option>
-<option value="06:15 PM">06:15 PM</option>
-<option value="06:30 PM">06:30 PM</option>
-<option value="06:45 PM">06:45 PM</option>
-<option value="07:00 PM">07:00 PM</option>
-<option value="07:15 PM">07:15 PM</option>
-<option value="07:30 PM">07:30 PM</option>
-<option value="07:45 PM">07:45 PM</option>
-<option value="08:00 PM">08:00 PM</option>
-<option value="08:15 PM">08:15 PM</option>
-<option value="08:30 PM">08:30 PM</option>
-<option value="08:45 PM">08:45 PM</option>
-<option value="09:00 PM">09:00 PM</option>
+                <option value="10:00 AM">10:00 AM</option>
+                <option value="11:00 AM">11:00 AM</option>
+                <option value="12:00 PM">12:00 PM</option>
+                <option value="01:00 PM">01:00 PM</option>
+                <option value="02:00 PM">02:00 PM</option>
+                <option value="03:00 PM">03:00 PM</option>
+                <option value="04:00 PM">04:00 PM</option>
+                <option value="05:00 PM">05:00 PM</option>
               </select>
             </div>
           </div>
 
-          {/* Price Field */}
+          {/* Estimated Price */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
-              <DollarSign className="w-3.5 h-3.5 text-slate-400" />
+            <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
+              <DollarSign className="w-3.5 h-3.5 text-purple-600" />
               Estimated Price (₹)
             </label>
             <input
-              type="number"
+              type="text"
               value={formData.amount}
               onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-              placeholder="2500"
-              className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-purple-600 transition-all"
+              placeholder="850.00"
+              className="w-full bg-slate-50/80 border border-slate-200/80 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-medium focus:outline-none focus:border-purple-600 transition-all"
             />
           </div>
 
-          {/* Buttons */}
-          <div className="pt-2 flex items-center justify-end gap-3">
+          {/* Appointment Date Display Card */}
+          <div className="bg-purple-50/50 border border-purple-100 rounded-2xl p-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center shrink-0">
+              <CalendarIcon className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-purple-900">Appointment Date</p>
+              <p className="text-xs font-semibold text-slate-500 mt-0.5">
+                {formatDisplayDate(formData.date)}
+              </p>
+            </div>
+          </div>
+
+          {/* Modal Actions */}
+          <div className="pt-3 flex items-center justify-end gap-3">
             <button
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              className="px-5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-5 py-2.5 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white shadow-lg shadow-purple-600/25 transition-all disabled:opacity-50"
+              className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-lg shadow-purple-600/30 transition-all disabled:opacity-50"
             >
-              {isSubmitting ? 'Saving...' : initialData ? 'Update Booking' : 'Book Appointment'}
+              <Save className="w-4 h-4" />
+              <span>{isSubmitting ? 'Saving...' : initialData ? 'Update Booking' : 'Book Appointment'}</span>
             </button>
           </div>
 
