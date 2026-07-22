@@ -5,11 +5,31 @@ import { cn, formatCurrency } from '../../lib/utils';
 import type { Appointment } from '../../shared/types';
 //import { api } from '../services/api';
 
-const TIME_SLOTS = [
-  '09:00 AM', '10:00 AM', '11:00 AM', '12:00 PM',
-  '01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM', '05:00 PM'
-];
+const generateTimeSlots = () => {
+  const slots: string[] = [];
 
+  for (let hour = 9; hour < 18; hour++) {
+    for (let minute = 0; minute < 60; minute += 15) {
+      const period = hour >= 12 ? 'PM' : 'AM';
+      const displayHour = hour > 12 ? hour - 12 : hour;
+      const displayMinute = minute.toString().padStart(2, '0');
+
+      slots.push(
+        `${displayHour.toString().padStart(2, '0')}:${displayMinute} ${period}`
+      );
+    }
+  }
+
+  return slots;
+};
+
+const TIME_SLOTS = generateTimeSlots();
+const SLOT_MINUTES = 15;
+
+const getRowSpan = (durationMinutes?: number) => {
+  const duration = Number(durationMinutes || 15);
+  return Math.max(1, Math.ceil(duration / SLOT_MINUTES));
+};
 export function CalendarView() {
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -62,7 +82,7 @@ export function CalendarView() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...savedApt, date: formattedDateString }),
       });
-      fetchScheduleData(); 
+      fetchScheduleData();
     } catch (err) {
       console.error('Failed to save appointment:', err);
     }
@@ -153,26 +173,76 @@ export function CalendarView() {
           </div>
 
           {/* Timeline Slots */}
-          <div className="divide-y divide-slate-100">
+          <div>
             {TIME_SLOTS.map((slot) => (
-              <div key={slot} className="grid grid-cols-12 min-h-[80px]">
-                <div className="col-span-2 p-3 text-xs font-semibold text-slate-500 border-r border-slate-200/80 bg-slate-50/40 flex items-start">
-                  {slot}
+              <div
+                key={slot}
+                className={cn(
+                  "overflow-hidden grid grid-cols-12 min-h-[28px]",
+                  slot.endsWith(":00 AM") || slot.endsWith(":00 PM")
+                    ? "border-t border-slate-300"
+                    : "border-t border-slate-100"
+                )}
+              >
+                <div
+                  className={cn(
+                    "overflow-hidden col-span-2 border-r border-slate-200/80 bg-slate-50/40 flex items-start",
+                    slot.endsWith(":00 AM") || slot.endsWith(":00 PM")
+                      ? "p-3 text-xs font-semibold text-slate-500"
+                      : "px-3 py-1 text-[10px] text-slate-300"
+                  )}
+                >
+                  {slot.endsWith(":00 AM") || slot.endsWith(":00 PM") ? slot : ""}
                 </div>
 
                 <div className="col-span-10 grid grid-cols-3 divide-x divide-slate-100 relative">
                   {filteredStaff.map((staff) => {
                     const matchedApt = appointments.find(
-                      (a: any) => String(a.staffId) === String(staff.id) && a.startTime === slot
+                      (a: any) =>
+                        String(a.staffId) === String(staff.id) &&
+                        a.startTime === slot
                     );
+
+                    const rowSpan = matchedApt
+                      ? getRowSpan(Number((matchedApt as any).durationMinutes))
+                      : 1;
+
+                    const occupied = appointments.some((apt: any) => {
+                      if (String(apt.staffId) !== String(staff.id)) return false;
+
+                      const startIndex = TIME_SLOTS.indexOf(apt.startTime);
+                      const currentIndex = TIME_SLOTS.indexOf(slot);
+
+                      if (startIndex === -1 || currentIndex === -1) return false;
+
+                      const span = getRowSpan(Number(apt.durationMinutes));
+
+                      return (
+                        currentIndex > startIndex &&
+                        currentIndex < startIndex + span
+                      );
+                    });
+
+                    if (occupied) {
+                      return (
+                        <div
+                          key={staff.id}
+                          className="border-r border-slate-100"
+                        />
+                      );
+                    }
 
                     return (
                       <div key={staff.id} className="p-2 relative group hover:bg-slate-50/50 transition-colors cursor-pointer">
                         {matchedApt ? (
                           <div
                             onClick={() => handleOpenModal(matchedApt)}
+                            style={{
+                              gridRow: `span ${rowSpan}`
+                            }}
                             className={cn(
-                              'p-2.5 rounded-xl border text-xs h-full flex flex-col justify-between shadow-xs transition-all hover:scale-[1.01] cursor-pointer',
+                              'p-2.5 rounded-xl border text-xs flex flex-col justify-between shadow-xs transition-all hover:scale-[1.01] cursor-pointer',
+                              matchedApt.status === 'scheduled' && 'bg-violet-50 border-violet-200 text-violet-950',
                               matchedApt.status === 'completed' && 'bg-emerald-50/80 border-emerald-200 text-emerald-950',
                               matchedApt.status === 'in_progress' && 'bg-purple-50 border-purple-300 text-purple-950 ring-2 ring-purple-500/20',
                               matchedApt.status === 'confirmed' && 'bg-blue-50/80 border-blue-200 text-blue-950'
@@ -197,7 +267,7 @@ export function CalendarView() {
                         ) : (
                           <button
                             onClick={() => handleOpenModal()}
-                            className="w-full h-full min-h-[60px] rounded-xl border border-dashed border-transparent group-hover:border-slate-300 flex items-center justify-center text-slate-400 opacity-0 group-hover:opacity-100 transition-all hover:bg-white"
+                            className="w-full h-full min-h-[24px] rounded-xl border border-dashed border-transparent group-hover:border-slate-300 flex items-center justify-center text-slate-400 opacity-0 group-hover:opacity-100 transition-all hover:bg-white"
                           >
                             <Plus className="w-4 h-4 text-slate-400" />
                             <span className="text-xs font-medium ml-1">Book</span>

@@ -23,21 +23,24 @@ interface ServiceItem {
   id: number | string;
   name: string;
   price?: number;
+  durationMinutes?: number;
 }
 
 export function NewBookingModal({ isOpen, onClose, onSave, initialData }: NewBookingModalProps) {
   const [formData, setFormData] = useState({
-    id: '',
-    customerId: '',
-    customerName: '',
-    phone: '',
-    serviceName: '',
-    staffId: '',
-    startTime: '11:00 AM',
-    date: new Date().toISOString().split('T')[0],
-    amount: '',
-    status: 'scheduled'
-  });
+  id: '',
+  customerId: '',
+  customerName: '',
+  phone: '',
+  serviceId: '',
+  serviceName: '',
+  staffId: '',
+  startTime: '11:00 AM',
+  durationMinutes: '30', // <--- Default duration in minutes
+  date: new Date().toISOString().split('T')[0],
+  amount: '',
+  status: 'scheduled'
+});
 
   const [serviceList, setServiceList] = useState<ServiceItem[]>([]);
 const [selectedServiceId, setSelectedServiceId] = useState<string>('');
@@ -71,7 +74,11 @@ const handleServiceChange = (serviceId: string) => {
     serviceId: serviceId,
     serviceName: foundService ? foundService.name : '',
     // Auto-fill price from service if amount is empty or default
-    amount: foundService?.price ? String(foundService.price) : prev.amount
+    amount: foundService?.price ? String(foundService.price) : prev.amount,
+    // Auto-fill default duration if available, otherwise keep existing
+    durationMinutes: foundService?.durationMinutes 
+      ? String(foundService.durationMinutes) 
+      : prev.durationMinutes
   }));
 };
 
@@ -117,7 +124,9 @@ const handleServiceChange = (serviceId: string) => {
         customerId: String(initialData.customerId || ''),
         customerName: initialData.customerName || '',
         phone: (initialData as any).phone || (initialData as any).customerPhone || '',
+        serviceId: String((initialData as any).serviceId || ''),
         serviceName: initialData.serviceName || '',
+        durationMinutes: String((initialData as any).durationMinutes || '30'),
         staffId: String(initialData.staffId || ''),
         startTime: initialData.startTime || '11:00 AM',
         date: initialData.date || new Date().toISOString().split('T')[0],
@@ -131,7 +140,9 @@ const handleServiceChange = (serviceId: string) => {
         customerId: '',
         customerName: '',
         phone: '',
+        serviceId: '',
         serviceName: '',
+        durationMinutes: '30',
         staffId: staffList[0] ? String(staffList[0].id) : '',
         startTime: '11:00 AM',
         date: new Date().toISOString().split('T')[0],
@@ -317,11 +328,11 @@ const handleServiceChange = (serviceId: string) => {
                   >
                     <div className="flex items-center gap-2.5">
                       <div className="w-7 h-7 rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-300 font-bold flex items-center justify-center text-xs">
-                        {(cust.full_name || cust.name || 'C').charAt(0)}
+                        {(cust.fullName || cust.name || 'C').charAt(0)}
                       </div>
                       <div>
                         <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">
-                          {cust.full_name || cust.name}
+                          {cust.fullName || cust.name}
                         </p>
                         <p className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5">
                           <Phone className="w-2.5 h-2.5" />
@@ -356,22 +367,47 @@ const handleServiceChange = (serviceId: string) => {
 
           {/* Available Services Dropdown */}
 <div>
-  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
-    <Scissors className="w-3.5 h-3.5 text-slate-400" />
-    Select Service
-  </label>
-  <select
-    value={selectedServiceId}
-    onChange={(e) => handleServiceChange(e.target.value)}
-    className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-purple-600 cursor-pointer"
-  >
-    <option value="">-- Choose a Service --</option>
-    {serviceList.map((srv) => (
-      <option key={srv.id} value={srv.id}>
-        {srv.name} {srv.price ? `(₹${srv.price})` : ''}
-      </option>
-    ))}
-  </select>
+  {/* Service & Duration Grid */}
+<div className="grid grid-cols-3 gap-3">
+  
+  {/* Service Dropdown (2 cols) */}
+  <div className="col-span-2">
+    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
+      <Scissors className="w-3.5 h-3.5 text-slate-400" />
+      Service Name
+    </label>
+    <select
+      value={formData.serviceId}
+      onChange={(e) => handleServiceChange(e.target.value)}
+      className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-purple-600 cursor-pointer"
+    >
+      <option value="">-- Select Service --</option>
+      {serviceList.map((srv) => (
+        <option key={srv.id} value={srv.id}>
+          {srv.name} {srv.price ? `(₹${srv.price})` : ''}
+        </option>
+      ))}
+    </select>
+  </div>
+
+  {/* Custom Duration Input (1 col) */}
+  <div>
+    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
+      <Clock className="w-3.5 h-3.5 text-slate-400" />
+      Duration (Mins)
+    </label>
+    <input
+      type="number"
+      min="5"
+      step="5"
+      value={formData.durationMinutes}
+      onChange={(e) => setFormData({ ...formData, durationMinutes: e.target.value })}
+      placeholder="30"
+      className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-purple-600 transition-all"
+    />
+  </div>
+
+</div>
 </div>
 
           {/* Dynamic Staff Dropdown & Time Slot */}
@@ -406,14 +442,54 @@ const handleServiceChange = (serviceId: string) => {
                 className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-purple-600 cursor-pointer"
               >
                 <option value="09:00 AM">09:00 AM</option>
-                <option value="10:00 AM">10:00 AM</option>
-                <option value="11:00 AM">11:00 AM</option>
-                <option value="12:00 PM">12:00 PM</option>
-                <option value="01:00 PM">01:00 PM</option>
-                <option value="02:00 PM">02:00 PM</option>
-                <option value="03:00 PM">03:00 PM</option>
-                <option value="04:00 PM">04:00 PM</option>
-                <option value="05:00 PM">05:00 PM</option>
+<option value="09:15 AM">09:15 AM</option>
+<option value="09:30 AM">09:30 AM</option>
+<option value="09:45 AM">09:45 AM</option>
+<option value="10:00 AM">10:00 AM</option>
+<option value="10:15 AM">10:15 AM</option>
+<option value="10:30 AM">10:30 AM</option>
+<option value="10:45 AM">10:45 AM</option>
+<option value="11:00 AM">11:00 AM</option>
+<option value="11:15 AM">11:15 AM</option>
+<option value="11:30 AM">11:30 AM</option>
+<option value="11:45 AM">11:45 AM</option>
+<option value="12:00 PM">12:00 PM</option>
+<option value="12:15 PM">12:15 PM</option>
+<option value="12:30 PM">12:30 PM</option>
+<option value="12:45 PM">12:45 PM</option>
+<option value="01:00 PM">01:00 PM</option>
+<option value="01:15 PM">01:15 PM</option>
+<option value="01:30 PM">01:30 PM</option>
+<option value="01:45 PM">01:45 PM</option>
+<option value="02:00 PM">02:00 PM</option>
+<option value="02:15 PM">02:15 PM</option>
+<option value="02:30 PM">02:30 PM</option>
+<option value="02:45 PM">02:45 PM</option>
+<option value="03:00 PM">03:00 PM</option>
+<option value="03:15 PM">03:15 PM</option>
+<option value="03:30 PM">03:30 PM</option>
+<option value="03:45 PM">03:45 PM</option>
+<option value="04:00 PM">04:00 PM</option>
+<option value="04:15 PM">04:15 PM</option>
+<option value="04:30 PM">04:30 PM</option>
+<option value="04:45 PM">04:45 PM</option>
+<option value="05:00 PM">05:00 PM</option>
+<option value="05:15 PM">05:15 PM</option>
+<option value="05:30 PM">05:30 PM</option>
+<option value="05:45 PM">05:45 PM</option>
+<option value="06:00 PM">06:00 PM</option>
+<option value="06:15 PM">06:15 PM</option>
+<option value="06:30 PM">06:30 PM</option>
+<option value="06:45 PM">06:45 PM</option>
+<option value="07:00 PM">07:00 PM</option>
+<option value="07:15 PM">07:15 PM</option>
+<option value="07:30 PM">07:30 PM</option>
+<option value="07:45 PM">07:45 PM</option>
+<option value="08:00 PM">08:00 PM</option>
+<option value="08:15 PM">08:15 PM</option>
+<option value="08:30 PM">08:30 PM</option>
+<option value="08:45 PM">08:45 PM</option>
+<option value="09:00 PM">09:00 PM</option>
               </select>
             </div>
           </div>

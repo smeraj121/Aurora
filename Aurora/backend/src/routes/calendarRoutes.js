@@ -30,6 +30,8 @@ router.post('/', async (req, res) => {
       staffId,
       serviceId,
       startTime,
+      durationMinutes,
+      duration,
       date,
       amount,
       notes,
@@ -50,7 +52,13 @@ router.post('/', async (req, res) => {
     const cleanAppointmentId = parseNumericId(id);
     let cleanCustomerId = parseNumericId(customerId);
     const cleanStaffId = parseNumericId(staffId);
+    const cleanServiceId = parseNumericId(serviceId);
     const parsedAmount = amount ? parseFloat(amount) : 0;
+    
+    // Parse duration (e.g. from durationMinutes or duration field, defaulting to 30 mins)
+    const rawDuration = durationMinutes || duration;
+    const parsedDuration = rawDuration ? parseInt(rawDuration, 10) : 30;
+    
     const cleanPhone = phone ? phone.trim() : null;
     const appointmentDate = date || new Date().toISOString().split('T')[0];
 
@@ -80,12 +88,11 @@ router.post('/', async (req, res) => {
         if (phoneMatch.full_name.toLowerCase() !== customerName.trim().toLowerCase()) {
           return res.status(400).json({
             success: false,
-            message: `A customer (${phoneMatch.full_name}) with phone "${cleanPhone}" is already registered. Please select them from suggestions.`
+            message: `A customer (${phoneMatch.full_name}) with phone "${cleanPhone}" is already registered.`
           });
         }
         cleanCustomerId = phoneMatch.id;
       } else {
-        // Register new customer
         const newCustomer = await calendarRepo.createCustomer(customerName.trim(), cleanPhone);
         cleanCustomerId = newCustomer.id;
       }
@@ -97,9 +104,10 @@ router.post('/', async (req, res) => {
     const bookingPayload = {
       customerId: cleanCustomerId,
       staffId: cleanStaffId,
-      serviceId: parseNumericId(serviceId),
+      serviceId: cleanServiceId,
       date: appointmentDate,
       startTime: startTime || '11:00 AM',
+      durationMinutes: parsedDuration,
       amount: parsedAmount,
       notes: notes || '',
       status: status || 'scheduled'
