@@ -125,3 +125,5 @@ INSERT INTO services (name, category, duration_minutes, price) VALUES
   ('Beard Trim & Facial', 'Spa', 45, 850.00),
   ('Luxury Manicure', 'Nails', 45, 1000.00)
 ON CONFLICT (name) DO NOTHING;
+
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS duration_minutes INT DEFAULT 30;

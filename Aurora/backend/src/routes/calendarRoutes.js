@@ -1,8 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const calendarRepo = require('../repositories/calendarRepository');
-//const customerRepo = require('../repositories/customerRepository');
-//const db = require('../config/db');
+
 
 
 // GET /api/calendar?date=YYYY-MM-DD
@@ -13,6 +12,18 @@ router.get('/', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Date parameter is required.' });
     }
     const schedule = await calendarRepo.findScheduleByDate(date);
+    schedule.forEach((appointment) => {
+  if (appointment.startTime) {
+    const [hours, minutes] = appointment.startTime.split(':').map(Number);
+
+    const period = hours >= 12 ? 'PM' : 'AM';
+    const displayHours = hours % 12 || 12;
+
+    appointment.startTime = `${displayHours}:${minutes
+      .toString()
+      .padStart(2, '0')} ${period}`;
+  }
+});
     res.json({ success: true, data: schedule });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -110,7 +121,7 @@ router.post('/', async (req, res) => {
       durationMinutes: parsedDuration,
       amount: parsedAmount,
       notes: notes || '',
-      status: status || 'scheduled'
+      status: status || 'scheduled',
     };
 
     let savedAppointment;

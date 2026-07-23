@@ -1,63 +1,79 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+
+async function request(
+  endpoint: string,
+  options: RequestInit = {}
+) {
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+    ...options,
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || "Something went wrong");
+  }
+
+  return data;
+}
 
 export const api = {
   // Appointments
   async getAppointments(date: string) {
-    const res = await fetch(`${API_BASE_URL}/appointments?date=${date}`);
-    return res.json();
-  },
-  async createAppointment(data: any) {
-    const res = await fetch(`${API_BASE_URL}/appointments`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    return res.json();
-  },
-  async updateAppointment(id: string, data: any) {
-    const res = await fetch(`${API_BASE_URL}/appointments/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    return res.json();
-  },
-  async deleteAppointment(id: string) {
-    const res = await fetch(`${API_BASE_URL}/appointments/${id}`, {
-      method: 'DELETE',
-    });
-    return res.json();
-  },
+  return request(`/appointments?date=${date}`);
+},
 
+async createAppointment(data: any) {
+  return request("/appointments", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+},
+
+async updateAppointment(id: number, data: any) {
+  return request(`/appointments/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+},
+
+async deleteAppointment(id: number) {
+  return request(`/appointments/${id}`, {
+    method: "DELETE",
+  });
+},
   // Staff
   async getStaff() {
-    const res = await fetch(`${API_BASE_URL}/staff`);
-    return res.json();
-  },
+    return request("/staff");
+},
 
-  // Customers
-  async getCustomers(search = '') {
-    const res = await fetch(`${API_BASE_URL}/customers?search=${encodeURIComponent(search)}`);
-    return res.json();
-  },
-  async getCustomerDetails(id: string) {
-    const res = await fetch(`${API_BASE_URL}/customers/${id}`);
-    return res.json();
-  },
-  async createCustomer(data: any) {
-    const res = await fetch(`${API_BASE_URL}/customers`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    return res.json();
-  },
-  async updateCustomer(id: string, data: any) {
-    const res = await fetch(`${API_BASE_URL}/customers/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    return res.json();
-  },
+// Customers
+  async getCustomers(search = "") {
+  return request(
+    `/customers${search ? `?search=${encodeURIComponent(search)}` : ""}`
+  );
+},
+
+async getCustomerDetails(id: number) {
+  return request(`/customers/${id}`);
+},
+
+async createCustomer(data: any) {
+  return request("/customers", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+},
+
+async updateCustomer(id: number, data: any) {
+  return request(`/customers/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+},
 };

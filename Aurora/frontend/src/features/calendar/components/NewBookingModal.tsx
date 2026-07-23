@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import {
   X,
   User,
@@ -13,56 +13,72 @@ import {
   Clock3,
   XCircle,
   Tag,
-  Save
+  Save,
+  Check,
+  CreditCard,
+  Users,
+  CalendarDays,
+  ChevronDown,
+  type LucideIcon,
 } from 'lucide-react';
-import type { Appointment, AppointmentStatus } from '../../../shared/types';
 
-interface StaffMember {
-  id: number | string;
-  name: string;
-}
+import type { AppointmentStatus } from '../../../shared/types';
+import type {
+  StaffMember,
+  ServiceItem,
+  CustomerSearchResult,
+  BookingFormData,
+  NewBookingModalProps,
+  PaymentStatus,
+} from '../../../shared/types/booking';
 
-interface ServiceItem {
-  id: number | string;
-  name: string;
-  price?: number;
-  durationMinutes?: number;
-}
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
-interface NewBookingModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSave: (appointment: any) => Promise<void> | void;
-  initialData?: Appointment | null;
-}
-
-const STATUS_OPTIONS = [
-  { id: 'scheduled' as AppointmentStatus, label: 'Scheduled', icon: CalendarIcon },
-  { id: 'confirmed' as AppointmentStatus, label: 'Confirmed', icon: CheckCircle2, color: 'text-blue-500' },
-  { id: 'in_progress' as AppointmentStatus, label: 'In Progress', icon: Clock3, color: 'text-purple-500' },
-  { id: 'completed' as AppointmentStatus, label: 'Completed', icon: CheckCircle2, color: 'text-emerald-500' },
-  { id: 'cancelled' as AppointmentStatus, label: 'Cancelled', icon: XCircle, color: 'text-rose-500' }
+// Config Options
+const STATUS_OPTIONS: { id: AppointmentStatus; label: string; icon: LucideIcon; color?: string }[] = [
+  { id: 'scheduled', label: 'Scheduled', icon: CalendarIcon },
+  { id: 'confirmed', label: 'Confirmed', icon: CheckCircle2, color: 'text-blue-500' },
+  { id: 'in_progress', label: 'In Progress', icon: Clock3, color: 'text-purple-500' },
+  { id: 'completed', label: 'Completed', icon: CheckCircle2, color: 'text-emerald-500' },
+  { id: 'cancelled', label: 'Cancelled', icon: XCircle, color: 'text-rose-500' },
 ];
 
-export function NewBookingModal({ isOpen, onClose, onSave, initialData }: NewBookingModalProps) {
-  const [formData, setFormData] = useState({
-    id: '',
-    customerId: '',
-    customerName: '',
-    phone: '',
-    serviceId: '',
-    serviceName: '',
-    staffId: '',
-    startTime: '11:00 AM',
-    durationMinutes: '30',
-    date: new Date().toISOString().split('T')[0],
-    amount: '',
-    status: 'scheduled'
-  });
+const PAYMENT_STATUS_OPTIONS: { id: PaymentStatus; label: string; color: string }[] = [
+  { id: 'pending', label: 'Pending', color: 'bg-amber-100 text-amber-800' },
+  { id: 'partial', label: 'Partial', color: 'bg-blue-100 text-blue-800' },
+  { id: 'paid', label: 'Paid', color: 'bg-emerald-100 text-emerald-800' },
+  { id: 'refunded', label: 'Refunded', color: 'bg-rose-100 text-rose-800' },
+];
 
+const TIME_SLOTS = [
+  '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM',
+  '12:00 PM', '12:30 PM', '01:00 PM', '01:30 PM', '02:00 PM', '02:30 PM',
+  '03:00 PM', '03:30 PM', '04:00 PM', '04:30 PM', '05:00 PM', '05:30 PM',
+  '06:00 PM', '06:30 PM', '07:00 PM',
+];
+
+const DEFAULT_FORM_STATE: BookingFormData = {
+  id: '',
+  customerId: '',
+  customerName: '',
+  phone: '',
+  serviceId: '',
+  serviceName: '',
+  staffId: '',
+  startTime: '11:00 AM',
+  durationMinutes: '30',
+  date: new Date().toISOString().split('T')[0],
+  amount: '',
+  status: 'scheduled',
+  paymentStatus: 'pending',
+  paymentAmount: '',
+};
+
+export function NewBookingModal({ isOpen, onClose, onSave, initialData }: NewBookingModalProps) {
+  const [formData, setFormData] = useState<BookingFormData>(DEFAULT_FORM_STATE);
   const [staffList, setStaffList] = useState<StaffMember[]>([]);
   const [serviceList, setServiceList] = useState<ServiceItem[]>([]);
-  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchResults, setSearchResults] = useState<CustomerSearchResult[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [isExistingCustomer, setIsExistingCustomer] = useState(false);
@@ -71,41 +87,45 @@ export function NewBookingModal({ isOpen, onClose, onSave, initialData }: NewBoo
 
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Fetch staff and services on open
+  // Load staff & service options on mount/open
   useEffect(() => {
-    if (isOpen) {
-      setErrorMessage(null);
-      fetchStaffMembers();
-      fetchServices();
-    }
+    if (!isOpen) return;
+
+    setErrorMessage(null);
+    const fetchData = async () => {
+      try {
+        const [staffRes, serviceRes] = await Promise.all([
+          fetch(`${API_BASE_URL}/api/staff`),
+          fetch(`${API_BASE_URL}/api/services`),
+        ]);
+
+        const [staffJson, serviceJson] = await Promise.all([
+          staffRes.json(),
+          serviceRes.json(),
+        ]);
+
+        if (staffJson.success && Array.isArray(staffJson.data)) {
+          setStaffList(staffJson.data);
+          if (staffJson.data.length > 0 && !formData.staffId) {
+            setFormData((prev: any) => ({ ...prev, staffId: String(staffJson.data[0].id) }));
+          }
+        }
+
+        if (serviceJson.success && Array.isArray(serviceJson.data)) {
+          setServiceList(serviceJson.data);
+        }
+      } catch (err) {
+        console.error('Error fetching modal reference data:', err);
+      }
+    };
+
+    fetchData();
   }, [isOpen]);
 
-  const fetchStaffMembers = async () => {
-    try {
-      const res = await fetch('http://localhost:5000/api/staff');
-      const json = await res.json();
-      if (json.success && Array.isArray(json.data)) {
-        setStaffList(json.data);
-      }
-    } catch (err) {
-      console.error('Failed to load staff list:', err);
-    }
-  };
-
-  const fetchServices = async () => {
-    try {
-      const res = await fetch('http://localhost:5000/api/services');
-      const json = await res.json();
-      if (json.success && Array.isArray(json.data)) {
-        setServiceList(json.data);
-      }
-    } catch (err) {
-      console.error('Failed to load services:', err);
-    }
-  };
-
-  // Populate data when editing
+  // Sync Form State with initialData or reset
   useEffect(() => {
+    if (!isOpen) return;
+
     if (initialData) {
       setFormData({
         id: String(initialData.id || ''),
@@ -119,29 +139,22 @@ export function NewBookingModal({ isOpen, onClose, onSave, initialData }: NewBoo
         durationMinutes: String((initialData as any).durationMinutes || '30'),
         date: initialData.date || new Date().toISOString().split('T')[0],
         amount: String(initialData.amount || ''),
-        status: initialData.status || 'scheduled'
+        status: initialData.status || 'scheduled',
+        paymentStatus: ((initialData as any).paymentStatus as PaymentStatus) || 'pending',
+        paymentAmount: String((initialData as any).paymentAmount || ''),
       });
       setIsExistingCustomer(Boolean(initialData.customerId));
     } else {
       setFormData({
-        id: '',
-        customerId: '',
-        customerName: '',
-        phone: '',
-        serviceId: '',
-        serviceName: '',
+        ...DEFAULT_FORM_STATE,
         staffId: staffList[0] ? String(staffList[0].id) : '',
-        startTime: '11:00 AM',
-        durationMinutes: '30',
         date: new Date().toISOString().split('T')[0],
-        amount: '',
-        status: 'scheduled'
       });
       setIsExistingCustomer(false);
     }
-  }, [initialData, isOpen]);
+  }, [initialData, isOpen, staffList]);
 
-  // Handle click outside dropdown
+  // Outside Click Listener for Dropdown
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
@@ -154,8 +167,7 @@ export function NewBookingModal({ isOpen, onClose, onSave, initialData }: NewBoo
 
   // Customer Name Search
   const handleNameChange = (value: string) => {
-    setErrorMessage(null);
-    setFormData((prev) => ({ ...prev, customerName: value, customerId: '' }));
+    setFormData((prev: any) => ({ ...prev, customerName: value, customerId: '' }));
     setIsExistingCustomer(false);
 
     if (value.trim().length > 1) {
@@ -164,7 +176,7 @@ export function NewBookingModal({ isOpen, onClose, onSave, initialData }: NewBoo
 
       const timer = setTimeout(async () => {
         try {
-          const res = await fetch(`http://localhost:5000/api/customers?search=${encodeURIComponent(value)}`);
+          const res = await fetch(`${API_BASE_URL}/api/customers?search=${encodeURIComponent(value)}`);
           const json = await res.json();
           if (json.success) setSearchResults(json.data || []);
         } catch (err) {
@@ -181,12 +193,12 @@ export function NewBookingModal({ isOpen, onClose, onSave, initialData }: NewBoo
     }
   };
 
-  const handleSelectCustomer = (customer: any) => {
-    setFormData((prev) => ({
+  const handleSelectCustomer = (customer: CustomerSearchResult) => {
+    setFormData((prev: any) => ({
       ...prev,
       customerId: String(customer.id),
       customerName: customer.fullName || customer.name || '',
-      phone: customer.phone || ''
+      phone: customer.phone || '',
     }));
     setIsExistingCustomer(true);
     setShowDropdown(false);
@@ -194,7 +206,6 @@ export function NewBookingModal({ isOpen, onClose, onSave, initialData }: NewBoo
     setErrorMessage(null);
   };
 
-  // Handle Service Selection
   const handleServiceChange = (serviceId: string) => {
     const selectedService = serviceList.find((s) => String(s.id) === String(serviceId));
 
@@ -205,44 +216,42 @@ export function NewBookingModal({ isOpen, onClose, onSave, initialData }: NewBoo
       amount: selectedService?.price ? String(selectedService.price) : prev.amount,
       durationMinutes: selectedService?.durationMinutes
         ? String(selectedService.durationMinutes)
-        : prev.durationMinutes
+        : prev.durationMinutes,
     }));
   };
 
-  // Format Display Date for Banner
-  const formatDisplayDate = (dateStr: string) => {
-    if (!dateStr) return '';
-    const dateObj = new Date(dateStr);
-    if (isNaN(dateObj.getTime())) return dateStr;
+  // Payment Completion Validation
+  const paymentValidationError = useMemo(() => {
+    if (formData.status === 'completed') {
+      if (formData.paymentStatus !== 'paid') {
+        return 'Cannot set to "Completed" without "Paid" payment status.';
+      }
+      const total = parseFloat(formData.amount) || 0;
+      const paid = parseFloat(formData.paymentAmount) || 0;
+      if (paid < total) {
+        return `Received amount (₹${paid}) is less than total price (₹${total}).`;
+      }
+    }
+    return null;
+  }, [formData.status, formData.paymentStatus, formData.paymentAmount, formData.amount]);
 
-    const day = dateObj.getDate();
-    const month = dateObj.toLocaleString('en-US', { month: 'long' });
-    const year = dateObj.getFullYear();
-    const weekday = dateObj.toLocaleString('en-US', { weekday: 'long' });
-
-    return `${day} ${month} ${year} (${weekday})`;
-  };
-
-  // Submit Handler
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
 
-    const trimmedName = formData.customerName ? formData.customerName.trim() : '';
+    if (!formData.customerName.trim()) return setErrorMessage('Customer name is required');
+    if (!formData.phone.trim()) return setErrorMessage('Phone number is required');
+    if (!formData.serviceId) return setErrorMessage('Please select a service');
+    if (!formData.staffId) return setErrorMessage('Please select staff member');
 
-    if (!trimmedName) {
-      setErrorMessage('Customer name is required.');
-      return;
-    }
-
-    if (!isExistingCustomer && !formData.phone.trim()) {
-      setErrorMessage('Phone number is required for new customers.');
+    if (paymentValidationError) {
+      setErrorMessage(paymentValidationError);
       return;
     }
 
     try {
       setIsSubmitting(true);
-      await onSave({ ...formData, customerName: trimmedName });
+      await onSave(formData);
       onClose();
     } catch (err: any) {
       setErrorMessage(err.message || 'Failed to save appointment');
@@ -254,24 +263,23 @@ export function NewBookingModal({ isOpen, onClose, onSave, initialData }: NewBoo
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-xl overflow-hidden border border-slate-100 transition-all">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto">
+      <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-xl my-4 border border-slate-100 transition-all overflow-hidden">
         
-        {/* Modal Header */}
-        <div className="bg-slate-900 px-6 py-4 flex items-center justify-between text-white">
+        {/* Header */}
+        <div className="bg-slate-900 px-4 sm:px-6 py-4 flex items-center justify-between text-white sticky top-0 z-10">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-purple-600/30 text-purple-400 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-xl bg-purple-600/30 text-purple-400 flex items-center justify-center shrink-0">
               <UserCheck className="w-4 h-4" />
             </div>
-            <div>
-              <h3 className="font-bold text-base">
-                {initialData ? 'Edit Appointment' : 'New Appointment'}
-              </h3>
-            </div>
+            <h3 className="font-bold text-sm sm:text-base">
+              {initialData ? 'Edit Appointment' : 'New Booking'}
+            </h3>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 p-2 rounded-xl hover:bg-slate-50 transition-colors"
+            className="text-slate-400 hover:text-white p-1.5 rounded-xl hover:bg-slate-800 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -279,70 +287,62 @@ export function NewBookingModal({ isOpen, onClose, onSave, initialData }: NewBoo
 
         {/* Error Alert */}
         {errorMessage && (
-          <div className="bg-red-50 border-b border-red-100 p-3 px-6 flex items-start gap-2.5 text-xs text-red-600">
-            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+          <div className="bg-red-50 border-l-4 border-red-500 p-3 px-6 flex items-center gap-2.5 text-xs text-red-600">
+            <AlertCircle className="w-4 h-4 shrink-0" />
             <p>{errorMessage}</p>
           </div>
         )}
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 max-h-[calc(100vh-180px)] overflow-y-auto">
           
-          {/* Appointment Status Section */}
-          <div>
-            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 mb-1">
+          {/* Appointment Status Options */}
+          <div className="text-xs font-bold text-slate-700 flex items-center gap-1 mr-1">
               <Tag className="w-3.5 h-3.5 text-purple-600" />
-              <span>Appointment Status</span>
+              Status:
             </div>
-            <p className="text-[11px] text-slate-400 mb-3">Set the current status of this appointment</p>
-
-            <div className="flex items-center gap-1 pb-1 overflow-x-auto">
-              {STATUS_OPTIONS.map((opt) => {
-                const Icon = opt.icon;
-                const isSelected = formData.status === opt.id;
-                return (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => setFormData({ ...formData, status: opt.id })}
-                    className={`relative flex items-center gap-1 px-2.5 py-2 rounded-xl border text-xs transition-all whitespace-nowrap ${
-                      isSelected
-                        ? 'border-2 border-purple-600 bg-purple-50/50 text-purple-700 font-bold shadow-md shadow-purple-600/20'
-                        : 'border-slate-200/80 bg-white text-slate-600 hover:bg-slate-50'
-                    }`}
-                  >
-                    <Icon className={`w-3 h-3 ${isSelected ? 'text-purple-600' : opt.color || 'text-slate-400'}`} />
-                    <span className='text-[12px]'>{opt.label}</span>
-                  </button>
-                );
-              })}
-            </div>
+          <div className="flex flex-wrap items-center gap-1.5 pb-1">
+            {STATUS_OPTIONS.map((opt) => {
+              const Icon = opt.icon;
+              const isSelected = formData.status === opt.id;
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => setFormData((prev: any) => ({ ...prev, status: opt.id }))}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg border text-xs transition-all ${
+                    isSelected
+                      ? 'border-purple-600 bg-purple-50 text-purple-700 font-bold'
+                      : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  <Icon className={`w-3 h-3 ${isSelected ? 'text-purple-600' : opt.color || 'text-slate-400'}`} />
+                  <span>{opt.label}</span>
+                </button>
+              );
+            })}
           </div>
 
-          {/* Customer Name & Phone */}
-          <div className="grid grid-cols-2 gap-4">
-            {/* Customer Name */}
+          {/* Customer & Phone */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="relative" ref={dropdownRef}>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                  <User className="w-3.5 h-3.5 text-purple-600" />
-                  Customer Name <span className="text-rose-500">*</span>
-                </label>
+              <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                <User className="w-3.5 h-3.5 text-purple-600" />
+                Customer <span className="text-rose-500">*</span>
                 {isExistingCustomer && (
-                  <span className="text-[10px] font-semibold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">
-                    Registered User
+                  <span className="text-[10px] font-semibold bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full flex items-center gap-0.5 ml-1">
+                    <Check className="w-3 h-3" />
                   </span>
                 )}
-              </div>
-
+              </label>
               <div className="relative">
                 <input
                   type="text"
                   required
                   value={formData.customerName}
                   onChange={(e) => handleNameChange(e.target.value)}
-                  placeholder="e.g. Saba"
-                  className="w-full bg-slate-50/80 border border-slate-200/80 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-medium focus:outline-none focus:border-purple-600 transition-all"
+                  placeholder="Search customer..."
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-purple-600"
                 />
                 {isSearching && (
                   <div className="absolute right-3 top-3">
@@ -351,9 +351,9 @@ export function NewBookingModal({ isOpen, onClose, onSave, initialData }: NewBoo
                 )}
               </div>
 
-              {/* Suggestions Popup */}
+              {/* Suggestions Dropdown */}
               {showDropdown && searchResults.length > 0 && (
-                <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto divide-y divide-slate-100">
+                <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 max-h-40 overflow-y-auto divide-y divide-slate-100">
                   {searchResults.map((cust) => (
                     <div
                       key={cust.id}
@@ -361,23 +361,20 @@ export function NewBookingModal({ isOpen, onClose, onSave, initialData }: NewBoo
                         e.preventDefault();
                         handleSelectCustomer(cust);
                       }}
-                      className="p-2.5 hover:bg-purple-50 cursor-pointer flex items-center justify-between transition-colors"
+                      className="p-2 hover:bg-purple-50 cursor-pointer flex items-center justify-between transition-colors"
                     >
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-full bg-purple-100 text-purple-600 font-bold flex items-center justify-center text-xs">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-6 h-6 rounded-full bg-purple-100 text-purple-600 font-bold flex items-center justify-center text-[10px] shrink-0">
                           {(cust.fullName || cust.name || 'C').charAt(0)}
                         </div>
-                        <div>
-                          <p className="text-xs font-semibold text-slate-800">
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-slate-800 truncate">
                             {cust.fullName || cust.name}
                           </p>
-                          <p className="text-[10px] text-slate-500 flex items-center gap-1 mt-0.5">
-                            <Phone className="w-2.5 h-2.5" />
-                            {cust.phone || 'No phone'}
-                          </p>
+                          <p className="text-[10px] text-slate-500 truncate">{cust.phone || 'No phone'}</p>
                         </div>
                       </div>
-                      <span className="text-[10px] font-semibold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-md">
+                      <span className="text-[10px] font-semibold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-md shrink-0 ml-2">
                         Select
                       </span>
                     </div>
@@ -386,79 +383,56 @@ export function NewBookingModal({ isOpen, onClose, onSave, initialData }: NewBoo
               )}
             </div>
 
-            {/* Phone Number */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
+              <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
                 <Phone className="w-3.5 h-3.5 text-purple-600" />
-                Phone Number
+                Phone <span className="text-rose-500">*</span>
               </label>
               <input
                 type="text"
+                required
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                placeholder="9910821180"
-                className="w-full bg-slate-50/80 border border-slate-200/80 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-medium focus:outline-none focus:border-purple-600 transition-all"
+                placeholder="Phone number"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-purple-600"
               />
             </div>
           </div>
 
-          {/* Service & Duration */}
-          <div className="grid grid-cols-2 gap-4">
-            {/* Service Dropdown */}
+          {/* Service & Staff */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
+              <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
                 <Scissors className="w-3.5 h-3.5 text-purple-600" />
-                Service Name
-                <span className="text-rose-500">*</span>
+                Service <span className="text-rose-500">*</span>
               </label>
               <select
                 value={formData.serviceId}
                 onChange={(e) => handleServiceChange(e.target.value)}
-                className="w-full bg-slate-50/80 border border-slate-200/80 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-medium focus:outline-none focus:border-purple-600 cursor-pointer"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-purple-600 cursor-pointer"
                 required
               >
-                
                 <option value="">-- Select Service --</option>
                 {serviceList.map((srv) => (
                   <option key={srv.id} value={srv.id}>
-                    {srv.name}
+                    {srv.name} {srv.price ? `(₹${srv.price})` : ''}
                   </option>
                 ))}
               </select>
             </div>
 
-            {/* Duration */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5 text-purple-600" />
-                Duration (Mins)
-              </label>
-              <input
-                type="number"
-                min="5"
-                step="5"
-                value={formData.durationMinutes}
-                onChange={(e) => setFormData({ ...formData, durationMinutes: e.target.value })}
-                placeholder="30"
-                className="w-full bg-slate-50/80 border border-slate-200/80 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-medium focus:outline-none focus:border-purple-600 transition-all"
-              />
-            </div>
-          </div>
-
-          {/* Assigned Staff & Time Slot */}
-          <div className="grid grid-cols-2 gap-4">
-            {/* Staff */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
-                <UserCheck className="w-3.5 h-3.5 text-purple-600" />
-                Assigned Staff
+              <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                <Users className="w-3.5 h-3.5 text-purple-600" />
+                Staff <span className="text-rose-500">*</span>
               </label>
               <select
                 value={formData.staffId}
                 onChange={(e) => setFormData({ ...formData, staffId: e.target.value })}
-                className="w-full bg-slate-50/80 border border-slate-200/80 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-medium focus:outline-none focus:border-purple-600 cursor-pointer"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-purple-600 cursor-pointer"
+                required
               >
-                <option value="">Select Staff</option>
+                <option value="">-- Select Staff --</option>
                 {staffList.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name}
@@ -466,76 +440,133 @@ export function NewBookingModal({ isOpen, onClose, onSave, initialData }: NewBoo
                 ))}
               </select>
             </div>
+          </div>
 
-            {/* Time Slot */}
+          {/* Date, Time Slot, Duration */}
+          <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
+              <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                <CalendarDays className="w-3.5 h-3.5 text-purple-600" />
+                Date <span className="text-rose-500">*</span>
+              </label>
+              <input
+                type="date"
+                value={formData.date}
+                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-purple-600"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
                 <Clock className="w-3.5 h-3.5 text-purple-600" />
-                Time Slot
+                Time <span className="text-rose-500">*</span>
               </label>
               <select
                 value={formData.startTime}
                 onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
-                className="w-full bg-slate-50/80 border border-slate-200/80 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-medium focus:outline-none focus:border-purple-600 cursor-pointer"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-purple-600 cursor-pointer"
+                required
               >
-                <option value="09:00 AM">09:00 AM</option>
-                <option value="10:00 AM">10:00 AM</option>
-                <option value="11:00 AM">11:00 AM</option>
-                <option value="12:00 PM">12:00 PM</option>
-                <option value="01:00 PM">01:00 PM</option>
-                <option value="02:00 PM">02:00 PM</option>
-                <option value="03:00 PM">03:00 PM</option>
-                <option value="04:00 PM">04:00 PM</option>
-                <option value="05:00 PM">05:00 PM</option>
+                {TIME_SLOTS.map((slot) => (
+                  <option key={slot} value={slot}>
+                    {slot}
+                  </option>
+                ))}
               </select>
             </div>
-          </div>
 
-          {/* Estimated Price */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
-              <DollarSign className="w-3.5 h-3.5 text-purple-600" />
-              Estimated Price (₹)
-            </label>
-            <input
-              type="text"
-              value={formData.amount}
-              onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-              placeholder="850.00"
-              className="w-full bg-slate-50/80 border border-slate-200/80 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-medium focus:outline-none focus:border-purple-600 transition-all"
-            />
-          </div>
-
-          {/* Appointment Date Display Card */}
-          <div className="bg-purple-50/50 border border-purple-100 rounded-2xl p-4 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center shrink-0">
-              <CalendarIcon className="w-5 h-5" />
-            </div>
             <div>
-              <p className="text-xs font-bold text-purple-900">Appointment Date</p>
-              <p className="text-xs font-semibold text-slate-500 mt-0.5">
-                {formatDisplayDate(formData.date)}
-              </p>
+              <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-purple-600" />
+                Duration
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  min="5"
+                  step="5"
+                  value={formData.durationMinutes}
+                  onChange={(e) => setFormData({ ...formData, durationMinutes: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-purple-600"
+                />
+                <span className="absolute right-2.5 top-3 text-[10px] text-slate-400">min</span>
+              </div>
             </div>
           </div>
 
-          {/* Modal Actions */}
-          <div className="pt-3 flex items-center justify-end gap-3">
+          {/* Price, Payment Status & Amount Received */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                <DollarSign className="w-3.5 h-3.5 text-purple-600" />
+                Price (₹) <span className="text-rose-500">*</span>
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                value={formData.amount}
+                onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                placeholder="0.00"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-purple-600"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                <CreditCard className="w-3.5 h-3.5 text-purple-600" />
+                Payment Status
+              </label>
+              <div className="relative">
+                <select
+                  value={formData.paymentStatus}
+                  onChange={(e) => setFormData({ ...formData, paymentStatus: e.target.value as PaymentStatus })}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-purple-600 appearance-none cursor-pointer"
+                >
+                  {PAYMENT_STATUS_OPTIONS.map((status) => (
+                    <option key={status.id} value={status.id}>
+                      {status.label}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-3 pointer-events-none" />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                <CreditCard className="w-3.5 h-3.5 text-purple-600" />
+                Received (₹)
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                value={formData.paymentAmount}
+                onChange={(e) => setFormData({ ...formData, paymentAmount: e.target.value })}
+                placeholder="0.00"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-purple-600"
+              />
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="pt-3 flex flex-col-reverse sm:flex-row items-center justify-end gap-2.5 sticky bottom-0 bg-white pb-1 border-t border-slate-100">
             <button
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="px-5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors"
+              className="w-full sm:w-auto px-5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-lg shadow-purple-600/30 transition-all disabled:opacity-50"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-lg shadow-purple-600/30 transition-all disabled:opacity-50 cursor-pointer"
             >
               <Save className="w-4 h-4" />
-              <span>{isSubmitting ? 'Saving...' : initialData ? 'Update Booking' : 'Book Appointment'}</span>
+              <span>{isSubmitting ? 'Saving...' : initialData ? 'Update Appointment' : 'Confirm Booking'}</span>
             </button>
           </div>
 

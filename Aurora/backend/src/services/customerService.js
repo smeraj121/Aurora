@@ -1,26 +1,34 @@
-const customerRepo = require('../repositories/customerRepository');
+const customerRepository = require("../repositories/customerRepository");
 
-class CustomerService {
-  async getAllCustomers(search) {
-    return await customerRepo.findAll(search);
-  }
+exports.getCustomers = async (search) => {
+    return customerRepository.getCustomers(search);
+};
 
-  async getCustomerDetails(id) {
-    const customer = await customerRepo.findByIdWithHistory(id);
-    if (!customer) throw new Error('Customer not found');
-    return customer;
-  }
+exports.getCustomer = async (id) => {
+    const customer =
+        await customerRepository.getCustomerDetails(id);
 
-  async createCustomer(data) {
-    if (!data.fullName || !data.phone) {
-      throw new Error('Full Name and Phone Number are required.');
+    if (!customer) {
+        throw new Error("Customer not found");
     }
-    return await customerRepo.create(data);
-  }
 
-  async updateCustomer(id, data) {
-    return await customerRepo.update(id, data);
-  }
-}
+    customer.averageTicket = Math.round(
+        customer.totalSpent /
+        (customer.totalVisits || 1)
+    );
 
-module.exports = new CustomerService();
+    customer.history =
+        await customerRepository.getCustomerHistory(id);
+
+    return customer;
+};
+
+// TODO
+exports.createCustomer = async (data) => {
+    return customerRepository.createCustomer(data);
+};
+
+// TODO
+exports.updateCustomer = async (id, data) => {
+    return customerRepository.updateCustomer(id, data);
+};

@@ -1,148 +1,166 @@
-const db = require('../config/db');
+const db = require("../config/db");
 
-class CustomerRepository {
-  // Fetch all customers with their total stats & search support
-  async findAll(searchQuery = '') {
+exports.getCustomers = async (search) => {
     let query = `
-      SELECT 
-        c.id,
-        c.full_name AS "fullName",
-        c.phone,
-        c.email,
-        c.notes,
-        c.total_visits AS "totalVisits",
-        c.total_spent AS "totalSpent",
-        c.last_visit_date AS "lastVisitDate",
-        c.created_at AS "createdAt"
-      FROM customers c
+        SELECT
+            id,
+            full_name AS "fullName",
+            phone,
+            email,
+            total_visits AS "totalVisits",
+            total_spent AS "totalSpent",
+            last_visit_date AS "lastVisitDate"
+        FROM customers
     `;
+
     const params = [];
 
-    if (searchQuery) {
-      query += ` WHERE LOWER(c.full_name) LIKE $1 OR c.phone LIKE $1`;
-      params.push(`%${searchQuery.toLowerCase()}%`);
+    if (search) {
+        query += `
+            WHERE
+                LOWER(full_name) LIKE LOWER($1)
+                OR phone LIKE $1
+        `;
+
+        params.push(`%${search}%`);
     }
 
-    query += ` ORDER BY c.created_at DESC;`;
+    query += `
+        ORDER BY full_name
+        LIMIT 20
+    `;
+
     const { rows } = await db.query(query, params);
+
     return rows;
-  }
+};
 
-  // Get single customer with full booking history
-  async findByIdWithHistory(id) {
-    const customerQuery = `
-      SELECT 
-        id, full_name AS "fullName", phone, email, notes,
-        total_visits AS "totalVisits", total_spent AS "totalSpent",
-        last_visit_date AS "lastVisitDate"
-      FROM customers WHERE id = $1;
-    `;
-    const historyQuery = `
-      SELECT 
-        a.id, a.appointment_date AS "date", a.time_slot AS "time",
-        a.service, a.status, a.total_price AS "price",
-        s.name AS "staffName"
-      FROM appointments a
-      LEFT JOIN staff s ON a.staff_id = s.id
-      WHERE a.customer_id = $1
-      ORDER BY a.appointment_date DESC;
-    `;
+exports.getCustomerDetails = async (id) => {
+    const { rows } = await db.query(
+        `
+        SELECT
+            id,
+            full_name AS "fullName",
+            phone,
+            email,
+            notes,
+            total_visits AS "totalVisits",
+            total_spent AS "totalSpent",
+            last_visit_date AS "lastVisitDate"
+        FROM customers
+        WHERE id = $1
+        `,
+        [id]
+    );
 
-    const [customerRes, historyRes] = await Promise.all([
-      db.query(customerQuery, [id]),
-      db.query(historyQuery, [id]),
-    ]);
-
-    if (customerRes.rows.length === 0) return null;
-
-    return {
-      ...customerRes.rows[0],
-      history: historyRes.rows,
-    };
-  }
-
-  // Find existing by phone or create new
-  async findOrCreate(data) {
-    const findQuery = `SELECT id, full_name, phone FROM customers WHERE phone = $1;`;
-    const { rows } = await db.query(findQuery, [data.phone]);
-
-    if (rows.length > 0) {
-      return rows[0];
-    }
-
-    const insertQuery = `
-      INSERT INTO customers (full_name, phone, email, notes)
-      VALUES ($1, $2, $3, $4)
-      RETURNING id, full_name AS "fullName", phone, email;
-    `;
-    const created = await db.query(insertQuery, [
-      data.fullName || data.clientName,
-      data.phone,
-      data.email || null,
-      data.notes || '',
-    ]);
-    return created.rows[0];
-  }
-
-  async create(data) {
-    const query = `
-      INSERT INTO customers (full_name, phone, email, notes)
-      VALUES ($1, $2, $3, $4)
-      RETURNING 
-        id, full_name AS "fullName", phone, email, notes,
-        total_visits AS "totalVisits", total_spent AS "totalSpent";
-    `;
-    const { rows } = await db.query(query, [
-      data.fullName,
-      data.phone,
-      data.email || null,
-      data.notes || '',
-    ]);
     return rows[0];
-  }
+};
 
-  async update(id, data) {
-    const query = `
-      UPDATE customers
-      SET 
-        full_name = COALESCE($1, full_name),
-        phone = COALESCE($2, phone),
-        email = COALESCE($3, email),
-        notes = COALESCE($4, notes)
-      WHERE id = $5
-      RETURNING id, full_name AS "fullName", phone, email, notes;
-    `;
-    const { rows } = await db.query(query, [
-      data.fullName,
-      data.phone,
-      data.email,
-      data.notes,
-      id,
-    ]);
-    return rows[0];
-  }
+exports.getCustomerHistory = async (id) => {
+    const { rows } = await db.query(
+        `
+        SELECT
+            a.id,
+            a.appointment_date AS "appointmentDate",
 
-  // Recalculates stats from completed appointments
-  async syncCustomerStats(customerId) {
-    const query = `
-      UPDATE customers
-      SET 
-        total_visits = (
-          SELECT COUNT(*) FROM appointments 
-          WHERE customer_id = $1 AND status = 'Completed'
-        ),
-        total_spent = (
-          SELECT COALESCE(SUM(total_price), 0) FROM appointments 
-          WHERE customer_id = $1 AND status = 'Completed'
-        ),
-        last_visit_date = (
-          SELECT MAX(appointment_date) FROM appointments 
-          WHERE customer_id = $1 AND status = 'Completed'
+            TO_CHAR(
+                a.time_slot,
+                'HH12:MI AM'
+            ) AS "startTime",
+
+            STRING_AGG(
+                s.name,
+                ', '
+            ) AS "serviceName",
+
+            st.name AS "staffName",
+
+            a.total_price AS amount,
+
+            a.status
+
+        FROM appointments a
+
+        JOIN appointment_services aps
+            ON aps.appointment_id = a.id
+
+        JOIN services s
+            ON s.id = aps.service_id
+
+        LEFT JOIN staff st
+            ON st.id = a.staff_id
+
+        WHERE a.customer_id = $1
+
+        GROUP BY
+            a.id,
+            a.appointment_date,
+            a.time_slot,
+            a.total_price,
+            a.status,
+            st.name
+
+        ORDER BY
+            a.appointment_date DESC,
+            a.time_slot DESC
+        `,
+        [id]
+    );
+
+    return rows;
+};
+
+exports.createCustomer = async (customer) => {
+    const { rows } = await db.query(
+        `
+        INSERT INTO customers
+        (
+            full_name,
+            phone,
+            email,
+            notes
         )
-      WHERE id = $1;
-    `;
-    await db.query(query, [customerId]);
-  }
-}
+        VALUES
+        (
+            $1,
+            $2,
+            $3,
+            $4
+        )
+        RETURNING *
+        `,
+        [
+            customer.fullName,
+            customer.phone,
+            customer.email,
+            customer.notes,
+        ]
+    );
 
-module.exports = new CustomerRepository();
+    return rows[0];
+};
+
+exports.updateCustomer = async (id, customer) => {
+    const { rows } = await db.query(
+        `
+        UPDATE customers
+        SET
+            full_name = $1,
+            phone = $2,
+            email = $3,
+            notes = $4,
+            updated_at = NOW()
+        WHERE id = $5
+        RETURNING *
+        `,
+        [
+            customer.fullName,
+            customer.phone,
+            customer.email,
+            customer.notes,
+            id,
+        ]
+    );
+
+    return rows[0];
+};

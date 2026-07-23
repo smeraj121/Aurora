@@ -18,16 +18,12 @@ app.get('/', (req, res) => {
   res.json({ message: 'Aurora Salon API is running!' });
 });
 
-// 4. Mount Routes (Make sure /api/staff matches exactly)
+// 4. Mount Routes
 app.use('/api/calendar', calendarRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/staff', staffRoutes);
 app.use('/api/services', serviceRoutes);
 
-// Catch-all for Chrome DevTools .well-known probe to stop CSP/404 logs
-//app.get('/.well-known', (req, res) => {
-  //res.sendStatus(204);
-//});
 
 // 5. Start Server
 const PORT = process.env.PORT || 5000;
