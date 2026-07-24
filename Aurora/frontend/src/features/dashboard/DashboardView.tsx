@@ -1,10 +1,10 @@
 import { METRICS_DATA } from './data/mockData';
 import { MetricCard } from './components/MetricCard';
 import { AIOpportunityFeed } from './components/AIOpportunityFeed';
-import { ScheduleTimeline } from './components/ScheduleTimeline';
 import { RevenueChart } from './components/RevenueChart';
 import { useState } from 'react';
 import { DatePickerDropdown } from '../../shared/components/DatePickerDropdown';
+import { ScheduleTimeline } from './ScheduleTimeline/ScheduleTimeline';
 
 export function DashboardView() {
 

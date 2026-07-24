@@ -33,7 +33,7 @@ export interface Staff {
 
 export interface Appointment {
   date: string;
-  id: string;
+  id: number|null;
   customerId: string;
   customerName: string;
   serviceName: string;

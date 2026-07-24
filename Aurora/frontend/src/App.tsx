@@ -6,6 +6,7 @@ import { CustomersView } from './features/customers/CustomersView';
 import { ReportsView } from './features/reports/ReportsView';
 import { AIAssistantView } from './features/ai-assistant/AIAssistantView';
 import { StaffView } from './features/staff/StaffView';
+import { PackagesView } from './features/packages/PackagesView';
 
 function PlaceholderView({ title }: { title: string }) {
   return (
@@ -31,6 +32,7 @@ export function App() {
           <Route path="marketing" element={<PlaceholderView title="Marketing" />} />
           <Route path="reports" element={<ReportsView />} />
           <Route path="ai-assistant" element={ <AIAssistantView /> } />
+          <Route path="packages" element={<PackagesView />} />
           <Route path="settings" element={<PlaceholderView title="Settings" />} />
         </Route>
       </Routes>

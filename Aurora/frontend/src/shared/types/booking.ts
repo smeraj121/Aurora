@@ -2,15 +2,15 @@ import type { Appointment, AppointmentStatus } from ".";
 
 export type PaymentStatus = 'pending' | 'partial' | 'paid' | 'refunded';
 
-export interface StaffMember {
+export interface BookingStaffMember {
   id: number | string;
   name: string;
 }
 
 export interface ServiceItem {
-  id: number | string;
+  id: number;
   name: string;
-  price?: number;
+  price: number;
   durationMinutes?: number;
 }
 
@@ -22,20 +22,20 @@ export interface CustomerSearchResult {
 }
 
 export interface BookingFormData {
-  id: string;
-  customerId: string;
+  id: number;
+  customerId: number;
   customerName: string;
   phone: string;
   serviceId: string;
   serviceName: string;
   staffId: string;
   startTime: string;
-  durationMinutes: string;
+  durationMinutes: number;
   date: string;
-  amount: string;
+  amount: string | number;
   status: AppointmentStatus;
   paymentStatus: PaymentStatus;
-  paymentAmount: string;
+  paidAmount: string | number;
 }
 
 export interface NewBookingModalProps {
@@ -43,4 +43,6 @@ export interface NewBookingModalProps {
   onClose: () => void;
   onSave: (appointment: BookingFormData) => Promise<void> | void;
   initialData?: Appointment | null;
+  appointmentId?: number | null;
+  currentDate?: string;
 }

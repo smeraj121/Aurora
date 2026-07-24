@@ -1,22 +1,36 @@
-// components/AddCustomerDrawer.tsx
-import { useState } from 'react';
-import { X, User, Phone, Mail, FileText } from 'lucide-react';
+// components/EditCustomerDrawer.tsx
+import { useState, useEffect } from 'react';
+import { X, User, Phone, Mail, FileText, Crown } from 'lucide-react';
 
-interface AddCustomerDrawerProps {
+interface EditCustomerDrawerProps {
   isOpen: boolean;
   onClose: () => void;
-  onAddCustomer: (customer: any) => void;
+  customer: any;
+  onUpdateCustomer: (data: any) => void;
 }
 
-export function AddCustomerDrawer({ isOpen, onClose, onAddCustomer }: AddCustomerDrawerProps) {
+export function EditCustomerDrawer({ isOpen, onClose, customer, onUpdateCustomer }: EditCustomerDrawerProps) {
   const [formData, setFormData] = useState({
     fullName: '',
     phone: '',
     email: '',
     notes: '',
+    isVip: false,
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (customer) {
+      setFormData({
+        fullName: customer.fullName || '',
+        phone: customer.phone || '',
+        email: customer.email || '',
+        notes: customer.notes || '',
+        isVip: customer.isVip || false,
+      });
+    }
+  }, [customer]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,23 +48,22 @@ export function AddCustomerDrawer({ isOpen, onClose, onAddCustomer }: AddCustome
 
     try {
       setLoading(true);
-      await onAddCustomer(formData);
-      setFormData({ fullName: '', phone: '', email: '', notes: '' });
+      await onUpdateCustomer(formData);
     } catch (err: any) {
-      setError(err.message || 'Failed to add customer');
+      setError(err.message || 'Failed to update customer');
     } finally {
       setLoading(false);
     }
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || !customer) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-end">
       <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-white w-full max-w-md h-full shadow-2xl animate-slide-in-right flex flex-col">
         <div className="flex items-center justify-between p-4 border-b border-slate-200">
-          <h2 className="text-sm font-bold text-slate-900">Add New Customer</h2>
+          <h2 className="text-sm font-bold text-slate-900">Edit Customer</h2>
           <button
             onClick={onClose}
             className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
@@ -124,6 +137,19 @@ export function AddCustomerDrawer({ isOpen, onClose, onAddCustomer }: AddCustome
             />
           </div>
 
+          <div>
+            <label className="flex items-center gap-2 text-xs font-bold text-slate-700">
+              <input
+                type="checkbox"
+                checked={formData.isVip}
+                onChange={(e) => setFormData({ ...formData, isVip: e.target.checked })}
+                className="w-4 h-4 rounded border-slate-300 text-purple-600 focus:ring-purple-500"
+              />
+              <Crown className="w-3.5 h-3.5 text-amber-500" />
+              VIP Customer
+            </label>
+          </div>
+
           <div className="pt-4 flex flex-col-reverse sm:flex-row items-center justify-end gap-2.5">
             <button
               type="button"
@@ -137,7 +163,7 @@ export function AddCustomerDrawer({ isOpen, onClose, onAddCustomer }: AddCustome
               disabled={loading}
               className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-lg shadow-purple-600/30 transition-all disabled:opacity-50"
             >
-              {loading ? 'Adding...' : 'Add Customer'}
+              {loading ? 'Updating...' : 'Update Customer'}
             </button>
           </div>
         </form>

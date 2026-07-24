@@ -1,8 +1,10 @@
+// components/dashboard/ScheduleTimeline.tsx
 import { useState, useEffect } from 'react';
 import { Plus, Pencil, Loader2 } from 'lucide-react';
 import { cn, formatCurrency } from '../../../lib/utils';
 import type { Appointment, AppointmentStatus } from '../../../shared/types';
-import { NewBookingModal } from '../../calendar/components/NewBookingModal';
+import { NewBookingModal } from '../../bookingModal/NewBookingModal';
+import { api } from '../../../services/api';
 
 const STATUS_CONFIG: Record<AppointmentStatus, { label: string; className: string }> = {
   completed: { label: 'Completed', className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
@@ -13,22 +15,30 @@ const STATUS_CONFIG: Record<AppointmentStatus, { label: string; className: strin
   no_show: { label: 'No Show', className: 'bg-rose-50 text-rose-700 border-rose-200' },
 };
 
-export function ScheduleTimeline() {
+// Helper to get local date string without timezone issues
+const getLocalDateString = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+export function ScheduleTimelineold() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
 
-  const todayDateStr = new Date().toISOString().split('T')[0];
+  // ✅ FIXED: Use local date string
+  const todayDateStr = getLocalDateString(new Date());
 
   // Fetch today's schedule from backend API
   const fetchTodaySchedule = async () => {
     try {
       setIsLoading(true);
-      const res = await fetch(`http://localhost:5000/api/calendar?date=${todayDateStr}`);
-      const json = await res.json();
-      if (json.success && Array.isArray(json.data)) {
-        setAppointments(json.data);
+      const response = await api.getSchedule(todayDateStr);
+      if (response.success && Array.isArray(response.data)) {
+        setAppointments(response.data);
       }
     } catch (err) {
       console.error('Failed to load today schedule:', err);
@@ -37,30 +47,25 @@ export function ScheduleTimeline() {
     }
   };
 
+  // ✅ Fetch when date changes (similar to CalendarView)
   useEffect(() => {
     fetchTodaySchedule();
-  }, []);
+  }, [todayDateStr]);
 
   // Save/Update Handler -> POSTs to API then refreshes list
   const handleSaveAppointment = async (bookingData: any) => {
     try {
-      const res = await fetch('http://localhost:5000/api/calendar', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(bookingData),
-      });
-
-      const json = await res.json();
-      if (!res.ok || !json.success) {
-        throw new Error(json.message || 'Failed to save booking.');
+      const response = await api.createAppointment(bookingData);
+      
+      if (!response.success) {
+        throw new Error(response.message || 'Failed to save booking.');
       }
 
-      // Refresh schedule
       await fetchTodaySchedule();
       setIsModalOpen(false);
     } catch (err: any) {
       console.error('Error saving appointment:', err);
-      throw err; // Passed to modal to display error alert
+      throw err;
     }
   };
 
@@ -162,9 +167,14 @@ export function ScheduleTimeline() {
       {/* New Booking / Edit Modal */}
       <NewBookingModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={() => {
+          setIsModalOpen(false);
+          setEditingAppointment(null);
+          fetchTodaySchedule(); // ✅ Refresh on close
+        }}
         onSave={handleSaveAppointment}
         initialData={editingAppointment}
+        currentDate={todayDateStr} // ✅ Pass the current date
       />
     </div>
   );

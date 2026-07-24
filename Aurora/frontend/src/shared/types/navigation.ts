@@ -1,4 +1,5 @@
 import { 
+  Package,
   LayoutDashboard, 
   Users, 
   UserCheck, 
@@ -27,4 +28,5 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'Reports', path: '/reports', icon: BarChart3 },
   { label: 'AI Assistant', path: '/ai-assistant', icon: Sparkles, badge: 'New' },
   { label: 'Settings', path: '/settings', icon: Settings },
+  { label: 'Packages', path: '/packages', icon: Package },
 ];

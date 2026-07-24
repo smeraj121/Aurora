@@ -12,6 +12,9 @@ const calendarRoutes = require('./src/routes/calendarRoutes');
 const customerRoutes = require('./src/routes/customerRoutes');
 const staffRoutes = require('./src/routes/staffRoutes');
 const serviceRoutes = require('./src/routes/serviceRoutes');
+const packageRoutes = require('./src/routes/packageRoutes');
+const appointmentRoutes = require('./src/routes/appointmentRoutes');
+
 
 // 3. Health Check / Root route (Prevents 404 on http://localhost:5000/)
 app.get('/', (req, res) => {
@@ -23,6 +26,8 @@ app.use('/api/calendar', calendarRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/staff', staffRoutes);
 app.use('/api/services', serviceRoutes);
+app.use('/api/packages', packageRoutes);
+app.use('/api/appointments', appointmentRoutes);
 
 
 // 5. Start Server
