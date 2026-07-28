@@ -15,6 +15,14 @@ router.get('/:id', async (req, res) => {
         message: 'Appointment not found'
       });
     }
+    else{
+      if (appointment.startTime) {
+        const [hours, minutes] = appointment.startTime.split(':').map(Number);
+        const period = hours >= 12 ? 'PM' : 'AM';
+        const displayHours = hours % 12 || 12;
+        appointment.startTime = `${displayHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')} ${period}`;
+      }
+    }
     res.json({
       success: true,
       data: appointment
@@ -191,7 +199,7 @@ router.post('/', async (req, res) => {
     if (services && Array.isArray(services)) {
       cleanServices = services.map(s => ({
         serviceId: parseNumericId(s.serviceId),
-        price: s.price ? parseFloat(s.price) : 0
+        price: s.price ? s.price : 0
       })).filter(s => s.serviceId !== null);
     }
 

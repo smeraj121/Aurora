@@ -1,14 +1,9 @@
 import { useState, useEffect } from 'react';
-import {
-  X,
-  UserCheck,
-  AlertCircle,
-} from 'lucide-react';
-import type { BookingFormState, CustomerPackage, NewBookingModalProps, PackageService } from './types/types';
+import { X, UserCheck, AlertCircle } from 'lucide-react';
 import { api } from '../../services/api';
+import type { BookingFormState, CustomerPackage, NewBookingModalProps, PackageService } from './types/types';
 import type { ServiceItem } from '../../shared/types/booking';
 import type { StaffMember } from '../../shared/types/staff';
-import { calculateBookingTotals } from '../calendar/components/bookingCalculations';
 import { buildBookingPayload, convertAppointmentToForm } from './bookingMapper';
 import { AppointmentSection } from './sections/AppointmentSection';
 import { CustomerSection } from './sections/CustomerSection';
@@ -19,13 +14,9 @@ import { ServiceSection } from './sections/ServiceSection';
 import { StatusSection } from './sections/StatusSection';
 import { DEFAULT_FORM_STATE } from './types/constants';
 import { validateBooking } from './validation';
-export function NewBookingModal({
-  isOpen,
-  onClose,
-  onSave,
-  appointmentId,
-  currentDate,
-}: NewBookingModalProps) {
+import { calculateBookingTotals } from './functions/bookingCalculations';
+
+export function NewBookingModal({isOpen, onClose, onSave, appointmentId, currentDate } : NewBookingModalProps) {
   const [formState, setFormState] = useState<BookingFormState>(DEFAULT_FORM_STATE);
   const [staffList, setStaffList] = useState<StaffMember[]>([]);
   const [serviceList, setServiceList] = useState<ServiceItem[]>([]);
@@ -35,81 +26,94 @@ export function NewBookingModal({
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const totalDurationFromServices = 0;
 
-  // Data Loading Effects
+  // Compute total duration from services (pure derived value)
+  const totalDurationFromServices = formState.services.reduce((total, svc) => {
+    const serviceItem = serviceList.find(s => s.id === svc.serviceId);
+    return total + (serviceItem?.durationMinutes || 0);
+  }, 0);
+
+  // Helper: Load staff and service data
+  const loadReferenceData = async () => {
+    const [staffRes, serviceRes] = await Promise.all([
+      api.getStaff(true),
+      api.getServices(true),
+    ]);
+    if (staffRes.success) setStaffList(staffRes.data);
+    if (serviceRes.success) setServiceList(serviceRes.data);
+    return { staff: staffRes.success ? staffRes.data : [] };
+  };
+
+  // Helper: Load appointment data for editing
+  const loadAppointmentData = async (id: number) => {
+    const response = await api.getAppointment(id);
+    if (!response.success) {
+      throw new Error('Failed to load appointment data.');
+    }
+    const initialFormState = convertAppointmentToForm(response.data);
+    setFormState((prev) => ({ ...prev, ...initialFormState }));
+    setIsExistingCustomer(true);
+  };
+
+  // Data Loading Effect
   useEffect(() => {
     if (!isOpen) {
+      // Reset all state when modal closes (inlined)
       setFormState(DEFAULT_FORM_STATE);
       setIsExistingCustomer(false);
       setCustomerPackages([]);
       setShowPackageSelector(false);
       setFormError(null);
       return;
-	  }
+    }
 
-    const loadReferenceData = async () => {
-      const [staffRes, serviceRes] = await Promise.all([
-        api.getStaff(true),
-        api.getServices(true),
-      ]);
-      if (staffRes.success) setStaffList(staffRes.data);
-      if (serviceRes.success) setServiceList(serviceRes.data);
-      return { staff: staffRes.data || [] };
-    };
-
-    const loadAppointment = async (id: number) => {
-      const response = await api.getAppointment(id);
-      if (response.success) {
-        const initialFormState = convertAppointmentToForm(response.data);
-        setFormState((prev) => ({ ...prev, ...initialFormState }));
-        setIsExistingCustomer(true);
-      } else {
-        setFormError('Failed to load appointment data.');
-      }
-    };
-
-    const initialize = async () => {
+    const initializeModal = async () => {
       setIsLoading(true);
       setFormError(null);
-	  try {
+
+      try {
         const { staff } = await loadReferenceData();
+
         if (appointmentId) {
-          await loadAppointment(appointmentId);
+          await loadAppointmentData(appointmentId);
         } else {
           const defaultStaffId = staff.length > 0 ? String(staff[0].id) : '';
-          setFormState(prev => ({
+          setFormState((prev) => ({
             ...prev,
             staffId: defaultStaffId,
             date: currentDate || DEFAULT_FORM_STATE.date,
           }));
         }
       } catch (err) {
-        setFormError('An error occurred while loading modal data.');
+        setFormError(err instanceof Error ? err.message : 'An error occurred while loading modal data.');
       } finally {
         setIsLoading(false);
       }
     };
 
-    initialize();
+    initializeModal();
   }, [isOpen, appointmentId, currentDate]);
 
+  // Load customer packages when customer is selected
   useEffect(() => {
-    if (formState.customerId) {
-      const loadPackages = async () => {
-        try {
-		      const res = await api.getCustomerPackages(formState.customerId as number);
-          if (res.success) setCustomerPackages(res.data);
-        } catch (err) {
-          console.error('Failed to load customer packages', err);
-        }
-      };
-      loadPackages();
-    } else {
+    if (!formState.customerId) {
       setCustomerPackages([]);
+      return;
     }
+
+    const loadPackages = async () => {
+      try {
+        const res = await api.getCustomerPackages(formState.customerId as number);
+        if (res.success) setCustomerPackages(res.data);
+      } catch (err) {
+        console.error('Failed to load customer packages', err);
+      }
+    };
+
+    loadPackages();
   }, [formState.customerId]);
 
+  // ---- Handlers ----
   const handleSelectCustomer = (customer: { id: number; fullName: string; phone: string; }) => {
     setFormState((prev) => ({
       ...prev,
@@ -121,17 +125,6 @@ export function NewBookingModal({
     setFormError(null);
   };
 
-  const updateServicesAndTotals = (services: PackageService[], isPackage: boolean) => {
-    const { amount, durationMinutes } = calculateBookingTotals(services, serviceList);
-setFormState((prev) => ({
-      ...prev,
-      services,
-      amount: isPackage ? 0 : amount,
-      durationMinutes: durationMinutes > 0 ? durationMinutes : prev.durationMinutes,
-    }));
-  };
-
-  // Submit handler
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
@@ -148,7 +141,7 @@ setFormState((prev) => ({
       await onSave(submitData);
       onClose();
     } catch (err: any) {
-	setFormError(err.message || 'Failed to save appointment');
+      setFormError(err.message || 'Failed to save appointment');
     } finally {
       setIsSubmitting(false);
     }
@@ -171,12 +164,25 @@ setFormState((prev) => ({
       price: serviceToAdd.price,
     };
     const updatedServices = [...formState.services, newService];
-	updateServicesAndTotals(updatedServices, formState.isPackageAppointment);
+    const { amount, durationMinutes } = calculateBookingTotals(updatedServices, serviceList);
+    console.log(amount);
+    setFormState((prev) => ({
+      ...prev,
+      services: updatedServices,
+      amount: prev.isPackageAppointment ? 0 : amount,
+      durationMinutes: durationMinutes > 0 ? durationMinutes : prev.durationMinutes,
+    }));
   };
 
   const handleRemoveService = (serviceId: number) => {
     const updatedServices = formState.services.filter((s) => s.serviceId !== serviceId);
-    updateServicesAndTotals(updatedServices, formState.isPackageAppointment);
+    const { amount, durationMinutes } = calculateBookingTotals(updatedServices, serviceList);
+    setFormState((prev) => ({
+      ...prev,
+      services: updatedServices,
+      amount: prev.isPackageAppointment ? 0 : amount,
+      durationMinutes: durationMinutes > 0 ? durationMinutes : prev.durationMinutes,
+    }));
   };
 
   const handlePackageSelect = (packageId: string) => {
@@ -189,29 +195,32 @@ setFormState((prev) => ({
       price: 0,
     }));
 
-    const { durationMinutes } = calculateBookingTotals(packageServices, serviceList);
-
-    setFormState(prev => ({
+    const { amount, durationMinutes } = calculateBookingTotals(packageServices, serviceList);
+    setFormState((prev) => ({
       ...prev,
       customerPackageId: packageId,
       isPackageAppointment: true,
       services: packageServices,
-      amount: 0,
-	  durationMinutes: durationMinutes > 0 ? durationMinutes : prev.durationMinutes,
+      amount: 0, // packages have zero additional cost
+      durationMinutes: durationMinutes > 0 ? durationMinutes : prev.durationMinutes,
     }));
     setShowPackageSelector(false);
   };
 
   const handlePackageRemove = () => {
-    setFormState(prev => ({
+    // Reset to no services and no package
+    const { amount, durationMinutes } = calculateBookingTotals([], serviceList);
+    setFormState((prev) => ({
       ...prev,
       customerPackageId: null,
       isPackageAppointment: false,
       services: [],
+      amount: amount, // will be 0
+      durationMinutes: durationMinutes, // will be 0
     }));
-    updateServicesAndTotals([], false);
   };
 
+  // ---- Render ----
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-2xl my-4 border border-slate-100 transition-all overflow-hidden">
@@ -223,7 +232,7 @@ setFormState((prev) => ({
             </div>
             <h3 className="font-bold text-sm sm:text-base">
               {appointmentId ? 'Edit Appointment' : 'New Booking'}
-			   </h3>
+            </h3>
           </div>
           <button
             type="button"
@@ -248,7 +257,7 @@ setFormState((prev) => ({
             <div className="w-6 h-6 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />
           </div>
         ) : (
-		<form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 max-h-[calc(100vh-180px)] overflow-y-auto">
+          <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 max-h-[calc(100vh-180px)] overflow-y-auto">
             <StatusSection
               status={formState.status}
               onStatusChange={(status) => setFormState(prev => ({ ...prev, status }))}
@@ -262,7 +271,7 @@ setFormState((prev) => ({
               onPhoneChange={(phone) => setFormState(prev => ({ ...prev, phone }))}
               onSelectCustomer={handleSelectCustomer}
               onClearCustomer={() => {
-			  setFormState(prev => ({ ...prev, customerId: null }));
+                setFormState(prev => ({ ...prev, customerId: null }));
                 setIsExistingCustomer(false);
               }}
             />
@@ -272,7 +281,7 @@ setFormState((prev) => ({
               customerPackages={customerPackages}
               isPackageAppointment={formState.isPackageAppointment}
               showPackageSelector={showPackageSelector}
-              onTogglePackageSelector={() => setShowPackageSelector(!showPackageSelector)}
+              onOpenPackageSelector={() => setShowPackageSelector(!showPackageSelector)}
               onSelectPackage={handlePackageSelect}
               onRemovePackage={handlePackageRemove}
             />
@@ -288,24 +297,24 @@ setFormState((prev) => ({
             <AppointmentSection
               staffId={formState.staffId}
               staffList={staffList}
-              onStaffChange={(staffId) =>setFormState(prev => ({ ...prev, staffId }))}
+              onStaffChange={(staffId) => setFormState(prev => ({ ...prev, staffId }))}
               date={formState.date}
               onDateChange={(date) => setFormState(prev => ({ ...prev, date }))}
               startTime={formState.startTime}
-              onStartTimeChange={(time) => setFormState(prev => ({ ...prev, time }))}
+              onStartTimeChange={(startTime) => setFormState(prev => ({ ...prev, startTime }))}
               durationMinutes={formState.durationMinutes}
-              onDurationChange={(d) => setFormState(prev => ({ ...prev, d }))}
+              onDurationChange={(durationMinutes) => setFormState(prev => ({ ...prev, durationMinutes }))}
               totalDurationFromServices={totalDurationFromServices}
               isServiceAdded={formState.services.length > 0}
             />
 
             <PaymentSection
               amount={formState.amount}
-              onAmountChange={(a) => setFormState(prev => ({ ...prev, a }))}
+              onAmountChange={(amount) => setFormState(prev => ({ ...prev, amount }))}
               paymentStatus={formState.paymentStatus}
-              onPaymentStatusChange={(s) => setFormState(prev => ({ ...prev, s }))}
+              onPaymentStatusChange={(paymentStatus) => setFormState(prev => ({ ...prev, paymentStatus }))}
               paidAmount={formState.paidAmount}
-              onPaidAmountChange={(pa) => setFormState(prev => ({ ...prev, pa }))}
+              onPaidAmountChange={(paidAmount) => setFormState(prev => ({ ...prev, paidAmount }))}
               isPackageAppointment={formState.isPackageAppointment}
             />
 
@@ -314,5 +323,5 @@ setFormState((prev) => ({
         )}
       </div>
     </div>
-	 );
+  );
 }

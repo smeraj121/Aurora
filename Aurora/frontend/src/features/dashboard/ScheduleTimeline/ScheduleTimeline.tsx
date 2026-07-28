@@ -58,7 +58,7 @@ export function ScheduleTimeline() {
         isOpen={isModalOpen}
         onClose={handleCloseModal}
         onSave={handleSave}
-        initialData={editingAppointment}
+        appointmentId={editingAppointment?.id}
         currentDate={todayDateStr}
       />
     </div>

@@ -7,7 +7,7 @@ class ServiceRepository {
       SELECT 
         id, 
         name, 
-        price, 
+        price::float, 
         duration_minutes AS "durationMinutes" 
       FROM services 
       ORDER BY name ASC;

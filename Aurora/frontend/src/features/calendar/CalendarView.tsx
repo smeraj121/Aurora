@@ -5,30 +5,12 @@ import { NewBookingModal } from '../bookingModal/NewBookingModal';
 import { cn, formatCurrency } from '../../lib/utils';
 import { api } from '../../services/api';
 import type { Appointment } from '../../shared/types';
+import { TIME_SLOTS } from '../bookingModal/types/constants';
 
-const generateTimeSlots = () => {
-  const slots: string[] = [];
 
-  for (let hour = 9; hour < 21; hour++) {
-    for (let minute = 0; minute < 60; minute += 15) {
-      const period = hour >= 12 ? 'PM' : 'AM';
-      const displayHour = hour > 12 ? hour - 12 : hour;
-      const displayMinute = minute.toString().padStart(2, '0');
-
-      slots.push(
-        `${displayHour.toString().padStart(2, '0')}:${displayMinute} ${period}`
-      );
-    }
-  }
-
-  return slots;
-};
-
-const TIME_SLOTS = generateTimeSlots();
 const SLOT_MINUTES = 15;
 const BLOCK_HEIGHT_PX = 36;
 
-// ✅ FIXED: Get local date string without timezone issues
 const getLocalDateString = (date: Date): string => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -136,17 +118,15 @@ export function CalendarView() {
   }, [selectedStaffFilter, staffList]);
 
   const handleSaveAppointment = async (savedApt: any) => {
-    try {
-      await api.createAppointment({
-        ...savedApt,
-        date: formattedDateString,
-      });
-      await fetchScheduleData();
-    } catch (err) {
-      console.error('Failed to save appointment:', err);
-      throw err;
-    }
-  };
+  try {
+    // Remove the hardcoded date override
+    await api.createAppointment(savedApt);
+    await fetchScheduleData();
+  } catch (err) {
+    console.error('Failed to save appointment:', err);
+    throw err;
+  }
+};
 
   const handleOpenModal = (apt: ExtendedAppointment | null = null) => {
     setEditingAppointmentId(apt?.id||null);

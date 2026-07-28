@@ -1,8 +1,10 @@
 import type { Appointment } from "../shared/types";
-import type { BookingStaffMember, ServiceItem } from "../shared/types/booking";
-import type { CustomerListItem, CustomerDetails, CustomerVisit, CustomerPackage } from "../shared/types/domain";
+import type { ServiceItem } from "../shared/types/booking";
+import type { CustomerListItem, CustomerDetails, CustomerVisit } from "../shared/types/domain";
 import type { StaffMember, StaffSchedule, StaffStats, TopStaff } from "../shared/types/staff";
 import type { Package, PackageFormData, PackageStats, PopularPackage } from "../shared/types/packages";
+import type { CustomerPackage } from "../features/bookingModal/types/types";
+import type { DashboardMetric, Revenue } from "../features/dashboard/types/dashboard.types";
 
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
@@ -139,7 +141,7 @@ class ApiService {
     if (options?.includeExpired) params.append('includeExpired', 'true');
     if (options?.includeInactive) params.append('includeInactive', 'true');
     if (options?.status) params.append('status', options.status);
-    
+
     const queryString = params.toString();
     return this.request(`/customers/${customerId}/packages${queryString ? `?${queryString}` : ''}`);
   }
@@ -241,55 +243,55 @@ class ApiService {
   // ============================================================
   // STAFF ENDPOINTS
   // ============================================================
-// services/api.ts - Add these methods
-async getStaff(onlyActive = false, withStats = false): Promise<{ success: boolean; data: StaffMember[] }> {
-  const params = new URLSearchParams();
-  if (onlyActive) params.append('active', 'true');
-  if (withStats) params.append('stats', 'true');
-  const queryString = params.toString();
-  return this.request(`/staff${queryString ? `?${queryString}` : ''}`);
-}
+  // services/api.ts - Add these methods
+  async getStaff(onlyActive = false, withStats = false): Promise<{ success: boolean; data: StaffMember[] }> {
+    const params = new URLSearchParams();
+    if (onlyActive) params.append('active', 'true');
+    if (withStats) params.append('stats', 'true');
+    const queryString = params.toString();
+    return this.request(`/staff${queryString ? `?${queryString}` : ''}`);
+  }
 
-async getStaffStats(): Promise<{ success: boolean; data: StaffStats }> {
-  return this.request('/staff/stats');
-}
+  async getStaffStats(): Promise<{ success: boolean; data: StaffStats }> {
+    return this.request('/staff/stats');
+  }
 
-async getTopStaff(limit = 5): Promise<{ success: boolean; data: TopStaff[] }> {
-  return this.request(`/staff/top?limit=${limit}`);
-}
+  async getTopStaff(limit = 5): Promise<{ success: boolean; data: TopStaff[] }> {
+    return this.request(`/staff/top?limit=${limit}`);
+  }
 
-async getStaffSchedule(staffId: number): Promise<{ success: boolean; data: StaffSchedule[] }> {
-  return this.request(`/staff/${staffId}/schedule`);
-}
-async getAppointment(id: number): Promise<{ success: boolean; data: any }> {
-  return this.request(`/calendar/${id}`);
-}
+  async getStaffSchedule(staffId: number): Promise<{ success: boolean; data: StaffSchedule[] }> {
+    return this.request(`/staff/${staffId}/schedule`);
+  }
+  async getAppointment(id: number): Promise<{ success: boolean; data: any }> {
+    return this.request(`/calendar/${id}`);
+  }
 
-// Uses GET /staff/:id?stats=true
-async getStaffDetails(id: number, withStats = true): Promise<{ success: boolean; data: StaffMember }> {
-  const query = withStats ? '?stats=true' : '';
-  return this.request(`/staff/${id}${query}`);
-}
+  // Uses GET /staff/:id?stats=true
+  async getStaffDetails(id: number, withStats = true): Promise<{ success: boolean; data: StaffMember }> {
+    const query = withStats ? '?stats=true' : '';
+    return this.request(`/staff/${id}${query}`);
+  }
 
-async createStaff(data: any): Promise<{ success: boolean; data: StaffMember }> {
-  return this.request('/staff', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
-}
+  async createStaff(data: any): Promise<{ success: boolean; data: StaffMember }> {
+    return this.request('/staff', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
 
-async updateStaff(id: number, data: any): Promise<{ success: boolean; data: StaffMember }> {
-  return this.request(`/staff/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify(data),
-  });
-}
+  async updateStaff(id: number, data: any): Promise<{ success: boolean; data: StaffMember }> {
+    return this.request(`/staff/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
 
-async deleteStaff(id: number): Promise<{ success: boolean; message?: string }> {
-  return this.request(`/staff/${id}`, {
-    method: 'DELETE',
-  });
-}
+  async deleteStaff(id: number): Promise<{ success: boolean; message?: string }> {
+    return this.request(`/staff/${id}`, {
+      method: 'DELETE',
+    });
+  }
 
   // ============================================================
   // SERVICE ENDPOINTS
@@ -330,8 +332,13 @@ async deleteStaff(id: number): Promise<{ success: boolean; message?: string }> {
       method: 'DELETE',
     });
   }
+  async getDashboardStats(date: string): Promise<{ success: boolean; message?: string, data: DashboardMetric[] }>  {
+    return this.request(`/dashboard/stats?date=${date}`);
+  }
 
-  
+  async getDashboardRevenue(date: string): Promise<{ success: boolean; message?: string, data: Revenue[] }>  {
+    return this.request(`/dashboard/revenue?date=${date}`);
+  }
 }
 
 

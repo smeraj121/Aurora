@@ -7,9 +7,13 @@ import {
   Tooltip,
   CartesianGrid,
 } from 'recharts';
-import { REVENUE_CHART_DATA } from '../data/mockData';
+import type { Revenue } from '../types/dashboard.types';
 
-export function RevenueChart() {
+interface RevenueChartProps {
+  data: Revenue[];
+}
+
+export function RevenueChart({ data }: RevenueChartProps) {
   return (
     <div className="p-6 rounded-2xl bg-white border border-slate-200/80 shadow-sm flex flex-col h-full">
       <div className="flex items-center justify-between mb-4">
@@ -31,7 +35,7 @@ export function RevenueChart() {
 
       <div className="h-64 w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={REVENUE_CHART_DATA} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+          <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
             <defs>
               <linearGradient id="purpleGradient" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#9333EA" stopOpacity={0.3} />

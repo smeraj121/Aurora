@@ -1,6 +1,6 @@
 import { Users, CalendarDays, Clock } from 'lucide-react';
-import { TIME_SLOTS } from '../types/constants';
 import type { StaffMember } from '../../../shared/types/staff';
+import { TIME_SLOTS } from '../types/constants';
 
 interface AppointmentSectionProps {
   staffId: string;

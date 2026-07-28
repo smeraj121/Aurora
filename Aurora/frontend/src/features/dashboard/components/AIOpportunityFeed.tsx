@@ -1,5 +1,5 @@
 import { Sparkles, ArrowRight, Zap } from 'lucide-react';
-import { AI_OPPORTUNITIES } from '../data/mockData';
+//import { AI_OPPORTUNITIES } from '../data/mockData';
 import { formatCurrency } from '../../../lib/utils';
 import { CampaignModal } from '../../ai-assistant/components/CampaignModal';
 import { useState } from 'react';
@@ -9,11 +9,11 @@ export function AIOpportunityFeed() {
   const [modalTitle, setModalTitle] = useState('promoTitle');
   const [modalMessage, setModalMessage] = useState('promoDescription');
   const handleOpenCampaign = (title: string, message?: string) => {
-    console.log('Opening Campaign Modal with title:', title, 'and message:', message);
     setModalTitle(title);
     if (message) setModalMessage(message);
     setIsCampaignOpen(true);
   };
+  const AI_OPPORTUNITIES: any[] = [];
 
   return (
     <div className="p-6 rounded-2xl bg-gradient-to-br from-purple-900 via-indigo-950 to-slate-950 text-white shadow-xl border border-purple-800/40 relative overflow-hidden">

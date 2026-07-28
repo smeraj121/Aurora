@@ -14,6 +14,8 @@ const staffRoutes = require('./src/routes/staffRoutes');
 const serviceRoutes = require('./src/routes/serviceRoutes');
 const packageRoutes = require('./src/routes/packageRoutes');
 const appointmentRoutes = require('./src/routes/appointmentRoutes');
+const dashboardRoutes = require('./src/routes/dashboardRoutes');
+
 
 
 // 3. Health Check / Root route (Prevents 404 on http://localhost:5000/)
@@ -28,6 +30,8 @@ app.use('/api/staff', staffRoutes);
 app.use('/api/services', serviceRoutes);
 app.use('/api/packages', packageRoutes);
 app.use('/api/appointments', appointmentRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+
 
 
 // 5. Start Server

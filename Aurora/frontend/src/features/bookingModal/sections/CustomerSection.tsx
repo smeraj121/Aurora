@@ -26,6 +26,8 @@ export function CustomerSection({
   const [showDropdown, setShowDropdown] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchRequestIdRef = useRef(0);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -37,30 +39,67 @@ export function CustomerSection({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
+
   const handleNameChange = (value: string) => {
     onCustomerNameChange(value);
     onClearCustomer();
 
-    if (value.trim().length > 1) {
-      setIsSearching(true);
-      setShowDropdown(true);
+    // Clear previous timer
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
 
-      const timer = setTimeout(async () => {
-        try {
-          const res = await api.getCustomers(value);
-          if (res.success) setSearchResults(res.data || []);
-        } catch (err) {
-          console.error('Customer search error:', err);
-        } finally {
-          setIsSearching(false);
-        }
-      }, 300);
-
-      return () => clearTimeout(timer);
-    } else {
+    // Short search string: clear results and reset loading state
+    if (value.trim().length <= 1) {
+      // Increment request ID to ignore any pending responses
+      searchRequestIdRef.current++;
       setSearchResults([]);
       setShowDropdown(false);
+      setIsSearching(false);
+      return;
     }
+
+    // Start loading indicator and show dropdown
+    setIsSearching(true);
+    setShowDropdown(true);
+
+    // Increment request ID for this new search
+    const currentRequestId = ++searchRequestIdRef.current;
+
+    // Set new debounce timer
+    debounceTimerRef.current = setTimeout(async () => {
+      try {
+        const res = await api.getCustomers(value);
+        // Only update if this is still the latest request
+        if (currentRequestId === searchRequestIdRef.current) {
+          if (res.success) {
+            setSearchResults(res.data || []);
+          } else {
+            setSearchResults([]);
+          }
+        }
+      } catch (err) {
+        // Only set error if this request is still current
+        if (currentRequestId === searchRequestIdRef.current) {
+          console.error('Customer search error:', err);
+          setSearchResults([]);
+        }
+      } finally {
+        // Only update loading state if this request is current
+        if (currentRequestId === searchRequestIdRef.current) {
+          setIsSearching(false);
+        }
+      }
+    }, 300);
   };
 
   const handleSelect = (customer: CustomerSearchResult) => {

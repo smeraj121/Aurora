@@ -1,20 +1,38 @@
-import { METRICS_DATA } from './data/mockData';
+// DashboardView.jsx
+import { useState, useEffect } from 'react';
 import { MetricCard } from './components/MetricCard';
 import { AIOpportunityFeed } from './components/AIOpportunityFeed';
 import { RevenueChart } from './components/RevenueChart';
-import { useState } from 'react';
 import { DatePickerDropdown } from '../../shared/components/DatePickerDropdown';
 import { ScheduleTimeline } from './ScheduleTimeline/ScheduleTimeline';
+import { fetchDashboardData, fetchDashboardRevenue } from './data/dashboardService';
+import type { DashboardMetric, Revenue } from './types/dashboard.types';
 
 export function DashboardView() {
-
-  // Modal State
   const [selectedDashboardDate, setSelectedDashboardDate] = useState(new Date());
+  const [metricsData, setMetricsData] = useState<DashboardMetric[]>([]);
+  const [revenueData, setRevenueData] = useState<Revenue[]>([]);
+
 
   const handleDateChange = (newDate: Date) => {
     setSelectedDashboardDate(newDate);
-    // Here we can trigger data updates for specific selected dates if needed!
   };
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const data = await fetchDashboardData(selectedDashboardDate);
+        const revenue = await fetchDashboardRevenue(selectedDashboardDate);
+        setMetricsData(data);
+        setRevenueData(revenue);
+      } catch (error) {
+        // Silently fail - keep showing mock data
+        console.error('Failed to fetch dashboard data:', error);
+      }
+    };
+
+    loadData();
+  }, [selectedDashboardDate]);
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -29,7 +47,6 @@ export function DashboardView() {
           </p>
         </div>
 
-        {/* Interactive Working Calendar Date Picker */}
         <div className="flex items-center gap-3">
           <DatePickerDropdown
             selectedDate={selectedDashboardDate}
@@ -41,7 +58,7 @@ export function DashboardView() {
 
       {/* KPI Cards Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {METRICS_DATA.map((metric) => (
+        {metricsData.map((metric) => (
           <MetricCard key={metric.title} {...metric} />
         ))}
       </div>
@@ -55,10 +72,11 @@ export function DashboardView() {
           <ScheduleTimeline />
         </div>
         <div className="lg:col-span-5">
-          <RevenueChart />
+          <RevenueChart key={1} data={revenueData} />
         </div>
       </div>
 
     </div>
   );
 }
+

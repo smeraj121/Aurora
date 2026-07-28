@@ -46,15 +46,3 @@ export interface Appointment {
   amount: number;
 }
 
-export interface AIOpportunity {
-  id: string;
-  type: 'empty_slot' | 'inactive_customers' | 'birthday' | 'renewal';
-  title: string;
-  description: string;
-  lostRevenueOrPotential: number;
-  actionLabel: string;
-  badgeText?: string;
-  expectedBookings?: string;
-  promoTitle: string;
-  promoDescription: string;
-}

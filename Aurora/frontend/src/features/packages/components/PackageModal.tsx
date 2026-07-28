@@ -157,7 +157,7 @@ export function PackageModal({ isOpen, onClose, onSave, initialData }: PackageMo
         return { 
           ...s, 
           quantity,
-          totalPrice: parseFloat((discountedPrice * quantity).toFixed(2)),
+          totalPrice: (discountedPrice * quantity).toFixed(2),
         };
       }
       return s;

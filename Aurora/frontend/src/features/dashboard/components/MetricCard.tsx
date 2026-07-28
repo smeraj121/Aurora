@@ -1,6 +1,6 @@
 import { TrendingUp, TrendingDown } from 'lucide-react';
-import type { DashboardMetric } from '../data/mockData';
 import { cn } from '../../../lib/utils';
+import type { DashboardMetric } from '../types/dashboard.types';
 
 
 export function MetricCard({ title, value, change, isPositive, subtext }: DashboardMetric) {

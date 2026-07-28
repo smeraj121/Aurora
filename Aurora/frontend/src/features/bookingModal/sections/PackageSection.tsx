@@ -6,7 +6,7 @@ interface PackageSectionProps {
   customerPackages: CustomerPackage[];
   isPackageAppointment: boolean;
   showPackageSelector: boolean;
-  onTogglePackageSelector: () => void;
+  onOpenPackageSelector: () => void;
   onSelectPackage: (packageId: string) => void;
   onRemovePackage: () => void;
 }
@@ -16,7 +16,7 @@ export function PackageSection({
   customerPackages,
   isPackageAppointment,
   showPackageSelector,
-  onTogglePackageSelector,
+  onOpenPackageSelector,
   onSelectPackage,
   onRemovePackage,
 }: PackageSectionProps) {
@@ -28,7 +28,7 @@ export function PackageSection({
     if (isPackageAppointment) {
       onRemovePackage();
     } else {
-      onTogglePackageSelector();
+      onOpenPackageSelector();
     }
   };
 

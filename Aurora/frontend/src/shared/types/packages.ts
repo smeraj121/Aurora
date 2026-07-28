@@ -26,6 +26,7 @@ export interface PackageStats {
   totalPurchases: number;
   totalRevenue: number;
   uniqueCustomers: number;
+  avgPackagePrice:number;
 }
 
 export interface PopularPackage {

@@ -35,16 +35,16 @@ class PackageRepository {
       LEFT JOIN package_services ps ON ps.package_id = p.id
       LEFT JOIN services s ON s.id = ps.service_id
     `;
-    
+
     if (!includeInactive) {
       query += ` WHERE p.is_active = true`;
     }
-    
+
     query += `
       GROUP BY p.id
       ORDER BY p.name ASC
     `;
-    
+
     const { rows } = await db.query(query);
     return rows;
   }
@@ -80,7 +80,7 @@ class PackageRepository {
       WHERE p.id = $1
       GROUP BY p.id
     `;
-    
+
     const { rows } = await db.query(query, [id]);
     return rows[0] || null;
   }
@@ -90,7 +90,7 @@ class PackageRepository {
   // ============================================================
   async createPackage(data) {
     const client = await db.connect();
-    
+
     try {
       await client.query('BEGIN');
 
@@ -102,7 +102,7 @@ class PackageRepository {
         VALUES ($1, $2, $3, $4, $5)
         RETURNING id
       `;
-      
+
       const packageValues = [
         data.name,
         data.description || null,
@@ -110,7 +110,7 @@ class PackageRepository {
         data.discountPercentage || 0,
         data.isActive !== undefined ? data.isActive : true
       ];
-      
+
       const { rows } = await client.query(packageQuery, packageValues);
       const packageId = rows[0].id;
 
@@ -118,7 +118,7 @@ class PackageRepository {
       if (data.services && data.services.length > 0) {
         const serviceValues = [];
         const servicePlaceholders = [];
-        
+
         data.services.forEach((service, index) => {
           serviceValues.push(
             packageId,
@@ -135,13 +135,13 @@ class PackageRepository {
           )
           VALUES ${servicePlaceholders.join(', ')}
         `;
-        
+
         await client.query(serviceQuery, serviceValues);
       }
 
       await client.query('COMMIT');
       return this.getPackageById(packageId);
-      
+
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;
@@ -155,7 +155,7 @@ class PackageRepository {
   // ============================================================
   async updatePackage(id, data) {
     const client = await db.connect();
-    
+
     try {
       await client.query('BEGIN');
 
@@ -209,7 +209,7 @@ class PackageRepository {
         if (data.services.length > 0) {
           const serviceValues = [];
           const servicePlaceholders = [];
-          
+
           data.services.forEach((service, index) => {
             serviceValues.push(
               id,
@@ -226,14 +226,14 @@ class PackageRepository {
             )
             VALUES ${servicePlaceholders.join(', ')}
           `;
-          
+
           await client.query(serviceQuery, serviceValues);
         }
       }
 
       await client.query('COMMIT');
       return this.getPackageById(id);
-      
+
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;
@@ -253,8 +253,8 @@ class PackageRepository {
       WHERE package_id = $1
     `;
     const { rows } = await db.query(checkQuery, [id]);
-    
-    
+
+
     if (parseInt(rows[0].count) > 0) {
       // Soft delete - just deactivate
       const query = `
@@ -266,7 +266,7 @@ class PackageRepository {
       const { rows: updateRows } = await db.query(query, [id]);
       return updateRows[0] || null;
     }
-    
+
     // Hard delete if not used
     const query = `DELETE FROM packages WHERE id = $1 RETURNING id`;
     const { rows: deleteRows } = await db.query(query, [id]);
@@ -278,16 +278,17 @@ class PackageRepository {
   // ============================================================
   async getPackageStats() {
     const query = `
-      SELECT 
-        COUNT(*) AS "totalPackages",
-        SUM(CASE WHEN is_active THEN 1 ELSE 0 END) AS "activePackages",
-        COUNT(DISTINCT cp.id) AS "totalPurchases",
-        COALESCE(SUM(cp.total_price), 0) AS "totalRevenue",
-        COUNT(DISTINCT cp.customer_id) AS "uniqueCustomers"
-      FROM packages p
-      LEFT JOIN customer_packages cp ON cp.package_id = p.id
-    `;
-    
+    SELECT 
+      COUNT(DISTINCT p.id) AS "totalPackages",
+      COUNT(DISTINCT CASE WHEN p.is_active THEN p.id END) AS "activePackages",
+      COUNT(cp.id) AS "totalPurchases",
+      COALESCE(SUM(cp.total_price), 0) AS "totalRevenue",
+      COUNT(DISTINCT cp.customer_id) AS "uniqueCustomers",
+      (SELECT COALESCE(AVG(total_price), 0) FROM packages WHERE is_active = true) AS "avgPackagePrice"
+    FROM packages p
+    LEFT JOIN customer_packages cp ON cp.package_id = p.id
+  `;
+
     const { rows } = await db.query(query);
     return rows[0] || null;
   }
@@ -311,7 +312,7 @@ class PackageRepository {
       ORDER BY purchases DESC, revenue DESC
       LIMIT $1
     `;
-    
+
     const { rows } = await db.query(query, [limit]);
     return rows;
   }
