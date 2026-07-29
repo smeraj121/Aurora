@@ -1,115 +1,130 @@
 // views/staff/StaffView.tsx
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   UserPlus,
   Search,
   Phone,
   Mail,
   Calendar,
-  Briefcase,
-  Clock,
-  CheckCircle2,
-  XCircle,
   Pencil,
-  Eye,
   UserX,
   Star,
   TrendingUp,
   Users,
-  CalendarDays,
-  Award,
-  Filter,
   ChevronRight,
   Loader2,
-  BarChart3,
-  Clock3,
   CheckCheck,
   IndianRupee,
+  AlertCircle,
+  UserCheck,
 } from 'lucide-react';
 import { StaffModal } from './components/StaffModal';
 import { api } from '../../services/api';
 import { cn, formatCurrency } from '../../lib/utils';
-import type { StaffMember, StaffSchedule, StaffStats, TopStaff } from '../../shared/types/staff';
+import type { StaffMember, StaffSchedule, StaffStats, TopStaff } from '../../types/staff.types';
 
 export function StaffView() {
   const [staffList, setStaffList] = useState<StaffMember[]>([]);
   const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null);
   const [todaySchedule, setTodaySchedule] = useState<StaffSchedule[]>([]);
-  const [staffStats, setStaffStats] = useState<StaffStats | null>(null);
-  const [topStaff, setTopStaff] = useState<TopStaff[]>([]);
+  const [, setStaffStats] = useState<StaffStats | null>(null);
+  const [, setTopStaff] = useState<TopStaff[]>([]);
+  
   const [loading, setLoading] = useState(true);
+  const [detailsLoading, setDetailsLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [showInactive, setShowInactive] = useState(false);
 
-  useEffect(() => {
-    loadAllData();
-  }, []);
+  // Load schedule for a staff member
+  const loadStaffSchedule = async (staffId: number) => {
+    try {
+      const response = await api.getStaffSchedule(staffId);
+      if (response && response.success) {
+        setTodaySchedule(response.data || []);
+      } else {
+        setTodaySchedule([]);
+      }
+    } catch (err) {
+      console.error('Failed to load schedule:', err);
+      setTodaySchedule([]);
+    }
+  };
 
-  const loadAllData = async () => {
+  // Load detailed info for selected staff
+  const loadStaffDetails = useCallback(async (staffId: number) => {
+    try {
+      setDetailsLoading(true);
+      const response = await api.getStaffDetailsWithStats(staffId);
+      
+      if (response && response.success && response.data) {
+        setSelectedStaff(response.data);
+      } else {
+        // Fallback to local list item if full detail fails
+        const fallback = staffList.find((s) => s.id === staffId) || null;
+        setSelectedStaff(fallback);
+      }
+      
+      await loadStaffSchedule(staffId);
+    } catch (err) {
+      console.error('Failed to load staff details:', err);
+      const fallback = staffList.find((s) => s.id === staffId) || null;
+      setSelectedStaff(fallback);
+    } finally {
+      setDetailsLoading(false);
+    }
+  }, [staffList]);
+
+  // Load main dashboard data
+  const loadAllData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Load all staff with stats
+      // Fetch Staff List
       const staffResponse = await api.getStaff(false, true);
-      if (staffResponse.success) {
-        setStaffList(staffResponse.data);
-        if (staffResponse.data.length > 0 && !selectedStaff) {
-          // Load first staff with full stats
-          await loadStaffDetails(staffResponse.data[0].id);
-        }
+      let loadedStaff: StaffMember[] = [];
+      
+      if (staffResponse && staffResponse.success && Array.isArray(staffResponse.data)) {
+        loadedStaff = staffResponse.data;
+        setStaffList(loadedStaff);
       }
 
-      // Load staff stats
+      // Fetch Global Staff Statistics
       const statsResponse = await api.getStaffStats();
-      if (statsResponse.success) {
+      if (statsResponse && statsResponse.success) {
         setStaffStats(statsResponse.data);
       }
 
-      // Load top staff
+      // Fetch Top Performing Staff
       const topResponse = await api.getTopStaff(5);
-      if (topResponse.success) {
+      if (topResponse && topResponse.success) {
         setTopStaff(topResponse.data);
       }
+
+      // Select first available staff if none is currently selected
+      if (loadedStaff.length > 0) {
+        const targetId = selectedStaff ? selectedStaff.id : loadedStaff[0].id;
+        await loadStaffDetails(targetId);
+      } else {
+        setSelectedStaff(null);
+      }
     } catch (err) {
-      console.error('Failed to load data:', err);
-      setError('Failed to load staff data. Please try again.');
+      console.error('Failed to load staff data:', err);
+      setError('Unable to reach the server. Please check your network or try again.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedStaff, loadStaffDetails]);
 
-  // Load staff details with full stats using the /:id?stats=true endpoint
-  const loadStaffDetails = async (staffId: number) => {
-    try {
-      // This uses the GET /staff/:id?stats=true endpoint
-      const response = await api.getStaffDetails(staffId, true);
-      if (response.success) {
-        setSelectedStaff(response.data);
-        // Load schedule after getting staff details
-        await loadStaffSchedule(staffId);
-      }
-    } catch (err) {
-      console.error('Failed to load staff details:', err);
-    }
-  };
-
-  // Load today's schedule for a staff member
-  const loadStaffSchedule = async (staffId: number) => {
-    try {
-      const response = await api.getStaffSchedule(staffId);
-      if (response.success) {
-        setTodaySchedule(response.data);
-      }
-    } catch (err) {
-      console.error('Failed to load schedule:', err);
-    }
-  };
+  useEffect(() => {
+    loadAllData();
+  }, []);
 
   const handleSelectStaff = async (staff: StaffMember) => {
+    if (selectedStaff?.id === staff.id) return;
     await loadStaffDetails(staff.id);
   };
 
@@ -123,6 +138,19 @@ export function StaffView() {
     setIsModalOpen(true);
   };
 
+  const handleToggleStatus = async (staff: StaffMember) => {
+    try {
+      const updatedPayload = { ...staff, isActive: !staff.isActive };
+      const response = await api.updateStaff(staff.id, updatedPayload);
+      
+      if (response && response.success) {
+        await loadAllData();
+      }
+    } catch (err) {
+      console.error('Failed to toggle status:', err);
+    }
+  };
+
   const handleSaveStaff = async (savedStaff: StaffMember) => {
     try {
       let response;
@@ -132,10 +160,10 @@ export function StaffView() {
         response = await api.createStaff(savedStaff);
       }
 
-      if (response.success) {
-        await loadAllData();
+      if (response && response.success) {
         setIsModalOpen(false);
         setEditingStaff(null);
+        await loadAllData();
       }
     } catch (err: any) {
       console.error('Failed to save staff:', err);
@@ -143,10 +171,10 @@ export function StaffView() {
     }
   };
 
-  const getInitials = (name: string) => {
-    const parts = name.split(' ');
+  const getInitials = (name: string = '') => {
+    const parts = name.trim().split(' ');
     if (parts.length >= 2) {
-      return `${parts[0].charAt(0)}${parts[1].charAt(0)}`;
+      return `${parts[0].charAt(0)}${parts[1].charAt(0)}`.toUpperCase();
     }
     return name.substring(0, 2).toUpperCase();
   };
@@ -171,30 +199,45 @@ export function StaffView() {
 
   const filteredStaff = useMemo(() => {
     let filtered = staffList;
-    
+
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       filtered = filtered.filter(
         (s) =>
-          s.name.toLowerCase().includes(term) ||
-          s.role.toLowerCase().includes(term) ||
-          s.phone.includes(term)
+          s.name?.toLowerCase().includes(term) ||
+          s.role?.toLowerCase().includes(term) ||
+          s.phone?.includes(term)
       );
     }
-    
+
     if (!showInactive) {
       filtered = filtered.filter((s) => s.isActive);
     }
-    
+
     return filtered;
   }, [staffList, searchTerm, showInactive]);
 
-  const inactiveStaff = staffList.filter((s) => !s.isActive);
+  const inactiveStaff = useMemo(() => staffList.filter((s) => !s.isActive), [staffList]);
+
+  // Safely extract stats regardless of backend nesting schema
+  const currentStats = useMemo(() => {
+    if (!selectedStaff) return { appointments: 0, completed: 0, revenue: 0, rating: 0, reviews: 0 };
+    
+    const statsObj = (selectedStaff as any).stats || selectedStaff;
+    return {
+      appointments: statsObj.totalAppointments || statsObj.appointmentsCount || 0,
+      completed: statsObj.completedAppointments || statsObj.completedCount || 0,
+      revenue: statsObj.totalRevenue || statsObj.revenue || 0,
+      rating: statsObj.averageRating || statsObj.rating || 0,
+      reviews: statsObj.totalReviews || statsObj.reviewCount || 0,
+    };
+  }, [selectedStaff]);
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="flex flex-col items-center justify-center h-80 space-y-3">
         <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
+        <p className="text-xs text-slate-500 font-medium">Loading staff details...</p>
       </div>
     );
   }
@@ -217,6 +260,13 @@ export function StaffView() {
         </button>
       </div>
 
+      {error && (
+        <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 flex items-center gap-3 text-xs">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Left Column - Staff List */}
         <div className="lg:col-span-1 space-y-4">
@@ -233,46 +283,50 @@ export function StaffView() {
 
           <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
             <div className="divide-y divide-slate-100 max-h-[600px] overflow-y-auto">
-              {filteredStaff.map((staff) => (
-                <div
-                  key={staff.id}
-                  onClick={() => handleSelectStaff(staff)}
-                  className={cn(
-                    'p-3 cursor-pointer transition-all hover:bg-slate-50',
-                    selectedStaff?.id === staff.id && 'bg-purple-50 border-l-4 border-purple-600'
-                  )}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold text-xs shrink-0">
-                      {getInitials(staff.name)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold text-slate-900 truncate">{staff.name}</p>
-                      <p className="text-[10px] text-slate-500 truncate">{staff.role}</p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-[10px] text-slate-400 truncate">{staff.phone}</span>
-                        <span
-                          className={cn(
-                            'w-1.5 h-1.5 rounded-full',
-                            staff.isActive ? 'bg-emerald-500' : 'bg-amber-500'
-                          )}
-                        />
-                        <span className="text-[10px] font-medium text-slate-600">
-                          {staff.isActive ? 'Active' : 'On Leave'}
-                        </span>
+              {filteredStaff.length > 0 ? (
+                filteredStaff.map((staff) => (
+                  <div
+                    key={staff.id}
+                    onClick={() => handleSelectStaff(staff)}
+                    className={cn(
+                      'p-3 cursor-pointer transition-all hover:bg-slate-50',
+                      selectedStaff?.id === staff.id && 'bg-purple-50 border-l-4 border-purple-600'
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                        {getInitials(staff.name)}
                       </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold text-slate-900 truncate">{staff.name}</p>
+                        <p className="text-[10px] text-slate-500 truncate">{staff.role}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-[10px] text-slate-400 truncate">{staff.phone}</span>
+                          <span
+                            className={cn(
+                              'w-1.5 h-1.5 rounded-full',
+                              staff.isActive ? 'bg-emerald-500' : 'bg-amber-500'
+                            )}
+                          />
+                          <span className="text-[10px] font-medium text-slate-600">
+                            {staff.isActive ? 'Active' : 'On Leave'}
+                          </span>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
                     </div>
-                    <ChevronRight className="w-4 h-4 text-slate-400" />
                   </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <div className="p-6 text-center text-xs text-slate-400">No staff members found</div>
+              )}
             </div>
 
             {inactiveStaff.length > 0 && (
-              <div className="p-3 border-t border-slate-200">
+              <div className="p-3 border-t border-slate-200 bg-slate-50/50">
                 <button
                   onClick={() => setShowInactive(!showInactive)}
-                  className="text-xs text-purple-600 hover:text-purple-700 font-medium flex items-center gap-1"
+                  className="text-xs text-purple-600 hover:text-purple-700 font-medium flex items-center gap-1 w-full justify-center"
                 >
                   <UserX className="w-3.5 h-3.5" />
                   {showInactive ? 'Hide' : 'View'} Inactive Staff ({inactiveStaff.length})
@@ -287,10 +341,15 @@ export function StaffView() {
           {selectedStaff ? (
             <>
               {/* Profile Card */}
-              <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm">
+              <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm relative">
+                {detailsLoading && (
+                  <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] flex items-center justify-center rounded-2xl z-10">
+                    <Loader2 className="w-6 h-6 animate-spin text-purple-600" />
+                  </div>
+                )}
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                   <div className="flex items-start gap-4">
-                    <div className="w-16 h-16 rounded-2xl bg-purple-600 text-white flex items-center justify-center font-bold text-xl">
+                    <div className="w-16 h-16 rounded-2xl bg-purple-600 text-white flex items-center justify-center font-bold text-xl shrink-0">
                       {getInitials(selectedStaff.name)}
                     </div>
                     <div>
@@ -307,10 +366,12 @@ export function StaffView() {
                             {selectedStaff.email}
                           </span>
                         )}
-                        <span className="flex items-center gap-1">
-                          <Calendar className="w-3.5 h-3.5" />
-                          Joined {new Date(selectedStaff.createdAt).toLocaleDateString()}
-                        </span>
+                        {selectedStaff.createdAt && (
+                          <span className="flex items-center gap-1">
+                            <Calendar className="w-3.5 h-3.5" />
+                            Joined {new Date(selectedStaff.createdAt).toLocaleDateString()}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -318,39 +379,41 @@ export function StaffView() {
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <button
                       onClick={() => handleOpenEditModal(selectedStaff)}
-                      className="p-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 transition-colors"
+                      className="p-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 transition-colors cursor-pointer"
                       title="Edit Staff"
                     >
                       <Pencil className="w-4 h-4" />
                     </button>
-                    <button className="p-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 transition-colors">
-                      <Eye className="w-4 h-4" />
-                    </button>
-                    <button className="p-2 rounded-xl border border-rose-200 hover:bg-rose-50 text-rose-600 transition-colors">
-                      <UserX className="w-4 h-4" />
+                    <button
+                      onClick={() => handleToggleStatus(selectedStaff)}
+                      className={cn(
+                        'p-2 rounded-xl border transition-colors cursor-pointer',
+                        selectedStaff.isActive
+                          ? 'border-rose-200 hover:bg-rose-50 text-rose-600'
+                          : 'border-emerald-200 hover:bg-emerald-50 text-emerald-600'
+                      )}
+                      title={selectedStaff.isActive ? 'Deactivate Staff' : 'Activate Staff'}
+                    >
+                      {selectedStaff.isActive ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
                     </button>
                   </div>
                 </div>
 
-                {/* Stats from the /staff/:id?stats=true endpoint */}
+                {/* Stats Section */}
                 <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/60">
                     <p className="text-[10px] font-medium text-slate-500 flex items-center gap-1">
                       <TrendingUp className="w-3 h-3 text-emerald-600" />
                       Total Appointments
                     </p>
-                    <p className="text-lg font-bold text-slate-900">
-                      {selectedStaff.totalAppointments || 0}
-                    </p>
+                    <p className="text-lg font-bold text-slate-900">{currentStats.appointments}</p>
                   </div>
                   <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/60">
                     <p className="text-[10px] font-medium text-slate-500 flex items-center gap-1">
                       <CheckCheck className="w-3 h-3 text-emerald-600" />
                       Completed
                     </p>
-                    <p className="text-lg font-bold text-slate-900">
-                      {selectedStaff.completedAppointments || 0}
-                    </p>
+                    <p className="text-lg font-bold text-slate-900">{currentStats.completed}</p>
                   </div>
                   <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/60">
                     <p className="text-[10px] font-medium text-slate-500 flex items-center gap-1">
@@ -358,7 +421,7 @@ export function StaffView() {
                       Total Revenue
                     </p>
                     <p className="text-lg font-bold text-emerald-600">
-                      {formatCurrency(selectedStaff.totalRevenue || 0)}
+                      {formatCurrency(currentStats.revenue)}
                     </p>
                   </div>
                   <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/60">
@@ -366,11 +429,9 @@ export function StaffView() {
                       <Star className="w-3 h-3 text-amber-500" />
                       Average Rating
                     </p>
-                    <p className="text-lg font-bold text-amber-500">
-                      {selectedStaff.averageRating || 0} / 5
-                    </p>
+                    <p className="text-lg font-bold text-amber-500">{currentStats.rating} / 5</p>
                     <p className="text-[10px] text-slate-400">
-                      From {selectedStaff.totalReviews || 0} reviews
+                      From {currentStats.reviews} reviews
                     </p>
                   </div>
                 </div>
@@ -396,10 +457,12 @@ export function StaffView() {
                             <p className="text-[10px] text-slate-500">{item.service}</p>
                           </div>
                         </div>
-                        <span className={cn(
-                          'text-[10px] font-medium px-2 py-0.5 rounded-full',
-                          getStatusColor(item.status)
-                        )}>
+                        <span
+                          className={cn(
+                            'text-[10px] font-medium px-2 py-0.5 rounded-full',
+                            getStatusColor(item.status)
+                          )}
+                        >
                           {item.status}
                         </span>
                       </div>

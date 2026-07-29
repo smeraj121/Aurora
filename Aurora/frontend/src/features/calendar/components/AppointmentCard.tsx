@@ -1,6 +1,6 @@
 import { Package } from 'lucide-react';
 import { cn, formatCurrency } from '../../../lib/utils';
-import type { AppointmentCardData, AppointmentCardProps } from '../types/calender.types';
+import type { AppointmentCardData, AppointmentCardProps } from '../../../types/calender.types';
 
 // ---- Helpers ----
 function getStatusColor(status: string): string {

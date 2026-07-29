@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { X, UserCheck, AlertCircle } from 'lucide-react';
 import { api } from '../../services/api';
 import type { BookingFormState, CustomerPackage, NewBookingModalProps, PackageService } from './types/types';
-import type { ServiceItem } from '../../shared/types/booking';
-import type { StaffMember } from '../../shared/types/staff';
+import type { BookingServiceItem } from '../../types/booking.types';
+import type { StaffMember } from '../../types/staff.types';
 import { buildBookingPayload, convertAppointmentToForm } from './bookingMapper';
 import { AppointmentSection } from './sections/AppointmentSection';
 import { CustomerSection } from './sections/CustomerSection';
@@ -19,7 +19,7 @@ import { calculateBookingTotals } from './functions/bookingCalculations';
 export function NewBookingModal({isOpen, onClose, onSave, appointmentId, currentDate } : NewBookingModalProps) {
   const [formState, setFormState] = useState<BookingFormState>(DEFAULT_FORM_STATE);
   const [staffList, setStaffList] = useState<StaffMember[]>([]);
-  const [serviceList, setServiceList] = useState<ServiceItem[]>([]);
+  const [serviceList, setServiceList] = useState<BookingServiceItem[]>([]);
   const [customerPackages, setCustomerPackages] = useState<CustomerPackage[]>([]);
   const [isExistingCustomer, setIsExistingCustomer] = useState(false);
   const [showPackageSelector, setShowPackageSelector] = useState(false);
@@ -37,7 +37,7 @@ export function NewBookingModal({isOpen, onClose, onSave, appointmentId, current
   const loadReferenceData = async () => {
     const [staffRes, serviceRes] = await Promise.all([
       api.getStaff(true),
-      api.getServices(true),
+      api.getBookingServices(true),
     ]);
     if (staffRes.success) setStaffList(staffRes.data);
     if (serviceRes.success) setServiceList(serviceRes.data);
@@ -201,7 +201,7 @@ export function NewBookingModal({isOpen, onClose, onSave, appointmentId, current
       customerPackageId: packageId,
       isPackageAppointment: true,
       services: packageServices,
-      amount: 0, // packages have zero additional cost
+      amount: amount,
       durationMinutes: durationMinutes > 0 ? durationMinutes : prev.durationMinutes,
     }));
     setShowPackageSelector(false);

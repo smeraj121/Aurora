@@ -12,3 +12,8 @@ export interface PaginationParams {
   page: number;
   limit: number;
 }
+
+export interface KeyValuePair{
+  id: number;
+  name: string;
+}

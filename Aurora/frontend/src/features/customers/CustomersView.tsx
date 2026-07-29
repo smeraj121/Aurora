@@ -31,7 +31,7 @@ import { EditCustomerDrawer } from './components/EditCustomerDrawer';
 import { NewBookingModal } from '../bookingModal/NewBookingModal';
 import { AssignPackageModal } from '../packages/components/AssignPackageModal';
 import { EditCustomerPackageModal } from '../packages/components/EditCustomerPackageModal';
-import type { BookingFormData } from '../../shared/types/booking';
+import type { BookingFormData } from '../../types/booking.types';
 
 export function CustomersView() {
   const [customers, setCustomers] = useState<CustomerListItem[]>([]);

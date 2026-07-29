@@ -73,7 +73,7 @@ export function PackageModal({ isOpen, onClose, onSave, initialData }: PackageMo
   const loadServices = async () => {
     try {
       setLoading(true);
-      const { data } = await api.getServices();
+      const { data } = await api.getBookingServices();
       setAvailableServices(data || []);
     } catch (error) {
       console.error('Failed to load services:', error);

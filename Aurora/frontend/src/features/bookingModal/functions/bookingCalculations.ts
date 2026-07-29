@@ -1,5 +1,5 @@
 
-import type { ServiceItem } from "../../../shared/types/booking";
+import type { BookingServiceItem } from "../../../types/booking.types";
 import type { PackageService } from "../types/types";
 
 
@@ -13,7 +13,7 @@ import type { PackageService } from "../types/types";
  */
 export function calculateBookingTotals(
   services: PackageService[],
-  serviceList: ServiceItem[]
+  serviceList: BookingServiceItem[]
 ): { amount: number; durationMinutes: number } {
   let totalAmount = 0;
   let totalDuration = 0;

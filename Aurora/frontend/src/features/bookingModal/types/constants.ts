@@ -1,15 +1,10 @@
-import {
-  Calendar as CalendarIcon,
-  CheckCircle2,
-  Clock3,
-  XCircle,
-} from 'lucide-react';
 import type {
   StatusOption,
   PaymentStatusOption,
   BookingFormState,
 } from './types';
 import { getLocalDateString } from '../../../utils/dateUtils';
+import { CalendarIcon, CheckCircle2, Clock3, XCircle } from 'lucide-react';
 
 export const STATUS_OPTIONS: StatusOption[] = [
   { id: 'scheduled', label: 'Scheduled', icon: CalendarIcon },

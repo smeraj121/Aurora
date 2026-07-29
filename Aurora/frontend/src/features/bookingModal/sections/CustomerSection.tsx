@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { User, Phone, CheckCircle2 } from 'lucide-react';
-import type { CustomerSearchResult } from '../../../shared/types/booking';
+import type { CustomerSearchResult } from '../../../types/booking.types';
 import { api } from '../../../services/api';
 
 interface CustomerSectionProps {

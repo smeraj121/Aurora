@@ -1,92 +1,337 @@
-// services/staffService.js
-const staffRepository = require('../repositories/staffRepository');
+const dbPool = require('../config/db');
+const staffRepo = require('../repositories/staffRepository');
+const userRepo = require('../repositories/userRepository');
+const { StaffMapper } = require('../mapper/staff.mapper');
+const { ConflictError, NotFoundError, ValidationError }= require('../errors');
+const TimeHelper = require('../utils/timeHelper');
 
-exports.getAllStaff = async (onlyActive = false) => {
-  return staffRepository.getAllStaff(onlyActive);
-};
+// ============================================================
+// CREATE STAFF
+// ============================================================
 
-exports.getAllStaffWithStats = async (onlyActive = false) => {
-  return staffRepository.getAllStaffWithStats(onlyActive);
-};
+async function createStaff(tenantId, payload, userId) {
+  const client = await dbPool.connect();
+  try {
+    await client.query('BEGIN');
 
-exports.getStaffById = async (id) => {
-  const staff = await staffRepository.getStaffById(id);
-  if (!staff) {
-    throw new Error('Staff member not found');
-  }
-  return staff;
-};
-
-exports.getStaffByIdWithStats = async (id) => {
-  const staff = await staffRepository.getStaffByIdWithStats(id);
-  if (!staff) {
-    throw new Error('Staff member not found');
-  }
-  return staff;
-};
-
-exports.getStaffTodaySchedule = async (id) => {
-  const staff = await staffRepository.getStaffById(id);
-  if (!staff) {
-    throw new Error('Staff member not found');
-  }
-  return staffRepository.getStaffTodaySchedule(id);
-};
-
-exports.createStaff = async (data) => {
-  if (!data.name || !data.name.trim()) {
-    throw new Error('Staff name is required');
-  }
-  if (!data.email || !data.email.trim()) {
-    throw new Error('Email is required');
-  }
-  if (!data.phone || !data.phone.trim()) {
-    throw new Error('Phone number is required');
-  }
-  if (!data.role || !data.role.trim()) {
-    throw new Error('Role is required');
-  }
-
-  const existingStaff = await staffRepository.getStaffByEmail(data.email);
-  if (existingStaff) {
-    throw new Error(`Staff with email ${data.email} already exists`);
-  }
-
-  return staffRepository.createStaff(data);
-};
-
-exports.updateStaff = async (id, data) => {
-  const existing = await staffRepository.getStaffById(id);
-  if (!existing) {
-    throw new Error('Staff member not found');
-  }
-
-  if (data.email && data.email !== existing.email) {
-    const emailCheck = await staffRepository.getStaffByEmail(data.email);
-    if (emailCheck && emailCheck.id !== parseInt(id)) {
-      throw new Error(`Staff with email ${data.email} already exists`);
+    // 1. Check if user exists by phone/email
+    const existingUser = await staffRepo.findByPhoneOrEmail(client, tenantId, payload.phone, payload.email);
+    if (existingUser) {
+      throw new ConflictError('A staff member with this phone or email already exists.');
     }
+
+    // 2. Validate designation
+    const designation = await staffRepo.findDesignationById(client, tenantId, payload.designationId);
+    if (!designation) {
+      throw new ValidationError('Invalid designation ID provided.');
+    }
+
+    // 3. Validate services if provided
+    if (payload.serviceIds?.length > 0) {
+      const valid = await staffRepo.validateServiceIds(client, tenantId, payload.serviceIds);
+      if (!valid) {
+        throw new ValidationError('One or more selected services do not exist.');
+      }
+    }
+
+    // 4. Create user record
+    const user = await staffRepo.insertUser(client, tenantId, {
+      fullName: payload.name,
+      phone: payload.phone,
+      email: payload.email,
+      profileImageUrl: payload.profileImage || payload.profileImageUrl,
+      systemRole: 'Staff',
+      isActive: payload.isActive,
+    }, userId);
+
+    // 5. Generate employee code
+    const employeeCode = await staffRepo.generateEmployeeCode(client, tenantId);
+
+    // 6. Create staff record
+    const staff = await staffRepo.insertStaff(client, tenantId, {
+      userId: user.id,
+      designationId: payload.designationId,
+      employeeCode,
+      employmentStatus: payload.employmentStatus || 'active',
+      employmentType: payload.employmentType || 'full_time',
+      experienceYears: payload.experienceYears || 0,
+      profileImageUrl: payload.profileImage || payload.profileImageUrl || null,
+      calendarColor: payload.calendarColor || null,
+      commissionPercentage: payload.commissionPercentage || 0,
+      isOnlineBookable: payload.isOnlineBookable !== undefined ? payload.isOnlineBookable : true,
+      isActive: payload.isActive,
+      startTime: TimeHelper.toDb(payload.workingHoursStart) || null,
+      endTime: TimeHelper.toDb(payload.workingHoursEnd) || null,
+      weeklyOff: payload.weeklyOff || null,
+    });
+
+    // 7. Insert staff services
+    if (payload.serviceIds?.length > 0) {
+      await staffRepo.insertStaffServices(client, tenantId, staff.id, payload.serviceIds, userId);
+    }
+
+    await client.query('COMMIT');
+    return getStaffById(tenantId, staff.id);
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
   }
+}
 
-  return staffRepository.updateStaff(id, data);
-};
+// ============================================================
+// UPDATE STAFF
+// ============================================================
 
-exports.deleteStaff = async (id) => {
-  const existing = await staffRepository.getStaffById(id);
-  if (!existing) {
-    throw new Error('Staff member not found');
+async function updateStaff(tenantId, staffId, payload) {
+  const client = await dbPool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const existingStaff = await staffRepo.findStaffById(client, tenantId, staffId);
+    if (!existingStaff) {
+      throw new NotFoundError('Staff member not found.');
+    }
+
+    // Validate designation if provided
+    if (payload.designationId) {
+      const designation = await staffRepo.findDesignationById(client, tenantId, payload.designationId);
+      if (!designation) throw new ValidationError('Invalid designation ID provided.');
+    }
+
+    // Validate services if provided
+    if (payload.serviceIds) {
+      const valid = await staffRepo.validateServiceIds(client, tenantId, payload.serviceIds);
+      if (!valid) throw new ValidationError('One or more selected services are invalid.');
+    }
+
+    // Update user
+    await staffRepo.updateUser(client, tenantId, existingStaff.user_id, {
+      fullName: payload.fullName,
+      phone: payload.phone,
+      email: payload.email,
+      profileImage: payload.profileImage || payload.profileImageUrl,
+      isActive: payload.isActive,
+    });
+
+    // Update staff
+    await staffRepo.updateStaff(client, tenantId, staffId, {
+      designationId: payload.designationId,
+      employmentType: payload.employmentType,
+      employmentStatus: payload.employmentStatus,
+      experienceYears: payload.experienceYears,
+      //bio: payload.bio,
+      profileImageUrl: payload.profileImage || payload.profileImageUrl,
+      calendarColor: payload.calendarColor,
+      commissionPercentage: payload.commissionPercentage,
+      isOnlineBookable: payload.isOnlineBookable,
+      status: payload.isActive,
+      startTime: TimeHelper.toDb(payload.workingHoursStart) || null,
+      endTime: TimeHelper.toDb(payload.workingHoursEnd) || null,
+      weeklyOff: payload.weeklyOff || null,
+    });
+
+    // Update services if provided
+    if (payload.serviceIds !== undefined) {
+      await staffRepo.deleteStaffServices(client, tenantId, staffId);
+      if (payload.serviceIds.length > 0) {
+        await staffRepo.insertStaffServices(client, tenantId, staffId, payload.serviceIds);
+      }
+    }
+
+    await client.query('COMMIT');
+    return getStaffById(tenantId, staffId);
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
   }
-  return staffRepository.deleteStaff(id);
-};
+}
 
-exports.getStaffStats = async () => {
-  return staffRepository.getStaffStats();
-};
+// ============================================================
+// GET STAFF LIST (paginated with filters)
+// ============================================================
 
-exports.getTopStaff = async (limit) => {
-  return staffRepository.getTopStaff(limit);
-};
+async function getStaffList(tenantId, filters = {}) {
+  const client = await dbPool.connect();
+  try {
+    const { page = 1, limit = 10, search, designationId, isActive } = filters;
+    const { data, total } = await staffRepo.findAllPaginated(client, tenantId, {
+      page,
+      limit,
+      search,
+      designationId,
+      isActive,
+    });
 
-exports.getActiveStaff = async () => {
-  return staffRepository.getAllStaff(true);
+    return {
+      items: StaffMapper ? data.map(StaffMapper.toListDTO) : data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  } finally {
+    client.release();
+  }
+}
+
+// ============================================================
+// GET STAFF BY ID (with full details)
+// ============================================================
+
+async function getStaffById(tenantId, staffId) {
+  const client = await dbPool.connect();
+  try {
+    const staff = await staffRepo.findStaffById(client, tenantId, staffId);
+    if (!staff) {
+      throw new NotFoundError('Staff member not found.');
+    }
+
+    const [services, stats] = await Promise.all([
+      staffRepo.findStaffServices(client, tenantId, staffId),
+      staffRepo.findStaffStats(client, tenantId, staffId),
+    ]);
+
+    const workingHours = {
+      startTime: staff.start_time,
+      endTime: staff.end_time,
+      weeklyOff: staff.weekly_off,
+    };
+
+    return StaffMapper
+      ? StaffMapper.toDetailsDTO(staff, services, workingHours, stats)
+      : { ...staff, workingHours, services, stats };
+  } finally {
+    client.release();
+  }
+}
+
+// ============================================================
+// DELETE STAFF (soft delete)
+// ============================================================
+
+async function deleteStaff(tenantId, staffId, userId) {
+  const client = await dbPool.connect();
+  try {
+    await client.query('BEGIN');
+    const userId = await staffRepo.softDeleteStaff(client, tenantId, staffId, userId);
+    if (!userId) {
+      throw new NotFoundError('Staff member not found.');
+    }
+    await client.query('COMMIT');
+    return { id: staffId, success: true };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+// ============================================================
+// OPTIONS: Services & Designations
+// ============================================================
+
+async function getAllServices(tenantId) {
+  const client = await dbPool.connect();
+  try {
+    return await staffRepo.getAllServices(client, tenantId);
+  } finally {
+    client.release();
+  }
+}
+
+async function getAllDesignations(tenantId) {
+  const client = await dbPool.connect();
+  try {
+    return await staffRepo.getAllDesignations(client, tenantId);
+  } finally {
+    client.release();
+  }
+}
+
+// ============================================================
+// ADDITIONAL: Simple list & dashboard methods
+// ============================================================
+
+async function getAllStaff(tenantId, onlyActive = false) {
+  const client = await dbPool.connect();
+  try {
+    return await staffRepo.getAllStaff(client, tenantId, onlyActive);
+  } finally {
+    client.release();
+  }
+}
+
+async function getAllStaffWithStats(tenantId, onlyActive = false) {
+  const client = await dbPool.connect();
+  try {
+    return await staffRepo.getAllStaffWithStats(client, tenantId, onlyActive);
+  } finally {
+    client.release();
+  }
+}
+
+async function getStaffByIdWithStats(tenantId, staffId) {
+  const client = await dbPool.connect();
+  try {
+    
+    const staff = staffId ? await staffRepo.getStaffByIdWithStats(client, tenantId, staffId)
+    :
+    await staffRepo.getStaffById(client, tenantId);
+    if (!staff) throw new NotFoundError('Staff member not found.');
+    return staff;
+  } finally {
+    client.release();
+  }
+}
+
+async function getStaffTodaySchedule(tenantId, staffId) {
+  const client = await dbPool.connect();
+  try {
+    const schedule = await staffRepo.getStaffTodaySchedule(client, tenantId, staffId);
+    if (!schedule) throw new NotFoundError('Staff member not found.');
+    return schedule;
+  } finally {
+    client.release();
+  }
+}
+
+async function getStaffStats(tenantId) {
+  const client = await dbPool.connect();
+  try {
+    return await staffRepo.getStaffStats(client, tenantId);
+  } finally {
+    client.release();
+  }
+}
+
+async function getTopStaff(tenantId, limit = 5) {
+  const client = await dbPool.connect();
+  try {
+    return await staffRepo.getTopStaff(client, tenantId, limit);
+  } finally {
+    client.release();
+  }
+}
+
+module.exports = {
+  createStaff,
+  updateStaff,
+  getStaffList,
+  getStaffById,
+  deleteStaff,
+  getAllServices,
+  getAllDesignations,
+  getAllStaff,
+  getAllStaffWithStats,
+  getStaffByIdWithStats,
+  getStaffTodaySchedule,
+  getStaffStats,
+  getTopStaff,
 };

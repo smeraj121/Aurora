@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppLayout } from './components/layout/AppLayout';
 import { DashboardView } from './features/dashboard/DashboardView';
 import { CalendarView } from './features/calendar/CalendarView';
@@ -7,6 +7,9 @@ import { ReportsView } from './features/reports/ReportsView';
 import { AIAssistantView } from './features/ai-assistant/AIAssistantView';
 import { StaffView } from './features/staff/StaffView';
 import { PackagesView } from './features/packages/PackagesView';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { LoginPage } from './features/login/LoginPage';
+import { TenantSelectionPage } from './features/login/TenantSelectionPage';
 
 function PlaceholderView({ title }: { title: string }) {
   return (
@@ -17,10 +20,33 @@ function PlaceholderView({ title }: { title: string }) {
   );
 }
 
-export function App() {
+function AppRoutes() {
+  const { isAuthenticated, loading } = useAuth();
+
+  // Show loading spinner while checking auth
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-slate-500">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <BrowserRouter>
-      <Routes>
+    <Routes>
+      {/* ============================================================
+          PUBLIC ROUTES
+          ============================================================ */}
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/select-tenant" element={<TenantSelectionPage />} />
+
+      {/* ============================================================
+          PROTECTED ROUTES
+          ============================================================ */}
+      {isAuthenticated ? (
         <Route path="/" element={<AppLayout />}>
           <Route index element={<DashboardView />} />
           <Route path="appointments" element={<PlaceholderView title="Appointments" />} />
@@ -31,11 +57,28 @@ export function App() {
           <Route path="inventory" element={<PlaceholderView title="Inventory" />} />
           <Route path="marketing" element={<PlaceholderView title="Marketing" />} />
           <Route path="reports" element={<ReportsView />} />
-          <Route path="ai-assistant" element={ <AIAssistantView /> } />
+          <Route path="ai-assistant" element={<AIAssistantView />} />
           <Route path="packages" element={<PackagesView />} />
           <Route path="settings" element={<PlaceholderView title="Settings" />} />
         </Route>
-      </Routes>
+      ) : (
+        /* If not authenticated and not on a public route, redirect to login */
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      )}
+    </Routes>
+  );
+}
+
+// ============================================================
+// ROOT APP
+// ============================================================
+
+function App() {
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
     </BrowserRouter>
   );
 }

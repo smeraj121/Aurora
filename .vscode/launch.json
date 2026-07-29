@@ -1,0 +1,17 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Launch Backend",
+            "program": "${workspaceFolder}/Aurora/backend/server.js",
+            "cwd": "${workspaceFolder}/Aurora/backend",
+            "envFile": "${workspaceFolder}/Aurora/backend/.env",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "console": "integratedTerminal"
+        }
+    ]
+}

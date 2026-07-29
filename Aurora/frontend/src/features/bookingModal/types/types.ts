@@ -1,7 +1,7 @@
 
 import type { LucideIcon } from 'lucide-react';
 import type { AppointmentStatus } from '../../../shared/types';
-import type { PaymentStatus } from '../../../shared/types/booking';
+import type { PaymentStatus } from '../../../types/booking.types';
 
 export interface NewBookingModalProps {
   isOpen: boolean;
