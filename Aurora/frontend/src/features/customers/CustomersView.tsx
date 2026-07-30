@@ -21,7 +21,7 @@ import {
 import type {
   CustomerDetails,
   CustomerVisit,
-  CustomerPackage,
+  CustomerPackage1 as CustomerPackage,
   CustomerListItem
 } from '../../shared/types/domain';
 import { api } from '../../services/api';
@@ -31,7 +31,6 @@ import { EditCustomerDrawer } from './components/EditCustomerDrawer';
 import { NewBookingModal } from '../bookingModal/NewBookingModal';
 import { AssignPackageModal } from '../packages/components/AssignPackageModal';
 import { EditCustomerPackageModal } from '../packages/components/EditCustomerPackageModal';
-import type { BookingFormData } from '../../types/booking.types';
 
 export function CustomersView() {
   const [customers, setCustomers] = useState<CustomerListItem[]>([]);
@@ -43,7 +42,7 @@ export function CustomersView() {
   const [isAssignPackageModalOpen, setIsAssignPackageModalOpen] = useState(false);
   const [isEditPackageModalOpen, setIsEditPackageModalOpen] = useState(false);
   const [editingCustomerPackage, setEditingCustomerPackage] = useState<CustomerPackage | null>(null);
-  const [packageFilter, setPackageFilter] = useState<'all' | 'active' | 'expired' | 'inactive'>('active');
+  const [appointmentId, setAppointmentId] = useState<number|null>(0);
   const [loading, setLoading] = useState(true);
   const [searchTimeout, setSearchTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
 
@@ -139,12 +138,13 @@ export function CustomersView() {
   // ============================================================
   // BOOKING HANDLERS
   // ============================================================
-  const handleOpenBookingModal = () => {
+  const handleOpenBookingModal = (id:number|null) => {
     if (!selectedCustomer) {
       alert('Please select a customer first');
       return;
     }
     setIsBookingModalOpen(true);
+    setAppointmentId(id);
   };
 
   const handleSaveAppointment = async (bookingData: any) => {
@@ -225,47 +225,7 @@ export function CustomersView() {
     }
   };
 
-  const handleUpdatePackageStatus = async (packageId: number, status: string) => {
-    const action = status === 'active' ? 'reactivate' : 'deactivate';
-    if (!confirm(`Are you sure you want to ${action} this package?`)) return;
-    
-    try {
-      await api.updateCustomerPackageStatus(packageId, status);
-      if (selectedCustomer) {
-        await loadCustomer(selectedCustomer.id);
-      }
-      alert(`Package ${action}d successfully`);
-    } catch (error) {
-      console.error('Failed to update package status:', error);
-      alert('Failed to update package status');
-    }
-  };
 
-  const handleExtendPackage = async (pkg: CustomerPackage) => {
-    const currentExpiry = pkg.expiryDate ? new Date(pkg.expiryDate) : new Date();
-    const defaultDate = currentExpiry > new Date() 
-      ? currentExpiry.toISOString().split('T')[0]
-      : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    
-    const newExpiry = prompt('Enter new expiry date (YYYY-MM-DD):', defaultDate);
-    if (!newExpiry) return;
-    
-    if (new Date(newExpiry) < new Date()) {
-      alert('Expiry date must be in the future');
-      return;
-    }
-    
-    try {
-      await api.extendPackageExpiry(pkg.id, newExpiry);
-      if (selectedCustomer) {
-        await loadCustomer(selectedCustomer.id);
-      }
-      alert('Package expiry extended successfully');
-    } catch (error) {
-      console.error('Failed to extend package:', error);
-      alert('Failed to extend package expiry');
-    }
-  };
     const getAvatarUrl = (customer: { fullName: string; avatar?: string | null }) => {
     if (customer.avatar) return customer.avatar;
     const initials = customer.fullName
@@ -516,7 +476,7 @@ export function CustomersView() {
                   {/* Action Buttons - UPDATED with Assign Package */}
                   <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
                     <button
-                      onClick={handleOpenBookingModal}
+                      onClick={()=>handleOpenBookingModal(null)}
                       className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold shadow-sm transition-colors"
                     >
                       <Plus className="w-3.5 h-3.5" />
@@ -680,6 +640,7 @@ export function CustomersView() {
                       <div
                         key={item.id}
                         className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/60 hover:bg-slate-100 transition-colors"
+                        onClick={()=>handleOpenBookingModal(item.id)}
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1 min-w-0">
@@ -743,7 +704,7 @@ export function CustomersView() {
                     <p>No visit history available</p>
                     <p className="text-xs mt-1">
                       <button
-                        onClick={handleOpenBookingModal}
+                        onClick={()=>handleOpenBookingModal}
                         className="text-purple-600 font-semibold hover:text-purple-700 transition-colors"
                       >
                         Book an appointment
@@ -789,6 +750,7 @@ export function CustomersView() {
         onClose={() => setIsBookingModalOpen(false)}
         onSave={handleSaveAppointment}
         initialData={getBookingInitialData()}
+        appointmentId={appointmentId}
       />
 
       {/* Assign Package Modal - NEW */}

@@ -20,17 +20,17 @@ const getLocalDateString = (date: Date): string => {
 
 const normalizeTime = (time: string): string => {
   if (!time) return '';
-  
+
   const parts = time.trim().split(' ');
   if (parts.length !== 2) return time;
-  
+
   const timePart = parts[0];
   const period = parts[1];
   const [hours, minutes] = timePart.split(':').map(Number);
-  
+
   const hourStr = hours < 10 ? `0${hours}` : `${hours}`;
   const minuteStr = minutes < 10 ? `0${minutes}` : `${minutes}`;
-  
+
   return `${hourStr}:${minuteStr} ${period}`;
 };
 
@@ -68,9 +68,11 @@ export function CalendarView() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<ExtendedAppointment | null>(null);
   const [selectedStaffFilter, setSelectedStaffFilter] = useState<string>('all');
+  const [selectedStaffId, setSelectedStaffId] = useState<number | null>(null);
+  const [selectedStartTime, setSelectedStartTime] = useState('');
 
   // ✅ FIXED: Use local date string
-   const formattedDateString = getLocalDateString(currentDate);
+  const formattedDateString = getLocalDateString(currentDate);
 
   useEffect(() => {
     fetchScheduleData();
@@ -118,19 +120,27 @@ export function CalendarView() {
   }, [selectedStaffFilter, staffList]);
 
   const handleSaveAppointment = async (savedApt: any) => {
-  try {
-    // Remove the hardcoded date override
-    await api.createAppointment(savedApt);
-    await fetchScheduleData();
-  } catch (err) {
-    console.error('Failed to save appointment:', err);
-    throw err;
-  }
-};
+    try {
+      // Remove the hardcoded date override
+      await api.createAppointment(savedApt);
+      await fetchScheduleData();
+    } catch (err) {
+      console.error('Failed to save appointment:', err);
+      throw err;
+    }
+  };
 
-  const handleOpenModal = (apt: ExtendedAppointment | null = null) => {
-    setEditingAppointmentId(apt?.id||null);
+  const handleOpenModal = (
+    apt: ExtendedAppointment | null = null,
+    staffId?: number,
+    startTime?: string
+  ) => {
+    setEditingAppointmentId(apt?.id ?? null);
     setEditingAppointment(apt);
+
+    setSelectedStaffId(staffId ?? null);
+    setSelectedStartTime(startTime ?? '');
+
     setIsModalOpen(true);
   };
 
@@ -331,7 +341,7 @@ export function CalendarView() {
                           className="relative group hover:bg-slate-50/50 transition-colors border-r border-slate-100 last:border-r-0 h-full"
                         >
                           <button
-                            onClick={() => handleOpenModal()}
+                            onClick={() => handleOpenModal(null, staff.id, slot)}
                             className="w-full h-full border border-dashed border-transparent group-hover:border-slate-300 flex items-center justify-center text-slate-400 opacity-0 group-hover:opacity-100 transition-all"
                           >
                             <Plus className="w-3.5 h-3.5 text-slate-400" />
@@ -420,18 +430,20 @@ export function CalendarView() {
 
       {/* New Booking Form Modal - Pass currentDate */}
       <NewBookingModal
-    isOpen={isModalOpen}
-    onClose={() => {
-      setIsModalOpen(false);
-      setEditingAppointment(null);
-      setEditingAppointmentId(null);
-      fetchScheduleData(); // Refresh
-    }}
-    onSave={handleSaveAppointment}
-    appointmentId={editingAppointmentId}
-    initialData={editingAppointment}
-    currentDate={formattedDateString}
-  />
+        isOpen={isModalOpen}
+        onClose={() => {
+          setIsModalOpen(false);
+          setEditingAppointment(null);
+          setEditingAppointmentId(null);
+          fetchScheduleData();
+        }}
+        onSave={handleSaveAppointment}
+        appointmentId={editingAppointmentId}
+        initialData={editingAppointment}
+        currentDate={formattedDateString}
+        staffId={selectedStaffId}
+        slot={selectedStartTime}
+      />
     </div>
   );
 }

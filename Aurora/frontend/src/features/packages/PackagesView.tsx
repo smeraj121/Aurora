@@ -26,18 +26,18 @@ import {
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { cn, formatCurrency } from '../../lib/utils';
-import type { Package, PackageStats, PopularPackage } from '../../shared/types/packages';
+import type { PackageModel, PackageStats, PopularPackage } from '../../shared/types/packages';
 import { PackageModal } from './components/PackageModal';
 
 export function PackagesView() {
-  const [packages, setPackages] = useState<Package[]>([]);
+  const [packages, setPackages] = useState<PackageModel[]>([]);
   const [stats, setStats] = useState<PackageStats | null>(null);
   const [popularPackages, setPopularPackages] = useState<PopularPackage[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showInactive, setShowInactive] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingPackage, setEditingPackage] = useState<Package | null>(null);
+  const [editingPackage, setEditingPackage] = useState<PackageModel | null>(null);
   const [showStats, setShowStats] = useState(true);
 
   useEffect(() => {
@@ -91,7 +91,7 @@ export function PackagesView() {
     }
   };
 
-  const handleEditPackage = (pkg: Package) => {
+  const handleEditPackage = (pkg: PackageModel) => {
     setEditingPackage(pkg);
     setIsModalOpen(true);
   };

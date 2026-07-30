@@ -11,12 +11,12 @@ import {
   CreditCard,
 } from 'lucide-react';
 import { cn, formatCurrency } from '../../../lib/utils';
-import type { CustomerPackage } from '../../../shared/types/domain';
+import type { CustomerPackage1 } from '../../../shared/types/domain';
 
 interface EditCustomerPackageModalProps {
   isOpen: boolean;
   onClose: () => void;
-  customerPackage: CustomerPackage | null;
+  customerPackage: CustomerPackage1 | null;
   onUpdate: (data: {
     customPrice?: number;
     expiryDate?: string;

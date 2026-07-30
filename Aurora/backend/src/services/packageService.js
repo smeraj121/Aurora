@@ -1,76 +1,102 @@
 // services/packageService.js
 const packageRepository = require('../repositories/packageRepository');
-const serviceRepository = require('../repositories/serviceRepository');
+const { NotFoundError, ValidationError, ConflictError } = require('../errors');
 
-exports.getAllPackages = async (includeInactive = false) => {
-  return packageRepository.getAllPackages(includeInactive);
-};
+// ============================================================
+// GET ALL PACKAGES
+// ============================================================
+async function getAllPackages(tenantId, includeInactive = false) {
+  return packageRepository.findAll(tenantId, includeInactive);
+}
 
-exports.getPackageById = async (id) => {
-  const pkg = await packageRepository.getPackageById(id);
+// ============================================================
+// GET PACKAGE BY ID
+// ============================================================
+async function getPackageById(tenantId, id) {
+  const pkg = await packageRepository.findById(tenantId, id);
   if (!pkg) {
-    throw new Error('Package not found');
+    throw new NotFoundError('Package not found');
   }
   return pkg;
-};
+}
 
-exports.createPackage = async (data) => {
-  // Validate required fields
-  if (!data.name) {
-    throw new Error('Package name is required');
-  }
-  if (!data.totalPrice || data.totalPrice <= 0) {
-    throw new Error('Valid total price is required');
+// ============================================================
+// CREATE PACKAGE
+// ============================================================
+async function createPackage(tenantId, data, userId) {
+  // Validation
+  if (!data.name) throw new ValidationError('Package name is required');
+  if (!data.totalPrice || data.totalPrice < 0) {
+    throw new ValidationError('Valid total price is required');
   }
   if (!data.services || data.services.length === 0) {
-    throw new Error('At least one service is required');
+    throw new ValidationError('At least one service is required');
   }
 
-  // Validate services exist
-  const serviceIds = data.services.map(s => s.serviceId);
-  const existingServices = await serviceRepository.getServicesByIds(serviceIds);
-  
-  if (existingServices.length !== serviceIds.length) {
-    throw new Error('One or more services do not exist');
+  // Check duplicate name
+  const existing = await packageRepository.findByName(tenantId, data.name);
+  if (existing) {
+    throw new ConflictError(`Package with name "${data.name}" already exists`);
   }
 
-  // Calculate total sessions
-  data.totalSessions = data.services.reduce((sum, s) => sum + (s.quantity || 1), 0);
+  return packageRepository.create(tenantId, data, userId);
+}
 
-  return packageRepository.createPackage(data);
-};
-
-exports.updatePackage = async (id, data) => {
-  const existing = await packageRepository.getPackageById(id);
+// ============================================================
+// UPDATE PACKAGE
+// ============================================================
+async function updatePackage(tenantId, id, data, userId) {
+  const existing = await packageRepository.findById(tenantId, id);
   if (!existing) {
-    throw new Error('Package not found');
+    throw new NotFoundError('Package not found');
   }
 
-  // Validate services if provided
-  if (data.services && data.services.length > 0) {
-    const serviceIds = data.services.map(s => s.serviceId);
-    const existingServices = await serviceRepository.getServicesByIds(serviceIds);
-    
-    if (existingServices.length !== serviceIds.length) {
-      throw new Error('One or more services do not exist');
+  // Check name uniqueness if changing
+  if (data.name && data.name !== existing.name) {
+    const duplicate = await packageRepository.findByName(tenantId, data.name, id);
+    if (duplicate) {
+      throw new ConflictError(`Package with name "${data.name}" already exists`);
     }
   }
 
-  return packageRepository.updatePackage(id, data);
-};
+  return packageRepository.update(tenantId, id, data, userId);
+}
 
-exports.deletePackage = async (id) => {
-  const existing = await packageRepository.getPackageById(id);
+// ============================================================
+// DELETE PACKAGE (soft delete)
+// ============================================================
+async function deletePackage(tenantId, id, userId) {
+  const existing = await packageRepository.findById(tenantId, id);
   if (!existing) {
-    throw new Error('Package not found');
+    throw new NotFoundError('Package not found');
   }
-  return packageRepository.deletePackage(id);
-};
+  const result = await packageRepository.delete(tenantId, id, userId);
+  if (!result) {
+    throw new NotFoundError('Package not found');
+  }
+  return result;
+}
 
-exports.getPackageStats = async () => {
-  return packageRepository.getPackageStats();
-};
+// ============================================================
+// GET STATISTICS
+// ============================================================
+async function getPackageStats(tenantId) {
+  return packageRepository.getStats(tenantId);
+}
 
-exports.getPopularPackages = async (limit) => {
-  return packageRepository.getPopularPackages(limit);
+// ============================================================
+// GET POPULAR PACKAGES
+// ============================================================
+async function getPopularPackages(tenantId, limit = 5) {
+  return packageRepository.getPopular(tenantId, limit);
+}
+
+module.exports = {
+  getAllPackages,
+  getPackageById,
+  createPackage,
+  updatePackage,
+  deletePackage,
+  getPackageStats,
+  getPopularPackages,
 };

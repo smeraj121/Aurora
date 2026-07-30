@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, UserCheck, AlertCircle } from 'lucide-react';
 import { api } from '../../services/api';
-import type { BookingFormState, CustomerPackage, NewBookingModalProps, PackageService } from './types/types';
+import type { BookingFormState, CustomerPackage, NewBookingModalProps, CustomerPackageServiceItem } from './types/types';
 import type { BookingServiceItem } from '../../types/booking.types';
 import type { StaffMember } from '../../types/staff.types';
 import { buildBookingPayload, convertAppointmentToForm } from './bookingMapper';
@@ -15,8 +15,9 @@ import { StatusSection } from './sections/StatusSection';
 import { DEFAULT_FORM_STATE } from './types/constants';
 import { validateBooking } from './validation';
 import { calculateBookingTotals } from './functions/bookingCalculations';
+import type { PackageService } from '../../shared/types/packages';
 
-export function NewBookingModal({isOpen, onClose, onSave, appointmentId, currentDate } : NewBookingModalProps) {
+export function NewBookingModal({ isOpen, onClose, onSave, appointmentId, currentDate, staffId, slot }: NewBookingModalProps) {
   const [formState, setFormState] = useState<BookingFormState>(DEFAULT_FORM_STATE);
   const [staffList, setStaffList] = useState<StaffMember[]>([]);
   const [serviceList, setServiceList] = useState<BookingServiceItem[]>([]);
@@ -77,11 +78,14 @@ export function NewBookingModal({isOpen, onClose, onSave, appointmentId, current
         if (appointmentId) {
           await loadAppointmentData(appointmentId);
         } else {
-          const defaultStaffId = staff.length > 0 ? String(staff[0].id) : '';
+          const defaultStaffId = staff.length > 0 ? staff[0].id : 0;
+          console.log(staffId);
+          console.log(slot);
           setFormState((prev) => ({
             ...prev,
-            staffId: defaultStaffId,
+            staffId: staffId || defaultStaffId,
             date: currentDate || DEFAULT_FORM_STATE.date,
+            startTime: slot || DEFAULT_FORM_STATE.startTime,
           }));
         }
       } catch (err) {
@@ -158,14 +162,16 @@ export function NewBookingModal({isOpen, onClose, onSave, appointmentId, current
       return;
     }
 
-    const newService: PackageService = {
+    const newService: CustomerPackageServiceItem = {
       serviceId: serviceToAdd.id,
       serviceName: serviceToAdd.name,
       price: serviceToAdd.price,
+      usedQuantity:0,
+      totalQuantity: 0
     };
     const updatedServices = [...formState.services, newService];
     const { amount, durationMinutes } = calculateBookingTotals(updatedServices, serviceList);
-    console.log(amount);
+
     setFormState((prev) => ({
       ...prev,
       services: updatedServices,
@@ -189,20 +195,22 @@ export function NewBookingModal({isOpen, onClose, onSave, appointmentId, current
     const selectedPackage = customerPackages.find(p => String(p.id) === packageId);
     if (!selectedPackage) return;
 
-    const packageServices: PackageService[] = selectedPackage.services.map(s => ({
+    const packageServices: CustomerPackageServiceItem[] = selectedPackage.services.map(s => ({
       serviceId: s.serviceId,
       serviceName: s.serviceName,
       price: 0,
+      totalQuantity: 0,
+      usedQuantity: 0
     }));
 
-    const { amount, durationMinutes } = calculateBookingTotals(packageServices, serviceList);
+    const { durationMinutes } = calculateBookingTotals(packageServices, serviceList);
     setFormState((prev) => ({
       ...prev,
       customerPackageId: packageId,
       isPackageAppointment: true,
-      services: packageServices,
-      amount: amount,
-      durationMinutes: durationMinutes > 0 ? durationMinutes : prev.durationMinutes,
+      services: [], //packageServices,
+      amount: 0,
+      durationMinutes: 0 //durationMinutes > 0 ? durationMinutes : prev.durationMinutes,
     }));
     setShowPackageSelector(false);
   };
@@ -217,6 +225,36 @@ export function NewBookingModal({isOpen, onClose, onSave, appointmentId, current
       services: [],
       amount: amount, // will be 0
       durationMinutes: durationMinutes, // will be 0
+    }));
+  };
+
+  const handleTogglePackageService = (pkgService: CustomerPackageServiceItem) => {
+    const isAlreadySelected = formState.services.some((s) => s.serviceId === pkgService.serviceId);
+
+    let updatedServices: CustomerPackageServiceItem[];
+
+    if (isAlreadySelected) {
+      updatedServices = formState.services.filter((s) => s.serviceId !== pkgService.serviceId);
+    } else {
+      updatedServices = [
+        ...formState.services,
+        {
+          serviceId: pkgService.serviceId,
+          serviceName: pkgService.serviceName,
+          price: 0,
+          totalQuantity: 0,
+          usedQuantity: 0
+        },
+      ];
+    }
+
+    const { durationMinutes } = calculateBookingTotals(updatedServices, serviceList);
+
+    setFormState((prev) => ({
+      ...prev,
+      services: updatedServices,
+      amount: 0,
+      durationMinutes: durationMinutes > 0 ? durationMinutes : prev.durationMinutes,
     }));
   };
 
@@ -277,14 +315,17 @@ export function NewBookingModal({isOpen, onClose, onSave, appointmentId, current
             />
 
             <PackageSection
-              isExistingCustomer={isExistingCustomer}
-              customerPackages={customerPackages}
-              isPackageAppointment={formState.isPackageAppointment}
-              showPackageSelector={showPackageSelector}
-              onOpenPackageSelector={() => setShowPackageSelector(!showPackageSelector)}
-              onSelectPackage={handlePackageSelect}
-              onRemovePackage={handlePackageRemove}
-            />
+  isExistingCustomer={isExistingCustomer}
+  customerPackages={customerPackages}
+  isPackageAppointment={formState.isPackageAppointment}
+  showPackageSelector={showPackageSelector}
+  selectedPackageId={formState.customerPackageId ? String(formState.customerPackageId) : null}
+  selectedServices={formState.services.map((s) => s.serviceId)}
+  onOpenPackageSelector={() => setShowPackageSelector(!showPackageSelector)}
+  onSelectPackage={handlePackageSelect}
+  onTogglePackageService={handleTogglePackageService}
+  onRemovePackage={handlePackageRemove}
+/>
 
             <ServiceSection
               services={formState.services}
@@ -297,7 +338,7 @@ export function NewBookingModal({isOpen, onClose, onSave, appointmentId, current
             <AppointmentSection
               staffId={formState.staffId}
               staffList={staffList}
-              onStaffChange={(staffId) => setFormState(prev => ({ ...prev, staffId }))}
+              onStaffChange={(staffId: number | null) => setFormState(prev => ({ ...prev, staffId }))}
               date={formState.date}
               onDateChange={(date) => setFormState(prev => ({ ...prev, date }))}
               startTime={formState.startTime}

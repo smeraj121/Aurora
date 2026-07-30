@@ -14,14 +14,14 @@ import {
 } from 'lucide-react';
 import { api } from '../../../services/api';
 import { cn, formatCurrency } from '../../../lib/utils';
-import type { Package, PackageFormData } from '../../../shared/types/packages';
+import type { PackageModel, PackageFormData } from '../../../shared/types/packages';
 import { parse } from 'date-fns';
 
 interface PackageModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (data: any) => Promise<void>;
-  initialData?: Package | null;
+  initialData?: PackageModel | null;
 }
 
 export function PackageModal({ isOpen, onClose, onSave, initialData }: PackageModalProps) {

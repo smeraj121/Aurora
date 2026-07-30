@@ -3,9 +3,9 @@ import type { StaffMember } from '../../../types/staff.types';
 import { TIME_SLOTS } from '../types/constants';
 
 interface AppointmentSectionProps {
-  staffId: string;
+  staffId: number | null;
   staffList: StaffMember[];
-  onStaffChange: (staffId: string) => void;
+  onStaffChange: (staffId: number | null) => void;
   date: string;
   onDateChange: (date: string) => void;
   startTime: string;
@@ -35,7 +35,7 @@ export function AppointmentSection({
         <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
           <Users className="w-3.5 h-3.5 text-purple-600" /> Staff <span className="text-rose-500">*</span>
         </label>
-        <select value={staffId} onChange={(e) => onStaffChange(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-purple-600 cursor-pointer" required>
+        <select value={staffId||0} onChange={(e) => onStaffChange(parseInt(e.target.value, 10) || null)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-purple-600 cursor-pointer" required>
           <option value="">-- Select Staff --</option>
           {staffList.map((s) => (<option key={s.id} value={s.id}>{s.name}</option>))}
         </select>

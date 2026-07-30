@@ -9,7 +9,7 @@ class AppointmentRepository {
         a.phone,
         a.service,
         a.staff_id AS "staffId",
-        a.appointment_date AS "date",
+        TO_CHAR(a.appointment_date, 'YYYY-MM-DD') AS "date",
         a.time_slot AS "time",
         a.duration_minutes AS "durationMinutes",
         a.status,

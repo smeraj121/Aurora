@@ -1,18 +1,18 @@
 
 import type { BookingServiceItem } from "../../../types/booking.types";
-import type { PackageService } from "../types/types";
+import type { CustomerPackageServiceItem } from "../types/types";
 
 
 /**
  * Calculates the total amount and total duration for a list of services.
  * If a service ID is not found in the service catalog, it is skipped.
  *
- * @param services - Array of PackageService (serviceId, serviceName, price)
+ * @param services - Array of CustomerPackageServiceItem (serviceId, serviceName, price)
  * @param serviceList - Full list of available services with price and duration
  * @returns An object containing total amount and total duration in minutes
  */
 export function calculateBookingTotals(
-  services: PackageService[],
+  services: CustomerPackageServiceItem[],
   serviceList: BookingServiceItem[]
 ): { amount: number; durationMinutes: number } {
   let totalAmount = 0;
@@ -23,8 +23,8 @@ export function calculateBookingTotals(
     if (fullService) {
         console.log(fullService);
       // Use the catalog price (the svc.price might be overridden for packages)
-      totalAmount +=  fullService.price;
-      totalDuration += fullService.durationMinutes;
+      totalAmount += Number(fullService.price ?? 0);
+      totalDuration += Number(fullService.durationMinutes ?? 0);
     }
     // If not found, we skip it (but could also use svc.price as fallback)
   }

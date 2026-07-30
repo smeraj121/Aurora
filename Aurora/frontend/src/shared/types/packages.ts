@@ -1,13 +1,10 @@
 export interface PackageService {
   serviceId: number;
   serviceName: string;
-  servicePrice: number;
-  quantity: number;
-  discount: number;
-  totalPrice?: number;
+  price: number;
 }
 
-export interface Package {
+export interface PackageModel {
   id: number;
   name: string;
   description?: string | null;

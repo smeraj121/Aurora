@@ -10,6 +10,8 @@ export interface NewBookingModalProps {
   initialData?: any | null;
   appointmentId?: number | null;
   currentDate?: string;
+  staffId?:number | null;
+  slot?:string;
 }
 
 export interface StatusOption {
@@ -25,11 +27,12 @@ export interface PaymentStatusOption {
   color: string;
 }
 
-export interface PackageService {
+export interface CustomerPackageServiceItem {
   serviceId: number;
   serviceName: string;
   price: number;
-  quantity?: number;
+  totalQuantity?: number;
+  usedQuantity: number;
 }
 
 export interface CustomerPackage {
@@ -38,7 +41,7 @@ export interface CustomerPackage {
   remainingSessions: number;
   totalSessions: number;
   expiryDate: string;
-  services: PackageService[];
+  services: CustomerPackageServiceItem[];
 }
 
 export interface BookingFormState {
@@ -46,7 +49,7 @@ export interface BookingFormState {
   customerId: number | null;
   customerName: string;
   phone: string;
-  staffId: string;
+  staffId: number | null;
   startTime: string;
   durationMinutes: number;
   date: string;
@@ -54,7 +57,7 @@ export interface BookingFormState {
   status: AppointmentStatus;
   paymentStatus: PaymentStatus;
   paidAmount: number;
-  services: PackageService[];
+  services: CustomerPackageServiceItem[];
   customerPackageId: string | null;
   isPackageAppointment: boolean;
 }

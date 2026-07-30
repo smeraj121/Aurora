@@ -1,10 +1,10 @@
 import { Plus, Scissors, Trash2 } from 'lucide-react';
 import { useState } from 'react';
-import type { PackageService } from '../types/types';
+import type { CustomerPackageServiceItem } from '../types/types';
 import type { BookingServiceItem } from '../../../types/booking.types';
 
 interface ServiceSectionProps {
-  services: PackageService[];
+  services: CustomerPackageServiceItem[];
   serviceList: BookingServiceItem[];
   isPackageAppointment: boolean;
   onAddService: (serviceId: string) => void;

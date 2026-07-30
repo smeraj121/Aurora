@@ -13,6 +13,14 @@ class CustomError extends Error {
   }
 }
 
+class UnauthorizedError extends Error {
+  constructor(message = 'Unauthorized access') {
+    super(message);
+    this.statusCode = 401;
+    this.name = 'UnauthorizedError';
+  }
+}
+
 class ConflictError extends CustomError {
   constructor(message = 'Resource conflict') {
     super(message, 409);

@@ -4,7 +4,7 @@ import type { Appointment } from '../shared/types';
 import type { BookingServiceItem } from '../types/booking.types';
 import type { CustomerListItem, CustomerDetails, CustomerVisit } from '../shared/types/domain';
 import type { StaffDetails, StaffMember, StaffSchedule, StaffStats, TopStaff } from '../types/staff.types';
-import type { Package, PackageFormData, PackageStats, PopularPackage } from '../shared/types/packages';
+import type { PackageModel, PackageFormData, PackageStats, PopularPackage } from '../shared/types/packages';
 import type { CustomerPackage } from '../features/bookingModal/types/types';
 import type { DashboardMetric, Revenue } from '../features/dashboard/types/dashboard.types';
 import type { KeyValuePair } from '../shared/types/common';
@@ -353,7 +353,7 @@ export class ApiService {
     notes?: string;
     expiryDate?: string;
   }): Promise<ApiResponse<any>> {
-    return this.post('/customers/assign-package', data);
+    return this.post('/customers/packages/assign', data);
   }
 
   async updateCustomerPackage(
@@ -369,32 +369,24 @@ export class ApiService {
     return this.put<CustomerPackage>(`/customers/packages/${id}`, data);
   }
 
-  async updateCustomerPackageStatus(id: number, status: string): Promise<ApiResponse<any>> {
-    return this.put(`/customers/packages/${id}/status`, { status });
-  }
-
-  async extendPackageExpiry(id: number, expiryDate: string): Promise<ApiResponse<any>> {
-    return this.post(`/customers/packages/${id}/extend`, { expiryDate });
-  }
-
   // ============================================================
   // PACKAGE ENDPOINTS
   // ============================================================
 
-  async getPackages(includeInactive = false): Promise<ApiResponse<Package[]>> {
-    return this.get<Package[]>('/packages', { includeInactive });
+  async getPackages(includeInactive = false): Promise<ApiResponse<PackageModel[]>> {
+    return this.get<PackageModel[]>('/packages', { includeInactive });
   }
 
-  async getPackage(id: number): Promise<ApiResponse<Package>> {
-    return this.get<Package>(`/packages/${id}`);
+  async getPackage(id: number): Promise<ApiResponse<PackageModel>> {
+    return this.get<PackageModel>(`/packages/${id}`);
   }
 
-  async createPackage(data: PackageFormData): Promise<ApiResponse<Package>> {
-    return this.post<Package>('/packages', data);
+  async createPackage(data: PackageFormData): Promise<ApiResponse<PackageModel>> {
+    return this.post<PackageModel>('/packages', data);
   }
 
-  async updatePackage(id: number, data: Partial<PackageFormData>): Promise<ApiResponse<Package>> {
-    return this.put<Package>(`/packages/${id}`, data);
+  async updatePackage(id: number, data: Partial<PackageFormData>): Promise<ApiResponse<PackageModel>> {
+    return this.put<PackageModel>(`/packages/${id}`, data);
   }
 
   async deletePackage(id: number): Promise<ApiResponse<void>> {

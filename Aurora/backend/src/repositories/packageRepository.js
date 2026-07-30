@@ -3,16 +3,21 @@ const db = require('../config/db');
 
 class PackageRepository {
   // ============================================================
-  // GET ALL PACKAGES
+  // GET ALL PACKAGES (with optional includeInactive)
   // ============================================================
-  async getAllPackages(includeInactive = false) {
+  async findAll(tenantId, includeInactive = false) {
     let query = `
       SELECT 
         p.id,
+        p.tenant_id AS "tenantId",
         p.name,
         p.description,
         p.total_price AS "totalPrice",
         p.discount_percentage AS "discountPercentage",
+        p.validity_days AS "validityDays",
+        p.display_order AS "displayOrder",
+        p.color,
+        p.image_url AS "imageUrl",
         p.is_active AS "isActive",
         p.created_at AS "createdAt",
         p.updated_at AS "updatedAt",
@@ -34,31 +39,43 @@ class PackageRepository {
       FROM packages p
       LEFT JOIN package_services ps ON ps.package_id = p.id
       LEFT JOIN services s ON s.id = ps.service_id
+      WHERE p.tenant_id = $1
     `;
 
+    const values = [tenantId];
+
     if (!includeInactive) {
-      query += ` WHERE p.is_active = true`;
+      query += ` AND p.is_active = true`;
     }
 
     query += `
       GROUP BY p.id
-      ORDER BY p.name ASC
+      ORDER BY p.display_order ASC, p.name ASC
     `;
 
-    const { rows } = await db.query(query);
+    const { rows } = await db.query(query, values);
     return rows;
   }
 
   // ============================================================
   // GET PACKAGE BY ID
   // ============================================================
-  async getPackageById(id) {
+  async findById(tenantId, id) {
     const query = `
       SELECT 
-        p.*,
+        p.id,
+        p.tenant_id AS "tenantId",
+        p.name,
+        p.description,
         p.total_price AS "totalPrice",
         p.discount_percentage AS "discountPercentage",
+        p.validity_days AS "validityDays",
+        p.display_order AS "displayOrder",
+        p.color,
+        p.image_url AS "imageUrl",
         p.is_active AS "isActive",
+        p.created_at AS "createdAt",
+        p.updated_at AS "updatedAt",
         COALESCE(
           json_agg(DISTINCT jsonb_build_object(
             'serviceId', ps.service_id,
@@ -66,7 +83,7 @@ class PackageRepository {
             'servicePrice', s.price,
             'quantity', ps.quantity,
             'discount', ps.discount_per_service,
-            'totalPrice', (s.price * ps.quantity) - (s.price * ps.quantity * ps.discount_per_service / 100)
+            'totalPrice', ROUND(((s.price * ps.quantity) - (s.price * ps.quantity * ps.discount_per_service / 100))::numeric, 2)
           )) FILTER (WHERE ps.service_id IS NOT NULL),
           '[]'::json
         ) AS services,
@@ -77,18 +94,36 @@ class PackageRepository {
       FROM packages p
       LEFT JOIN package_services ps ON ps.package_id = p.id
       LEFT JOIN services s ON s.id = ps.service_id
-      WHERE p.id = $1
+      WHERE p.id = $1 AND p.tenant_id = $2
       GROUP BY p.id
     `;
 
-    const { rows } = await db.query(query, [id]);
+    const { rows } = await db.query(query, [id, tenantId]);
     return rows[0] || null;
   }
 
   // ============================================================
-  // CREATE PACKAGE
+  // CHECK PACKAGE NAME UNIQUENESS PER TENANT
   // ============================================================
-  async createPackage(data) {
+  async findByName(tenantId, name, excludeId = null) {
+    let query = `
+      SELECT id, name
+      FROM packages
+      WHERE tenant_id = $1 AND LOWER(name) = LOWER($2)
+    `;
+    const values = [tenantId, name];
+    if (excludeId) {
+      query += ` AND id != $3`;
+      values.push(excludeId);
+    }
+    const { rows } = await db.query(query, values);
+    return rows[0] || null;
+  }
+
+  // ============================================================
+  // CREATE PACKAGE (with services)
+  // ============================================================
+  async create(tenantId, data, userId) {
     const client = await db.connect();
 
     try {
@@ -97,18 +132,36 @@ class PackageRepository {
       // Insert package
       const packageQuery = `
         INSERT INTO packages (
-          name, description, total_price, discount_percentage, is_active
+          tenant_id,
+          name,
+          description,
+          total_price,
+          discount_percentage,
+          validity_days,
+          display_order,
+          color,
+          image_url,
+          is_active,
+          created_by,
+          created_at,
+          updated_at
         )
-        VALUES ($1, $2, $3, $4, $5)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         RETURNING id
       `;
 
       const packageValues = [
+        tenantId,
         data.name,
         data.description || null,
         data.totalPrice,
         data.discountPercentage || 0,
-        data.isActive !== undefined ? data.isActive : true
+        data.validityDays || null,
+        data.displayOrder || 0,
+        data.color || null,
+        data.imageUrl || null,
+        data.isActive !== undefined ? data.isActive : true,
+        userId
       ];
 
       const { rows } = await client.query(packageQuery, packageValues);
@@ -124,14 +177,15 @@ class PackageRepository {
             packageId,
             service.serviceId,
             service.quantity || 1,
-            service.discount || 0
+            service.discount || 0,
+            userId
           );
-          servicePlaceholders.push(`($${index * 4 + 1}, $${index * 4 + 2}, $${index * 4 + 3}, $${index * 4 + 4})`);
+          servicePlaceholders.push(`($${index * 5 + 1}, $${index * 5 + 2}, $${index * 5 + 3}, $${index * 5 + 4}, $${index * 5 + 5})`);
         });
 
         const serviceQuery = `
           INSERT INTO package_services (
-            package_id, service_id, quantity, discount_per_service
+            package_id, service_id, quantity, discount_per_service, created_by
           )
           VALUES ${servicePlaceholders.join(', ')}
         `;
@@ -140,7 +194,7 @@ class PackageRepository {
       }
 
       await client.query('COMMIT');
-      return this.getPackageById(packageId);
+      return this.findById(tenantId, packageId);
 
     } catch (error) {
       await client.query('ROLLBACK');
@@ -151,15 +205,15 @@ class PackageRepository {
   }
 
   // ============================================================
-  // UPDATE PACKAGE
+  // UPDATE PACKAGE (and its services)
   // ============================================================
-  async updatePackage(id, data) {
+  async update(tenantId, id, data, userId) {
     const client = await db.connect();
 
     try {
       await client.query('BEGIN');
 
-      // Update package
+      // Build dynamic UPDATE for package
       const updates = [];
       const values = [];
       let paramCount = 1;
@@ -180,20 +234,39 @@ class PackageRepository {
         updates.push(`discount_percentage = $${paramCount++}`);
         values.push(data.discountPercentage);
       }
+      if (data.validityDays !== undefined) {
+        updates.push(`validity_days = $${paramCount++}`);
+        values.push(data.validityDays);
+      }
+      if (data.displayOrder !== undefined) {
+        updates.push(`display_order = $${paramCount++}`);
+        values.push(data.displayOrder);
+      }
+      if (data.color !== undefined) {
+        updates.push(`color = $${paramCount++}`);
+        values.push(data.color);
+      }
+      if (data.imageUrl !== undefined) {
+        updates.push(`image_url = $${paramCount++}`);
+        values.push(data.imageUrl);
+      }
       if (data.isActive !== undefined) {
         updates.push(`is_active = $${paramCount++}`);
         values.push(data.isActive);
       }
 
-      updates.push(`updated_at = CURRENT_TIMESTAMP`);
-
       if (updates.length > 0) {
+        updates.push(`updated_at = CURRENT_TIMESTAMP`);
+        updates.push(`updated_by = $${paramCount++}`);
+        values.push(userId);
+
         const query = `
           UPDATE packages
           SET ${updates.join(', ')}
-          WHERE id = $${paramCount}
+          WHERE id = $${paramCount} AND tenant_id = $${paramCount + 1}
         `;
         values.push(id);
+        values.push(tenantId);
         await client.query(query, values);
       }
 
@@ -215,14 +288,15 @@ class PackageRepository {
               id,
               service.serviceId,
               service.quantity || 1,
-              service.discount || 0
+              service.discount || 0,
+              userId
             );
-            servicePlaceholders.push(`($${index * 4 + 1}, $${index * 4 + 2}, $${index * 4 + 3}, $${index * 4 + 4})`);
+            servicePlaceholders.push(`($${index * 5 + 1}, $${index * 5 + 2}, $${index * 5 + 3}, $${index * 5 + 4}, $${index * 5 + 5})`);
           });
 
           const serviceQuery = `
             INSERT INTO package_services (
-              package_id, service_id, quantity, discount_per_service
+              package_id, service_id, quantity, discount_per_service, created_by
             )
             VALUES ${servicePlaceholders.join(', ')}
           `;
@@ -232,7 +306,7 @@ class PackageRepository {
       }
 
       await client.query('COMMIT');
-      return this.getPackageById(id);
+      return this.findById(tenantId, id);
 
     } catch (error) {
       await client.query('ROLLBACK');
@@ -243,77 +317,75 @@ class PackageRepository {
   }
 
   // ============================================================
-  // DELETE PACKAGE
+  // DELETE PACKAGE (soft delete only)
   // ============================================================
-  async deletePackage(id) {
-    // Check if package is used by any customer
-    const checkQuery = `
-      SELECT COUNT(*) as count 
-      FROM customer_packages 
-      WHERE package_id = $1
-    `;
-    const { rows } = await db.query(checkQuery, [id]);
-
-
-    if (parseInt(rows[0].count) > 0) {
-      // Soft delete - just deactivate
-      const query = `
-        UPDATE packages 
-        SET is_active = false, updated_at = CURRENT_TIMESTAMP
-        WHERE id = $1
-        RETURNING id
-      `;
-      const { rows: updateRows } = await db.query(query, [id]);
-      return updateRows[0] || null;
-    }
-
-    // Hard delete if not used
-    const query = `DELETE FROM packages WHERE id = $1 RETURNING id`;
-    const { rows: deleteRows } = await db.query(query, [id]);
-    return deleteRows[0] || null;
-  }
-
-  // ============================================================
-  // GET PACKAGE STATS
-  // ============================================================
-  async getPackageStats() {
+  async delete(tenantId, id, userId) {
+    // Because customer_packages may reference this package, we only soft delete
     const query = `
-    SELECT 
-      COUNT(DISTINCT p.id) AS "totalPackages",
-      COUNT(DISTINCT CASE WHEN p.is_active THEN p.id END) AS "activePackages",
-      COUNT(cp.id) AS "totalPurchases",
-      COALESCE(SUM(cp.total_price), 0) AS "totalRevenue",
-      COUNT(DISTINCT cp.customer_id) AS "uniqueCustomers",
-      (SELECT COALESCE(AVG(total_price), 0) FROM packages WHERE is_active = true) AS "avgPackagePrice"
-    FROM packages p
-    LEFT JOIN customer_packages cp ON cp.package_id = p.id
-  `;
-
-    const { rows } = await db.query(query);
+      UPDATE packages
+      SET is_active = false, updated_at = CURRENT_TIMESTAMP, updated_by = $1
+      WHERE id = $2 AND tenant_id = $3
+      RETURNING id
+    `;
+    const { rows } = await db.query(query, [userId, id, tenantId]);
     return rows[0] || null;
   }
 
   // ============================================================
-  // GET POPULAR PACKAGES
+  // GET PACKAGE STATISTICS (tenant‑aware)
   // ============================================================
-  async getPopularPackages(limit = 5) {
+  async getStats(tenantId) {
+    const query = `
+      SELECT 
+        COUNT(DISTINCT p.id) AS "totalPackages",
+        COUNT(DISTINCT CASE WHEN p.is_active THEN p.id END) AS "activePackages",
+        COUNT(cp.id) AS "totalPurchases",
+        COALESCE(SUM(cp.custom_price), 0) AS "totalRevenue",
+        COUNT(DISTINCT cp.customer_id) AS "uniqueCustomers",
+        (SELECT COALESCE(AVG(total_price), 0) FROM packages WHERE tenant_id = $1 AND is_active = true) AS "avgPackagePrice"
+      FROM packages p
+      LEFT JOIN customer_packages cp ON cp.package_id = p.id AND cp.tenant_id = p.tenant_id
+      WHERE p.tenant_id = $1
+    `;
+
+    const { rows } = await db.query(query, [tenantId]);
+    return rows[0] || null;
+  }
+
+  // ============================================================
+  // GET POPULAR PACKAGES (based on purchase count)
+  // ============================================================
+  async getPopular(tenantId, limit = 5) {
     const query = `
       SELECT 
         p.id,
         p.name,
         p.total_price AS "totalPrice",
         COUNT(cp.id) AS "purchases",
-        COALESCE(SUM(cp.total_price), 0) AS "revenue",
+        COALESCE(SUM(cp.custom_price), 0) AS "revenue",
         p.is_active AS "isActive"
       FROM packages p
-      LEFT JOIN customer_packages cp ON cp.package_id = p.id
-      WHERE p.is_active = true
+      LEFT JOIN customer_packages cp ON cp.package_id = p.id AND cp.tenant_id = p.tenant_id
+      WHERE p.tenant_id = $1
       GROUP BY p.id
       ORDER BY purchases DESC, revenue DESC
-      LIMIT $1
+      LIMIT $2
     `;
 
-    const { rows } = await db.query(query, [limit]);
+    const { rows } = await db.query(query, [tenantId, limit]);
+    return rows;
+  }
+
+  // ============================================================
+  // GET PACKAGE Services
+  // ============================================================
+  async getPackageServiceDefinitions(tenantId, packageId) {
+    const { rows } = await db.query(
+      `SELECT service_id, quantity 
+      FROM package_services 
+      WHERE package_id = $1`,
+      [packageId]
+    );
     return rows;
   }
 }
