@@ -118,12 +118,12 @@ export function PackagesView() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+          <h2 className="text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-purple-600 to-purple-700 flex items-center justify-center shadow-lg shadow-purple-900/20">
               <PackageIcon className="w-4 h-4 text-white" />
             </div>
             Packages & Bundles
-          </h1>
+          </h2>
           <p className="text-xs text-slate-500 mt-1">
             Create and manage service packages, bundles, and memberships
           </p>
@@ -151,7 +151,7 @@ export function PackagesView() {
                 <PackageIcon className="w-3.5 h-3.5 text-violet-600" />
               </div>
             </div>
-            <p className="text-2xl font-bold text-slate-900 mt-1">{stats.totalPackages}</p>
+            <p className="text-xl font-bold text-slate-900 mt-1">{stats.totalPackages}</p>
             <p className="text-[10px] text-emerald-600 font-medium">{stats.activePackages} active</p>
           </div>
 
@@ -162,7 +162,7 @@ export function PackagesView() {
                 <ShoppingBag className="w-3.5 h-3.5 text-blue-600" />
               </div>
             </div>
-            <p className="text-2xl font-bold text-slate-900 mt-1">{stats.totalPurchases}</p>
+            <p className="text-xl font-bold text-slate-900 mt-1">{stats.totalPurchases}</p>
             <p className="text-[10px] text-slate-500">This month</p>
           </div>
 
@@ -173,7 +173,7 @@ export function PackagesView() {
                 <IndianRupee className="w-3.5 h-3.5 text-emerald-600" />
               </div>
             </div>
-            <p className="text-2xl font-bold text-emerald-600 mt-1">{formatCurrency(stats.totalRevenue)}</p>
+            <p className="text-xl font-bold text-emerald-600 mt-1">{formatCurrency(stats.totalRevenue)}</p>
             <p className="text-[10px] text-slate-500">This month</p>
           </div>
 
@@ -184,7 +184,7 @@ export function PackagesView() {
                 <User className="w-3.5 h-3.5 text-amber-600" />
               </div>
             </div>
-            <p className="text-2xl font-bold text-slate-900 mt-1">{stats.uniqueCustomers}</p>
+            <p className="text-xl font-bold text-slate-900 mt-1">{stats.uniqueCustomers}</p>
             <p className="text-[10px] text-slate-500">This month</p>
           </div>
 
@@ -195,7 +195,7 @@ export function PackagesView() {
                 <Percent className="w-3.5 h-3.5 text-purple-600" />
               </div>
             </div>
-            <p className="text-2xl font-bold text-purple-700 mt-1">
+            <p className="text-xl font-bold text-purple-700 mt-1">
               {formatCurrency(stats.avgPackagePrice)}
             </p>
             <p className="text-[10px] text-purple-500">Per package</p>
@@ -252,7 +252,7 @@ export function PackagesView() {
               <div className="w-6 h-6 rounded-lg bg-amber-100 flex items-center justify-center">
                 <Crown className="w-3.5 h-3.5 text-amber-600" />
               </div>
-              <h3 className="text-sm font-bold text-slate-900">Most Popular Packages</h3>
+              <h4 className="text-sm font-bold text-slate-900">Most Popular Packages</h4>
             </div>
             <span className="text-[10px] text-slate-400">Top 5</span>
           </div>
@@ -340,9 +340,9 @@ export function PackagesView() {
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-bold text-slate-900 truncate">
+                      <h4 className="text-sm font-bold text-slate-900 truncate">
                         {pkg.name}
-                      </h3>
+                      </h4>
                       {!pkg.isActive && (
                         <span className="text-[9px] font-medium bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full shrink-0">
                           Inactive

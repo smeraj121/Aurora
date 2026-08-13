@@ -1,6 +1,6 @@
 import { DollarSign, CreditCard, ChevronDown } from 'lucide-react';
 import { PAYMENT_STATUS_OPTIONS } from '../types/constants';
-import type { PaymentStatus } from '../../../types/booking.types';
+import type { PaymentStatus } from '../../../shared/types/domain';
 
 interface PaymentSectionProps {
   amount: number;

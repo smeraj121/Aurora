@@ -5,9 +5,10 @@ import type { BookingServiceItem } from '../types/booking.types';
 import type { CustomerListItem, CustomerDetails, CustomerVisit } from '../shared/types/domain';
 import type { StaffDetails, StaffMember, StaffSchedule, StaffStats, TopStaff } from '../types/staff.types';
 import type { PackageModel, PackageFormData, PackageStats, PopularPackage } from '../shared/types/packages';
-import type { CustomerPackage } from '../features/bookingModal/types/types';
 import type { DashboardMetric, Revenue } from '../features/dashboard/types/dashboard.types';
-import type { KeyValuePair } from '../shared/types/common';
+import type { KeyValuePair, User } from '../shared/types/common';
+import type { ProfileData, UpdateProfileRequest } from '../types/profile.types';
+import type { CustomerPackage } from '../types/customerpackage.types';
 
 export interface ApiResponse<T = any> {
   success: boolean;
@@ -251,10 +252,22 @@ export class ApiService {
     this.clearAuthToken();
   }
 
-  async getCurrentUser(): Promise<any> {
-    const response = await this.get<{ user: any }>('/auth/me');
+  async getCurrentUser(): Promise<ApiResponse<User>> {
+    return this.get<User>(`/auth/me`);
+  }
+  
+  // ============================================================
+  // PROFILE
+  // ============================================================
+  async getCurrentUserProfile(): Promise<ProfileData> {
+    const response = await this.get<{ user: ProfileData }>('/auth/profile');
     return response.data.user;
   }
+
+  async updateProfile(data: UpdateProfileRequest): Promise<ApiResponse<ProfileData>> {
+    return this.patch<ProfileData>('/auth/profile', data);
+  }
+
 
   // ============================================================
   // CALENDAR ENDPOINTS
@@ -265,23 +278,15 @@ export class ApiService {
   }
 
   async getAppointment(id: number): Promise<ApiResponse<any>> {
-    return this.get(`/calendar/${id}`);
+    return this.get(`/appointments/${id}`);
   }
 
-  async createAppointment(data: any): Promise<ApiResponse<any>> {
-    return this.post('/calendar', data);
+  async createAppointment(data: any): Promise<ApiResponse<User>> {
+    return this.post('/appointments', data);
   }
 
   async updateAppointment(id: number, data: any): Promise<ApiResponse<any>> {
-    return this.put(`/calendar/${id}`, data);
-  }
-
-  async recordPayment(appointmentId: number, paidAmount: number, paymentMethod: string): Promise<ApiResponse<any>> {
-    return this.post('/calendar/payment', { appointmentId, paidAmount, paymentMethod });
-  }
-
-  async getPendingPayments(): Promise<ApiResponse<any[]>> {
-    return this.get('/calendar/pending-payments');
+    return this.put(`/appointments/${id}`, data);
   }
 
   // ============================================================
@@ -418,7 +423,7 @@ export class ApiService {
   async getStaffDetails(id: number): Promise<ApiResponse<StaffDetails>> {
     return this.get<StaffDetails>(`/staff/${id}`);
   }
-  
+
 
   async getStaffStats(): Promise<ApiResponse<StaffStats>> {
     return this.get<StaffStats>('/staff/stats');

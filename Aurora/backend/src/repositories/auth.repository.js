@@ -29,7 +29,7 @@ class AuthRepository {
 
   async findUserById(id, client = pool) {
     const query = `
-      SELECT id, tenant_id, full_name, phone, email, birthday, gender, 
+      SELECT id, tenant_id, full_name as "fullName", phone, email, birthday, gender, 
              profile_image_url, preferred_language, system_role, is_active, last_login_at
       FROM users
       WHERE id = $1;
@@ -40,7 +40,7 @@ class AuthRepository {
 
   async findUserTenants(phone, client = pool) {
     const query = `
-      SELECT u.id as user_id, u.tenant_id, u.system_role, t.name as tenant_name, t.logo_url
+      SELECT u.id as user_id,u.full_name, u.email,  u.tenant_id, u.system_role, t.name as tenant_name, t.logo_url
       FROM users u
       INNER JOIN tenants t ON u.tenant_id = t.id
       WHERE u.phone = $1 AND u.is_active = true AND t.is_active = true;
@@ -74,34 +74,36 @@ class AuthRepository {
     await client.query(query, [userId]);
   }
 
-  async updateProfile(userId, profileData, client = pool) {
-    const fields = [];
-    const values = [];
-    let index = 1;
-
-    for (const [key, value] of Object.entries(profileData)) {
-      if (value !== undefined) {
-        const dbField = key.replace(/[A-Z]/g, (l) => `_${l.toLowerCase()}`);
-        fields.push(`${dbField} = $${index}`);
-        values.push(value);
-        index++;
-      }
-    }
-
-    if (fields.length === 0) return await this.findUserById(userId, client);
-
-    fields.push(`updated_at = CURRENT_TIMESTAMP`);
-    values.push(userId);
+  async updateProfile(userId, { fullName, email, birthday, gender }, client = pool) {
+    const values = [
+      fullName.trim(),
+      email.trim(),
+      birthday || null,
+      gender || 'unspecified',
+      userId
+    ];
 
     const query = `
       UPDATE users
-      SET ${fields.join(', ')}
-      WHERE id = $${index}
-      RETURNING id, tenant_id, full_name, phone, email, birthday, gender, profile_image_url, preferred_language, system_role;
+      SET 
+        full_name = $1,
+        email = $2,
+        birthday = $3,
+        gender = $4,
+        updated_at = NOW()
+      WHERE id = $5
+      RETURNING 
+        id,
+        full_name AS "fullName",
+        email,
+        phone,
+        birthday,
+        gender,
+        updated_at AS "updatedAt"
     `;
 
     const { rows } = await client.query(query, values);
-    return rows[0];
+    return rows[0] || null;
   }
 
   async deactivateUser(userId, client = pool) {

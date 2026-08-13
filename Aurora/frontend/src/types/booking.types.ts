@@ -1,6 +1,5 @@
-import type { Appointment, AppointmentStatus } from "../shared/types";
-
-export type PaymentStatus = 'pending' | 'partial' | 'paid' | 'refunded';
+import type { AppointmentStatus } from "../shared/types";
+import type { PaymentStatus } from "../shared/types/domain";
 
 export interface BookingStaffMember {
   id: number | string;
@@ -36,13 +35,4 @@ export interface BookingFormData {
   status: AppointmentStatus;
   paymentStatus: PaymentStatus;
   paidAmount: string | number;
-}
-
-export interface NewBookingModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSave: (appointment: BookingFormData) => Promise<void> | void;
-  initialData?: Appointment | null;
-  appointmentId?: number | null;
-  currentDate?: string;
 }

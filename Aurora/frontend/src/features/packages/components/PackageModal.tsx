@@ -4,18 +4,15 @@ import {
   X,
   Plus,
   Trash2,
-  IndianRupee,
   Percent,
   AlertCircle,
   Check,
-  Edit2,
   Minus,
   Clock,
 } from 'lucide-react';
 import { api } from '../../../services/api';
 import { cn, formatCurrency } from '../../../lib/utils';
 import type { PackageModel, PackageFormData } from '../../../shared/types/packages';
-import { parse } from 'date-fns';
 
 interface PackageModalProps {
   isOpen: boolean;
@@ -294,9 +291,9 @@ export function PackageModal({ isOpen, onClose, onSave, initialData }: PackageMo
               <div className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-base">
+              <h4 className="font-bold text-base">
                 {initialData ? 'Edit Package' : 'Create New Package'}
-              </h3>
+              </h4>
               <p className="text-xs text-purple-200 opacity-80">
                 {initialData ? 'Update package details and services' : 'Bundle services into a package'}
               </p>

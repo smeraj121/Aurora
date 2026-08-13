@@ -1571,7 +1571,7 @@ export const AppointmentCard = memo(({ appointment, onUpdate, onCancel }: Appoin
     )}>
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="font-medium">{appointment.customerName}</h3>
+          <h4 className="font-medium">{appointment.customerName}</h3>
           <p className="text-sm text-muted-foreground">{appointment.serviceName}</p>
         </div>
         <div className="flex gap-2">

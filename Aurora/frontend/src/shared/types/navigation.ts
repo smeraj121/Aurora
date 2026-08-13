@@ -25,8 +25,8 @@ export const NAV_ITEMS: NavItem[] = [
   //{ label: 'Billing & Sales', path: '/billing', icon: CreditCard },
   //{ label: 'Inventory', path: '/inventory', icon: Package },
   //{ label: 'Marketing', path: '/marketing', icon: Megaphone },
-  { label: 'Reports', path: '/reports', icon: BarChart3 },
-  { label: 'AI Assistant', path: '/ai-assistant', icon: Sparkles, badge: 'New' },
-  { label: 'Settings', path: '/settings', icon: Settings },
+  //{ label: 'Reports', path: '/reports', icon: BarChart3 },
+  //{ label: 'AI Assistant', path: '/ai-assistant', icon: Sparkles, badge: 'New' },
+  //{ label: 'Settings', path: '/settings', icon: Settings },
   { label: 'Packages', path: '/packages', icon: Package },
 ];

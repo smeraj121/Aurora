@@ -1,5 +1,7 @@
 // shared/types/domain.ts
 
+import type { CustomerPackage } from "../../types/customerpackage.types";
+
 export type AppointmentStatus = 
   | 'scheduled' 
   | 'confirmed' 
@@ -13,6 +15,8 @@ export type PaymentStatus =
   | 'partial' 
   | 'paid' 
   | 'refunded';
+
+export type CalendarViewMode = 'day' | 'week' | 'month';
 
 export interface CustomerListItem {
   id: number;
@@ -38,7 +42,7 @@ export interface CustomerDetails extends Customer {
   totalPaid: number;
   balanceDue?: number;
   history: CustomerVisit[];
-  packages: CustomerPackage1[];
+  packages: CustomerPackage[];
   stats?: CustomerStats;
 }
 
@@ -68,33 +72,6 @@ export interface CustomerVisitService {
 
 // shared/types/domain.ts
 
-export interface CustomerPackage1 {
-  id: number;
-  customerId: number;
-  packageId: number;
-  packageName: string;
-  packageDescription?: string;
-  purchaseDate: string;
-  expiryDate?: string | null;
-  totalSessions: number;
-  usedSessions: number;
-  remainingSessions: number;
-  totalPrice: number;
-  customPrice?: number | null;  // Added
-  effectivePrice?: number;  // Added - calculated field
-  paymentStatus: PaymentStatus;
-  paymentMethod?: string;
-  notes?: string;
-  services: CustomerPackageService[];
-}
-
-export interface CustomerPackageService {
-  serviceId: number;
-  serviceName: string;
-  quantity: number;
-  discount?: number;
-}
-
 export interface CustomerStats {
   totalAppointments: number;
   totalSpent: number;
@@ -121,16 +98,6 @@ export interface CustomerUpdateInput {
   isVip?: boolean;
 }
 
-// ============================================================
-// API Response Types
-// ============================================================
-
-export interface ApiResponse<T = any> {
-  success: boolean;
-  data: T;
-  message?: string;
-}
-
 export interface CustomersListResponse {
   success: boolean;
   data: CustomerListItem[];
@@ -148,7 +115,7 @@ export interface CustomerHistoryResponse {
 
 export interface CustomerPackagesResponse {
   success: boolean;
-  data: CustomerPackage1[];
+  data: CustomerPackage[];
 }
 
 // ============================================================
@@ -163,7 +130,7 @@ export interface BookingCustomerInfo {
   isVip: boolean;
   totalVisits: number;
   totalSpent: number;
-  availablePackages?: CustomerPackage1[];
+  availablePackages?: CustomerPackage[];
 }
 
 export interface BookingFormData {

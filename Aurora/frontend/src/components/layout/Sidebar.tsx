@@ -42,9 +42,9 @@ export function Sidebar({
               <Sparkles className="w-5 h-5 fill-white/20" />
             </div>
             <div>
-              <h1 className="text-xl m-0 font-bold tracking-tight text-white flex items-center gap-1.5" style={{ color: 'white', margin: 0, fontWeight: 'bold', fontSize: '1.25rem', lineHeight: 1.2, letterSpacing: '-0.01em' }}>
+              <h2 className="text-xl m-0 font-bold tracking-tight text-white flex items-center gap-1.5" style={{ color: 'white', margin: 0, fontWeight: 'bold', fontSize: '1.25rem', lineHeight: 1.2, letterSpacing: '-0.01em' }}>
                 Aurora
-              </h1>
+              </h2>
               <p className="text-[11px] font-medium text-slate-400 -mt-1">Salon & Clinic OS</p>
             </div>
           </div>)}
@@ -100,7 +100,7 @@ export function Sidebar({
           })}
         </nav>
 
-        <div className="absolute bottom-0 left-0 w-full">
+        <div className="absolute bottom-0 left-0 w-full hidden">
           {/* Bottom Callout Banner */}
           {collapsed ? (
             <div className='p-1 rounded-2xl bg-gradient-to-b from-purple-900/40 to-indigo-950/60 border border-purple-500/20 relative overflow-hidden'>

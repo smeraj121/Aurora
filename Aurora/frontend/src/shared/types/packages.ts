@@ -1,4 +1,8 @@
 export interface PackageService {
+  discount: number;
+  quantity: number;
+  totalPrice: number;
+  servicePrice: number;
   serviceId: number;
   serviceName: string;
   price: number;

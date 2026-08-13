@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middlewares/authMiddleware');
 const packageController = require('../controllers/packageController');
+const asyncHandler = require('../middlewares/asyncHandler');
 
 // All package routes require authentication
 router.use(authenticate);
@@ -11,31 +12,31 @@ router.use(authenticate);
 // SPECIFIC ROUTES (before /:id)
 // ============================================================
 // GET /packages/stats - Package statistics
-router.get('/stats', packageController.getPackageStats);
+router.get('/stats', asyncHandler(packageController.getPackageStats));
 
 // GET /packages/popular - Popular packages
-router.get('/popular', packageController.getPopularPackages);
+router.get('/popular', asyncHandler(packageController.getPopularPackages));
 
 // ============================================================
 // INDIVIDUAL PACKAGE ROUTES (with :id)
 // ============================================================
 // GET /packages/:id - Get package by ID
-router.get('/:id', packageController.getPackage);
+router.get('/:id', asyncHandler(packageController.getPackage));
 
 // PUT /packages/:id - Update package
-router.put('/:id', packageController.updatePackage);
+router.put('/:id', asyncHandler(packageController.updatePackage));
 
 // DELETE /packages/:id - Soft delete package
-router.delete('/:id', packageController.deletePackage);
+router.delete('/:id', asyncHandler(packageController.deletePackage));
 
 // ============================================================
 // CREATE PACKAGE (no :id)
 // ============================================================
-router.post('/', packageController.createPackage);
+router.post('/', asyncHandler(packageController.createPackage));
 
 // ============================================================
 // GET /packages - List all packages (must be last)
 // ============================================================
-router.get('/', packageController.getPackages);
+router.get('/', asyncHandler(packageController.getPackages));
 
 module.exports = router;

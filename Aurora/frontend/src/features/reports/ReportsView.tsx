@@ -31,9 +31,9 @@ export function ReportsView() {
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
+          <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">
             Reports & Analytics
-          </h1>
+          </h2>
           <p className="text-xs text-slate-500 mt-1">
             Track revenue growth, service breakdowns, and staff performance
           </p>
@@ -70,7 +70,7 @@ export function ReportsView() {
               <IndianRupee className="w-4 h-4" />
             </div>
           </div>
-          <p className="text-2xl font-extrabold text-slate-900 mt-2">
+          <p className="text-xl font-extrabold text-slate-900 mt-2">
             {formatCurrency(310000)}
           </p>
           <div className="flex items-center gap-1 mt-2 text-[11px] font-bold text-emerald-600">
@@ -86,7 +86,7 @@ export function ReportsView() {
               <TrendingUp className="w-4 h-4" />
             </div>
           </div>
-          <p className="text-2xl font-extrabold text-slate-900 mt-2">
+          <p className="text-xl font-extrabold text-slate-900 mt-2">
             {formatCurrency(1476)}
           </p>
           <div className="flex items-center gap-1 mt-2 text-[11px] font-bold text-emerald-600">
@@ -102,7 +102,7 @@ export function ReportsView() {
               <CalendarCheck className="w-4 h-4" />
             </div>
           </div>
-          <p className="text-2xl font-extrabold text-slate-900 mt-2">82.4%</p>
+          <p className="text-xl font-extrabold text-slate-900 mt-2">82.4%</p>
           <div className="flex items-center gap-1 mt-2 text-[11px] font-bold text-emerald-600">
             <TrendingUp className="w-3.5 h-3.5" />
             <span>+4.1% vs target</span>
@@ -116,7 +116,7 @@ export function ReportsView() {
               <Users className="w-4 h-4" />
             </div>
           </div>
-          <p className="text-2xl font-extrabold text-slate-900 mt-2">68.5%</p>
+          <p className="text-xl font-extrabold text-slate-900 mt-2">68.5%</p>
           <div className="flex items-center gap-1 mt-2 text-[11px] font-bold text-emerald-600">
             <TrendingUp className="w-3.5 h-3.5" />
             <span>+8.3% rebooking retention</span>
@@ -130,7 +130,7 @@ export function ReportsView() {
         <div className="lg:col-span-8 bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h3 className="text-sm font-bold text-slate-900">Revenue Growth Trend</h3>
+              <h4 className="text-sm font-bold text-slate-900">Revenue Growth Trend</h4>
               <p className="text-xs text-slate-500 mt-0.5">Monthly revenue vs total bookings</p>
             </div>
           </div>
@@ -172,7 +172,7 @@ export function ReportsView() {
         {/* Service Share Donut Chart */}
         <div className="lg:col-span-4 bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs flex flex-col justify-between">
           <div>
-            <h3 className="text-sm font-bold text-slate-900">Service Category Share</h3>
+            <h4 className="text-sm font-bold text-slate-900">Service Category Share</h4>
             <p className="text-xs text-slate-500 mt-0.5">Revenue breakdown by specialty</p>
 
             <div className="h-52 my-2">
@@ -213,7 +213,7 @@ export function ReportsView() {
 
       {/* Top Performing Staff Leaders Table */}
       <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs">
-        <h3 className="text-sm font-bold text-slate-900 mb-4">Top Performing Staff Members</h3>
+        <h4 className="text-sm font-bold text-slate-900 mb-4">Top Performing Staff Members</h4>
         
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">

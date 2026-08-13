@@ -18,17 +18,18 @@ export function RevenueChart({ data }: RevenueChartProps) {
     <div className="p-6 rounded-2xl bg-white border border-slate-200/80 shadow-sm flex flex-col h-full">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h3 className="text-base font-bold text-slate-900">Revenue Performance</h3>
+          <h4 className="text-base font-bold text-slate-900">Revenue Performance</h4>
           <p className="text-xs text-slate-500">Weekly revenue vs target</p>
         </div>
         <div className="flex items-center gap-4 text-xs font-medium">
           <div className="flex items-center gap-1.5 text-slate-600">
             <span className="w-2.5 h-2.5 rounded-full bg-purple-600" />
-            <span>Revenue</span>
+            <span>Collected</span>
           </div>
+
           <div className="flex items-center gap-1.5 text-slate-400">
             <span className="w-2.5 h-2.5 rounded-full bg-slate-200" />
-            <span>Target</span>
+            <span>Total</span>
           </div>
         </div>
       </div>
@@ -56,11 +57,19 @@ export function RevenueChart({ data }: RevenueChartProps) {
             />
             <Area
               type="monotone"
-              dataKey="revenue"
+              dataKey="total"
+              stroke="#64748B"
+              strokeWidth={2}
+              fillOpacity={0}
+            />
+
+            <Area
+              type="monotone"
+              dataKey="paid"
               stroke="#9333EA"
               strokeWidth={2.5}
-              fillOpacity={1}
               fill="url(#purpleGradient)"
+              fillOpacity={1}
             />
           </AreaChart>
         </ResponsiveContainer>

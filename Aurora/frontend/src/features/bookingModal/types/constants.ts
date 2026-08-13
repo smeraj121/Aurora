@@ -1,9 +1,9 @@
+import { getLocalDateString } from '../../../lib/dateUtils';
 import type {
   StatusOption,
   PaymentStatusOption,
   BookingFormState,
 } from './types';
-import { getLocalDateString } from '../../../utils/dateUtils';
 import { CalendarIcon, CheckCircle2, Clock3, XCircle } from 'lucide-react';
 
 export const STATUS_OPTIONS: StatusOption[] = [
@@ -46,7 +46,7 @@ export const DEFAULT_FORM_STATE: BookingFormState = {
   customerId: null,
   customerName: '',
   phone: '',
-  staffId: '',
+  staffId: 0,
   startTime: '11:00 AM',
   durationMinutes: 30,
   date: getLocalDateString(new Date()),

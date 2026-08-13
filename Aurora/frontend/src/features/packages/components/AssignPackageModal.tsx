@@ -3,18 +3,17 @@ import { useState, useEffect } from 'react';
 import {
   X,
   Circle,
-  IndianRupee,
   Calendar,
   AlertCircle,
   Check,
   Edit2,
-  Percent,
   Users,
   CreditCard,
+  Package,
 } from 'lucide-react';
 import { api } from '../../../services/api';
 import { cn, formatCurrency } from '../../../lib/utils';
-import type { Package } from '../../../shared/types/packages';
+import type { PackageModel } from '../../../shared/types/packages';
 
 
 interface AssignPackageModalProps {
@@ -38,8 +37,8 @@ export function AssignPackageModal({
   customerName,
   onAssign,
 }: AssignPackageModalProps) {
-  const [packages, setPackages] = useState<Package[]>([]);
-  const [selectedPackage, setSelectedPackage] = useState<Package | null>(null);
+  const [packages, setPackages] = useState<PackageModel[]>([]);
+  const [selectedPackage, setSelectedPackage] = useState<PackageModel | null>(null);
   const [customPrice, setCustomPrice] = useState<number | ''>('');
   const [useCustomPrice, setUseCustomPrice] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('cash');
@@ -86,7 +85,7 @@ export function AssignPackageModal({
     setSubmitting(false);
   };
 
-  const handlePackageSelect = (pkg: Package) => {
+  const handlePackageSelect = (pkg: PackageModel) => {
     setSelectedPackage(pkg);
     setCustomPrice(pkg.totalPrice);
     setUseCustomPrice(false);
@@ -94,51 +93,51 @@ export function AssignPackageModal({
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  
-  if (!selectedPackage) {
-    setError('Please select a package');
-    return;
-  }
+    e.preventDefault();
 
-  const finalPrice = useCustomPrice && customPrice ? Number(customPrice) : selectedPackage.totalPrice;
-  
-  if (finalPrice <= 0) {
-    setError('Price must be greater than 0');
-    return;
-  }
-
-  try {
-    setSubmitting(true);
-    setError('');
-
-    const assignmentData = {
-      packageId: selectedPackage.id,
-      customPrice: useCustomPrice ? finalPrice : undefined,
-      paymentMethod: paymentMethod || undefined,
-      notes: notes || undefined,
-      expiryDate: expiryDate || undefined,
-    };
-
-    await onAssign(assignmentData);
-    setSuccess(true);
-    
-    setTimeout(() => {
-      resetForm();
-      onClose();
-    }, 1500);
-    
-  } catch (err: any) {
-    // If error is about duplicate package, show friendly message
-    if (err.message?.includes('already has an active instance')) {
-      setError('This customer already has an active instance of this package. You can assign it again or update the existing one.');
-    } else {
-      setError(err.message || 'Failed to assign package');
+    if (!selectedPackage) {
+      setError('Please select a package');
+      return;
     }
-  } finally {
-    setSubmitting(false);
-  }
-};
+
+    const finalPrice = useCustomPrice && customPrice ? Number(customPrice) : selectedPackage.totalPrice;
+
+    if (finalPrice <= 0) {
+      setError('Price must be greater than 0');
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      setError('');
+
+      const assignmentData = {
+        packageId: selectedPackage.id,
+        customPrice: useCustomPrice ? finalPrice : undefined,
+        paymentMethod: paymentMethod || undefined,
+        notes: notes || undefined,
+        expiryDate: expiryDate || undefined,
+      };
+
+      await onAssign(assignmentData);
+      setSuccess(true);
+
+      setTimeout(() => {
+        resetForm();
+        onClose();
+      }, 1500);
+
+    } catch (err: any) {
+      // If error is about duplicate package, show friendly message
+      if (err.message?.includes('already has an active instance')) {
+        setError('This customer already has an active instance of this package. You can assign it again or update the existing one.');
+      } else {
+        setError(err.message || 'Failed to assign package');
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
   const handleClose = () => {
     if (!submitting) {
       resetForm();
@@ -149,13 +148,13 @@ export function AssignPackageModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-2">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
         {/* Header */}
         <div className="bg-gradient-to-r from-purple-600 to-purple-700 px-6 py-4 flex items-center justify-between text-white">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
-              <Circle className="w-5 h-5" />
+              <Package className="w-5 h-5" />
             </div>
             <div>
               <h3 className="font-bold text-base">Assign Package to Customer</h3>
@@ -190,7 +189,7 @@ export function AssignPackageModal({
 
         <form onSubmit={handleSubmit} className="p-6 overflow-y-auto max-h-[calc(90vh-160px)] space-y-5">
           {/* Customer Info */}
-          <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
+          <div className="bg-slate-50 rounded-xl p-2 border border-slate-200">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Users className="w-4 h-4 text-purple-600" />
@@ -206,71 +205,113 @@ export function AssignPackageModal({
             <label className="block text-xs font-bold text-slate-700 mb-2">
               Select Package <span className="text-rose-500">*</span>
             </label>
-            
-            {loading ? (
-              <div className="flex items-center justify-center py-8">
-                <div className="w-6 h-6 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />
-              </div>
-            ) : packages.length === 0 ? (
-              <div className="text-center py-8 text-sm text-slate-500">
-                <Circle className="w-8 h-8 mx-auto text-slate-300 mb-2" />
-                <p>No packages available</p>
-                <p className="text-xs mt-1">Create a package first in the Packages section</p>
+
+            {selectedPackage ? (
+              // Selected package
+              <div className="rounded-xl border border-purple-200 bg-purple-50/50 p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <Check className="w-4 h-4 text-purple-600 shrink-0" />
+
+                      <p className="text-sm font-bold text-slate-900 truncate">
+                        {selectedPackage.name}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-3 mt-1 ml-6 text-[10px]">
+                      <span className="font-bold text-emerald-600">
+                        {formatCurrency(selectedPackage.totalPrice)}
+                      </span>
+
+                      <span className="text-slate-500">
+                        {selectedPackage.totalSessions} sessions
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPackage(null)}
+                    className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold text-purple-600 hover:bg-purple-100 transition-colors"
+                  >
+                    Change Package
+                  </button>
+                </div>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-60 overflow-y-auto">
-                {packages.map((pkg) => {
-                  const isSelected = selectedPackage?.id === pkg.id;
-                  const isInactive = !pkg.isActive;
-                  return (
-                    <button
-                      key={pkg.id}
-                      type="button"
-                      onClick={() => handlePackageSelect(pkg)}
-                      disabled={isInactive}
-                      className={cn(
-                        'p-3 rounded-xl border text-left transition-all hover:shadow-sm',
-                        isSelected
-                          ? 'border-purple-600 bg-purple-50 ring-2 ring-purple-500/20'
-                          : 'border-slate-200 hover:border-purple-200 hover:bg-slate-50',
-                        isInactive && 'opacity-50 cursor-not-allowed bg-slate-50'
-                      )}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-bold text-slate-900 truncate">
-                            {pkg.name}
-                            {isInactive && (
-                              <span className="ml-2 text-[10px] font-medium text-rose-500">(Inactive)</span>
-                            )}
-                          </p>
-                          {pkg.description && (
-                            <p className="text-[10px] text-slate-500 mt-0.5 line-clamp-2">
-                              {pkg.description}
-                            </p>
+              // Package list
+              <>
+                {loading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="w-6 h-6 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />
+                  </div>
+                ) : packages.length === 0 ? (
+                  <div className="text-center py-8 text-sm text-slate-500">
+                    <Package className="w-8 h-8 mx-auto text-slate-300 mb-2" />
+                    <p>No packages available</p>
+                    <p className="text-xs mt-1">
+                      Create a package first in the Packages section
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-60 overflow-y-auto">
+                    {packages.map((pkg) => {
+                      const isInactive = !pkg.isActive;
+
+                      return (
+                        <button
+                          key={pkg.id}
+                          type="button"
+                          onClick={() => handlePackageSelect(pkg)}
+                          disabled={isInactive}
+                          className={cn(
+                            'p-3 rounded-xl border text-left transition-all hover:shadow-sm',
+                            'border-slate-200 hover:border-purple-200 hover:bg-slate-50',
+                            isInactive && 'opacity-50 cursor-not-allowed bg-slate-50'
                           )}
-                        </div>
-                        {isSelected && !isInactive && (
-                          <Check className="w-4 h-4 text-purple-600 shrink-0 ml-2" />
-                        )}
-                      </div>
-                      <div className="flex items-center gap-3 mt-2 text-[10px]">
-                        <span className="font-bold text-emerald-600">
-                          {formatCurrency(pkg.totalPrice)}
-                        </span>
-                        <span className="text-slate-400">
-                          {pkg.totalSessions} sessions
-                        </span>
-                        {pkg.discountPercentage > 0 && (
-                          <span className="text-amber-600 font-medium">
-                            {pkg.discountPercentage}% off
-                          </span>
-                        )}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-bold text-slate-900 truncate">
+                                {pkg.name}
+
+                                {isInactive && (
+                                  <span className="ml-2 text-[10px] font-medium text-rose-500">
+                                    (Inactive)
+                                  </span>
+                                )}
+                              </p>
+
+                              {pkg.description && (
+                                <p className="text-[10px] text-slate-500 mt-0.5 line-clamp-2">
+                                  {pkg.description}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-3 mt-2 text-[10px]">
+                            <span className="font-bold text-emerald-600">
+                              {formatCurrency(pkg.totalPrice)}
+                            </span>
+
+                            <span className="text-slate-400">
+                              {pkg.totalSessions} sessions
+                            </span>
+
+                            {pkg.discountPercentage > 0 && (
+                              <span className="text-amber-600 font-medium">
+                                {pkg.discountPercentage}% off
+                              </span>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
             )}
           </div>
 
@@ -319,7 +360,7 @@ export function AssignPackageModal({
                       Discount Applied
                     </label>
                     <div className="bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-sm text-slate-600">
-                      {customPrice && typeof customPrice === 'number' 
+                      {customPrice && typeof customPrice === 'number'
                         ? formatCurrency(selectedPackage.totalPrice - customPrice)
                         : formatCurrency(0)}
                     </div>
@@ -363,7 +404,7 @@ export function AssignPackageModal({
             </div>
           </div>
 
-          {/* Notes */}
+          {/* Notes 
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1.5">
               Notes (Optional)
@@ -376,10 +417,11 @@ export function AssignPackageModal({
               placeholder="Add any notes about this package assignment..."
             />
           </div>
+          */}
 
           {/* Summary */}
           {selectedPackage && selectedPackage.isActive && (
-            <div className="bg-gradient-to-r from-purple-50 to-purple-100/50 rounded-xl p-4 border border-purple-200">
+            <div className="bg-gradient-to-r from-purple-50 to-purple-100/50 rounded-xl p-2 border border-purple-200">
               <div className="flex items-center justify-between">
                 <div>
                   <span className="text-xs font-bold text-purple-900">Package Summary</span>
@@ -437,7 +479,7 @@ export function AssignPackageModal({
                 </>
               ) : (
                 <>
-                  <Circle className="w-4 h-4" />
+                  <Package className="w-4 h-4" />
                   Assign Package
                 </>
               )}

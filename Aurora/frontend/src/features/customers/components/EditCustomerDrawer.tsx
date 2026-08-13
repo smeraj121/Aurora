@@ -63,7 +63,7 @@ export function EditCustomerDrawer({ isOpen, onClose, customer, onUpdateCustomer
       <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-white w-full max-w-md h-full shadow-2xl animate-slide-in-right flex flex-col">
         <div className="flex items-center justify-between p-4 border-b border-slate-200">
-          <h2 className="text-sm font-bold text-slate-900">Edit Customer</h2>
+          <h3 className="text-sm font-bold text-slate-900">Edit Customer</h3>
           <button
             onClick={onClose}
             className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors"

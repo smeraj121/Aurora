@@ -247,7 +247,7 @@ export function StaffView() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Staff Directory</h1>
+          <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">Staff Directory</h2>
           <p className="text-xs text-slate-500 mt-0.5">Manage your team, schedule, and performance</p>
         </div>
 
@@ -353,7 +353,7 @@ export function StaffView() {
                       {getInitials(selectedStaff.name)}
                     </div>
                     <div>
-                      <h2 className="text-lg font-bold text-slate-900">{selectedStaff.name}</h2>
+                      <h3 className="text-lg font-bold text-slate-900">{selectedStaff.name}</h3>
                       <p className="text-sm text-purple-700 font-semibold">{selectedStaff.role}</p>
                       <div className="flex flex-wrap items-center gap-3 mt-1.5 text-xs text-slate-500">
                         <span className="flex items-center gap-1">
@@ -439,10 +439,10 @@ export function StaffView() {
 
               {/* Today's Schedule */}
               <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm">
-                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 mb-4">
+                <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2 mb-4">
                   <Calendar className="w-4 h-4 text-purple-600" />
                   Today's Schedule
-                </h3>
+                </h4>
                 {todaySchedule.length > 0 ? (
                   <div className="space-y-2">
                     {todaySchedule.map((item) => (

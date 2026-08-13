@@ -8,7 +8,7 @@ export function MetricCard({ title, value, change, isPositive, subtext }: Dashbo
     <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow">
       <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{title}</p>
       <div className="mt-2 flex items-baseline justify-between">
-        <h3 className="text-2xl font-bold text-slate-900">{value}</h3>
+        <h4 className="text-xl font-bold text-slate-900">{value}</h4>
         <span
           className={cn(
             'inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full',

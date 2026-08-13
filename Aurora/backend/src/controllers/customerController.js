@@ -1,4 +1,5 @@
 const customerService = require('../services/customerService');
+const customerPackageService = require('../services/customerPackageService');
 
 // ============================================================
 // GET /customers - List all customers (with search)
@@ -56,7 +57,7 @@ async function getCustomerPackages(req, res, next) {
     const { tenantId } = req.user;
     const { id } = req.params;
     const includeExpired = req.query.includeExpired === 'true';
-    const packages = await customerService.getCustomerPackages(tenantId, parseInt(id, 10), includeExpired);
+    const packages = await customerPackageService.getCustomerPackages(tenantId, parseInt(id, 10), includeExpired);
     res.json({ success: true, data: packages });
   } catch (error) {
     if (error.message === 'Customer not found') {
@@ -184,7 +185,7 @@ async function getRecentCustomers(req, res, next) {
 async function assignPackageToCustomer(req, res, next) {
   try {
     const { tenantId, userId } = req.user;
-    const result = await customerService.assignPackageToCustomer(tenantId, req.body, userId);
+    const result = await customerPackageService.assignPackageToCustomer(tenantId, req.body, userId);
     res.status(201).json({
       success: true,
       data: result,
@@ -211,7 +212,7 @@ async function getCustomerPackageById(req, res, next) {
   try {
     const { tenantId } = req.user;
     const { id } = req.params;
-    const pkg = await customerService.getCustomerPackageById(tenantId, parseInt(id, 10));
+    const pkg = await customerPackageService.getCustomerPackageById(tenantId, parseInt(id, 10));
     res.json({ success: true, data: pkg });
   } catch (error) {
     if (error.message === 'Customer package not found') {
@@ -228,7 +229,7 @@ async function updateCustomerPackage(req, res, next) {
   try {
     const { tenantId, userId } = req.user;
     const { id } = req.params;
-    const updated = await customerService.updateCustomerPackage(tenantId, parseInt(id, 10), req.body, userId);
+    const updated = await customerPackageService.updateCustomerPackage(tenantId, parseInt(id, 10), req.body, userId);
     res.json({
       success: true,
       data: updated,
@@ -249,7 +250,7 @@ async function usePackageSession(req, res, next) {
   try {
     const { tenantId } = req.user;
     const { id } = req.params;
-    const result = await customerService.usePackageSession(tenantId, parseInt(id, 10));
+    const result = await customerPackageService.usePackageSession(tenantId, parseInt(id, 10));
     res.json({
       success: true,
       data: result,
@@ -258,66 +259,6 @@ async function usePackageSession(req, res, next) {
   } catch (error) {
     if (error.message === 'No available sessions in this package') {
       return res.status(409).json({ success: false, message: error.message });
-    }
-    next(error);
-  }
-}
-
-// ============================================================
-// PUT /customers/:id/loyalty - Update loyalty points
-// ============================================================
-async function updateLoyaltyPoints(req, res, next) {
-  try {
-    const { tenantId, userId } = req.user;
-    const { id } = req.params;
-    const { points } = req.body;
-    if (points === undefined) {
-      return res.status(400).json({ success: false, message: 'Points are required' });
-    }
-    const result = await customerService.updateLoyaltyPoints(
-      tenantId,
-      parseInt(id, 10),
-      parseInt(points, 10),
-      userId
-    );
-    res.json({
-      success: true,
-      data: result,
-      message: 'Loyalty points updated successfully',
-    });
-  } catch (error) {
-    if (error.message === 'Customer not found') {
-      return res.status(404).json({ success: false, message: error.message });
-    }
-    if (error.message === 'Points must be a non-zero number') {
-      return res.status(400).json({ success: false, message: error.message });
-    }
-    next(error);
-  }
-}
-
-// ============================================================
-// POST /customers/bulk-optin - Bulk update opt-in status
-// ============================================================
-async function bulkUpdateOptIn(req, res, next) {
-  try {
-    const { tenantId, userId } = req.user;
-    const { customerIds, optInType, value } = req.body;
-    const result = await customerService.bulkUpdateOptIn(
-      tenantId,
-      customerIds,
-      optInType,
-      value,
-      userId
-    );
-    res.json({
-      success: true,
-      data: result,
-      message: 'Opt-in statuses updated successfully',
-    });
-  } catch (error) {
-    if (error.message.includes('Invalid opt-in type') || error.message.includes('required')) {
-      return res.status(400).json({ success: false, message: error.message });
     }
     next(error);
   }
@@ -337,7 +278,5 @@ module.exports = {
   assignPackageToCustomer,
   getCustomerPackageById,
   updateCustomerPackage,
-  usePackageSession,
-  updateLoyaltyPoints,
-  bulkUpdateOptIn,
+  usePackageSession
 };

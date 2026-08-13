@@ -26,7 +26,7 @@ export function ScheduleCard({ appointment, onEdit }: ScheduleCardProps) {
         </div>
         <div>
           <div className="flex items-center gap-2">
-            <h4 className="text-xs font-bold text-slate-900">{appointment.customerName}</h4>
+            <h5 className="text-xs font-bold text-slate-900">{appointment.customerName}</h5>
             <span
               className={cn(
                 'text-[10px] font-semibold px-2 py-0.5 rounded-full border',

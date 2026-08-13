@@ -103,7 +103,7 @@ export function OtpStep({
           </button>
 
           <div className="text-center mb-6">
-            <h1 className="text-xl font-bold text-slate-800">Verify Your Number</h1>
+            <h2 className="text-xl font-bold text-slate-800">Verify Your Number</h2>
             <p className="text-sm text-slate-500 mt-1">
               We've sent a 6-digit code to <br />
               <strong className="text-slate-700">+91 {formattedPhone}</strong>
@@ -121,7 +121,7 @@ export function OtpStep({
                 value={digit}
                 onChange={(e) => handleChange(index, e.target.value)}
                 onKeyDown={(e) => handleKeyDown(index, e)}
-                className={`w-12 h-14 text-center text-2xl font-semibold border-2 rounded-xl outline-none transition-all bg-slate-50 ${
+                className={`w-12 h-14 text-center text-xl font-semibold border-2 rounded-xl outline-none transition-all bg-slate-50 ${
                   digit
                     ? 'border-purple-500 bg-white'
                     : 'border-slate-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20'

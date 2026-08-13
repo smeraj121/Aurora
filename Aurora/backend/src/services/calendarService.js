@@ -1,5 +1,6 @@
 // services/calendarService.js
 const calendarRepository = require('../repositories/calendarRepository');
+const customerRepository = require('../repositories/customerRepository');
 const { NotFoundError, ValidationError, ConflictError } = require('../errors');
 
 // ============================================================
@@ -16,29 +17,26 @@ async function getAppointmentById(tenantId, appointmentId) {
 // ============================================================
 // GET SCHEDULE BY DATE
 // ============================================================
-async function getScheduleByDate(tenantId, date) {
+async function getScheduleByDate(tenantId, userId, date, systemRole) {
   if (!date) {
     throw new ValidationError('Date parameter is required');
   }
   const schedule = await calendarRepository.findScheduleByDate(tenantId, date);
   schedule.forEach((appointment) => {
+    if(!appointment) return;
+    if(systemRole.trim().toLowerCase() !== 'admin' && systemRole.trim().toLowerCase() !== 'staff' && appointment.customerId !== userId) {
+      // Hide sensitive customer information for non-admin/staff users
+      appointment.customerId = null;
+      appointment.customerName = 'Booked Customer';
+      appointment.customerPhone = null;
+      appointment.customerPackageId = null;
+      appointment.isPackageAppointment = false;
+      appointment.services = [];
+      appointment.isEditable = false;
+    }
     appointment.balanceDue = (appointment.amount || 0) - (appointment.paidAmount || 0);
   });
   return schedule;
-}
-
-// ============================================================
-// GET AVAILABLE PACKAGES
-// ============================================================
-async function getAvailablePackages(tenantId) {
-  return calendarRepository.getAvailablePackages(tenantId);
-}
-
-// ============================================================
-// GET CUSTOMER PACKAGES (by customer ID)
-// ============================================================
-async function getCustomerPackages(tenantId, customerId) {
-  return calendarRepository.getCustomerPackages(tenantId, customerId);
 }
 
 // ============================================================
@@ -57,16 +55,6 @@ async function updatePayment(tenantId, appointmentId, paidAmount, paymentMethod,
     throw new ValidationError('Valid paid amount is required');
   }
   return calendarRepository.updatePayment(tenantId, appointmentId, paidAmount, paymentMethod, userId);
-}
-
-// ============================================================
-// PURCHASE PACKAGE
-// ============================================================
-async function purchasePackage(tenantId, customerId, packageId, paymentMethod, userId) {
-  if (!customerId || !packageId) {
-    throw new ValidationError('Customer ID and Package ID are required');
-  }
-  return calendarRepository.purchasePackage(tenantId, customerId, packageId, paymentMethod, userId);
 }
 
 // ============================================================
@@ -120,7 +108,7 @@ async function createOrUpdateAppointment(tenantId, data, userId) {
 
   // Resolve or create customer
   if (cleanCustomerId) {
-    const existingCust = await calendarRepository.findCustomerById(tenantId, cleanCustomerId);
+    const existingCust = await customerRepository.getCustomerDetails(tenantId, cleanCustomerId);
     if (!existingCust) {
       cleanCustomerId = null;
     }
@@ -130,7 +118,7 @@ async function createOrUpdateAppointment(tenantId, data, userId) {
     if (!cleanPhone) {
       throw new ValidationError('Phone number is required for new customers.');
     }
-    const phoneMatch = await calendarRepository.findCustomerByPhone(tenantId, cleanPhone);
+    const phoneMatch = await customerRepository.findCustomerByPhone(tenantId, cleanPhone);
     if (phoneMatch) {
       if (phoneMatch.full_name.toLowerCase() !== data.customerName.trim().toLowerCase()) {
         throw new ConflictError(
@@ -139,7 +127,7 @@ async function createOrUpdateAppointment(tenantId, data, userId) {
       }
       cleanCustomerId = phoneMatch.id;
     } else {
-      const newCustomer = await calendarRepository.createCustomer(tenantId, data.customerName.trim(), cleanPhone, userId);
+      const newCustomer = await customerRepository.createCustomer(tenantId, data.customerName.trim(), cleanPhone, userId);
       cleanCustomerId = newCustomer.id;
     }
   }
@@ -185,10 +173,7 @@ async function createOrUpdateAppointment(tenantId, data, userId) {
 module.exports = {
   getAppointmentById,
   getScheduleByDate,
-  getAvailablePackages,
-  getCustomerPackages,
   getPendingPayments,
   updatePayment,
-  purchasePackage,
   createOrUpdateAppointment,
 };

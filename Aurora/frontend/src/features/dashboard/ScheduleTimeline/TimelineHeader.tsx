@@ -11,7 +11,7 @@ export function TimelineHeader({ remaining, loading, onNewBooking }: TimelineHea
   return (
     <div className="flex items-center justify-between mb-5">
       <div>
-        <h3 className="text-base font-bold text-slate-900">Today's Schedule</h3>
+        <h4 className="text-base font-bold text-slate-900">Today's Schedule</h4>
         <p className="text-xs text-slate-500">
           {loading
             ? 'Loading...'

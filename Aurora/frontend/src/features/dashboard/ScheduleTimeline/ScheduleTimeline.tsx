@@ -1,20 +1,23 @@
-// components/dashboard/ScheduleTimeline/ScheduleTimeline.tsx
 import { useState } from 'react';
 import type { Appointment } from '../../../shared/types';
-import { NewBookingModal } from '../../bookingModal/NewBookingModal';
+import { BookingModal } from '../../bookingModal/BookingModal';
 import { TimelineHeader } from './TimelineHeader';
 import { ScheduleList } from './ScheduleList';
 import { useTodaySchedule } from '../../../hooks/useTodaySchedule';
+import { getLocalDateString } from '../../../lib/dateUtils';
 
-export function ScheduleTimeline() {
+interface ScheduleTimelineProps {
+  date: Date;
+}
+
+export function ScheduleTimeline({ date }: ScheduleTimelineProps) {
   const {
     appointments,
     remainingCount,
     loading,
     refresh,
-    saveAppointment,
-    todayDateStr,
-  } = useTodaySchedule();
+    saveAppointment
+  } = useTodaySchedule(date);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
@@ -54,12 +57,12 @@ export function ScheduleTimeline() {
         onEdit={handleOpenEditModal}
       />
 
-      <NewBookingModal
+      <BookingModal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
         onSave={handleSave}
         appointmentId={editingAppointment?.id}
-        currentDate={todayDateStr}
+        currentDate={getLocalDateString(date)}
       />
     </div>
   );

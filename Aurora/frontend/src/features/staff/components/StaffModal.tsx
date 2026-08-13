@@ -213,9 +213,9 @@ console.log(staff.schedule);
               <User className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-base">
+              <h4 className="font-bold text-base">
                 {initialData ? 'Edit Staff Member' : 'Add New Staff Member'}
-              </h3>
+              </h4>
               <p className="text-xs text-purple-200 opacity-80">
                 {initialData
                   ? 'Update staff details'
@@ -247,7 +247,7 @@ console.log(staff.schedule);
             <div className="md:col-span-2 space-y-4">
               <div className="flex items-center gap-2 mb-2">
                 <User className="w-4 h-4 text-purple-600" />
-                <h4 className="text-xs font-bold text-slate-700">Basic Information</h4>
+                <h5 className="text-xs font-bold text-slate-700">Basic Information</h5>
               </div>
 
               {/* Name */}

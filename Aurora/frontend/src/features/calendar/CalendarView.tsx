@@ -1,63 +1,12 @@
-// views/calendar/CalendarView.tsx
-import { useState, useMemo, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Plus, Filter, Calendar as CalendarIcon, Loader2, Package } from 'lucide-react';
-import { NewBookingModal } from '../bookingModal/NewBookingModal';
-import { cn, formatCurrency } from '../../lib/utils';
+import React, { useState, useMemo, useEffect } from 'react';
+import { ChevronLeft, ChevronRight, Plus, Filter, Calendar as CalendarIcon, Loader2, AlertTriangle } from 'lucide-react';
+import { BookingModal } from '../bookingModal/BookingModal';
+import { formatCurrency } from '../../lib/utils';
 import { api } from '../../services/api';
-import type { Appointment } from '../../shared/types';
+import type { ExtendedAppointment } from './types';
 import { TIME_SLOTS } from '../bookingModal/types/constants';
-
-
-const SLOT_MINUTES = 15;
-const BLOCK_HEIGHT_PX = 36;
-
-const getLocalDateString = (date: Date): string => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
-
-const normalizeTime = (time: string): string => {
-  if (!time) return '';
-
-  const parts = time.trim().split(' ');
-  if (parts.length !== 2) return time;
-
-  const timePart = parts[0];
-  const period = parts[1];
-  const [hours, minutes] = timePart.split(':').map(Number);
-
-  const hourStr = hours < 10 ? `0${hours}` : `${hours}`;
-  const minuteStr = minutes < 10 ? `0${minutes}` : `${minutes}`;
-
-  return `${hourStr}:${minuteStr} ${period}`;
-};
-
-const getAppointmentDuration = (apt: any): number => {
-  const parsed = Number(apt.durationMinutes ?? apt.duration ?? apt.serviceDuration);
-  return !isNaN(parsed) && parsed > 0 ? parsed : 15;
-};
-
-const getBlockSpan = (durationMinutes: number): number => {
-  return Math.max(1, Math.round(durationMinutes / SLOT_MINUTES));
-};
-
-interface ExtendedAppointment extends Appointment {
-  services?: Array<{
-    serviceId: number;
-    serviceName: string;
-    price: number;
-    isPackage: boolean;
-  }>;
-  paidAmount?: number;
-  paymentStatus?: string;
-  paymentMethod?: string;
-  isPackageAppointment?: boolean;
-  customerPackageId?: number;
-  packageName?: string;
-  balanceDue?: number;
-}
+import { getLocalDateString, normalizeTime } from '../../lib/dateUtils';
+import { StaffColumn } from './components/StaffColumn';
 
 export function CalendarView() {
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
@@ -66,12 +15,14 @@ export function CalendarView() {
   const [staffList, setStaffList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingAppointment, setEditingAppointment] = useState<ExtendedAppointment | null>(null);
   const [selectedStaffFilter, setSelectedStaffFilter] = useState<string>('all');
   const [selectedStaffId, setSelectedStaffId] = useState<number | null>(null);
   const [selectedStartTime, setSelectedStartTime] = useState('');
+  const [modalBackendError, setModalBackendError] = useState<string | null>(null);
 
-  // ✅ FIXED: Use local date string
+  // Partial Payment Confirmation Dialog State
+  const [pendingPaymentWarning, setPendingPaymentWarning] = useState<{ id: number; due: number } | null>(null);
+
   const formattedDateString = getLocalDateString(currentDate);
 
   useEffect(() => {
@@ -87,15 +38,12 @@ export function CalendarView() {
       ]);
 
       if (calRes.success) {
-        const normalizedAppointments = calRes.data.map((apt: any) => {
-          const duration = getAppointmentDuration(apt);
-          return {
-            ...apt,
-            startTime: normalizeTime(apt.startTime),
-            durationMinutes: duration,
-          };
-        });
-        setAppointments(normalizedAppointments);
+        const normalized = calRes.data.map((apt: any) => ({
+          ...apt,
+          startTime: normalizeTime(apt.startTime),
+          durationMinutes: Number(apt.durationMinutes ?? apt.duration ?? 15),
+        }));
+        setAppointments(normalized);
       }
       if (staffRes.success) {
         setStaffList(staffRes.data);
@@ -119,79 +67,67 @@ export function CalendarView() {
       : staffList.filter((s) => String(s.id) === String(selectedStaffFilter));
   }, [selectedStaffFilter, staffList]);
 
-  const handleSaveAppointment = async (savedApt: any) => {
-    try {
-      // Remove the hardcoded date override
-      await api.createAppointment(savedApt);
-      await fetchScheduleData();
-    } catch (err) {
-      console.error('Failed to save appointment:', err);
-      throw err;
+  const handleOpenModal = (apt: ExtendedAppointment | null = null, staffId?: number, startTime?: string) => {
+    setModalBackendError(null);
+    if (apt?.status === 'cancelled') {
+      setEditingAppointmentId(null);
+    } else {
+      setEditingAppointmentId(apt?.id ?? null);
     }
-  };
-
-  const handleOpenModal = (
-    apt: ExtendedAppointment | null = null,
-    staffId?: number,
-    startTime?: string
-  ) => {
-    setEditingAppointmentId(apt?.id ?? null);
-    setEditingAppointment(apt);
-
-    setSelectedStaffId(staffId ?? null);
-    setSelectedStartTime(startTime ?? '');
-
+    setSelectedStaffId(staffId ?? apt?.staffId ?? null);
+    setSelectedStartTime(startTime ?? apt?.startTime ?? '');
     setIsModalOpen(true);
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'scheduled':
-        return 'bg-violet-50 border-violet-200 text-violet-950';
-      case 'confirmed':
-        return 'bg-blue-50/80 border-blue-200 text-blue-950';
-      case 'in_progress':
-        return 'bg-purple-50 border-purple-300 text-purple-950 ring-2 ring-purple-500/20';
-      case 'completed':
-        return 'bg-emerald-50/80 border-emerald-200 text-emerald-950';
-      case 'cancelled':
-        return 'bg-rose-50/80 border-rose-200 text-rose-950';
-      default:
-        return 'bg-slate-50 border-slate-200 text-slate-950';
+  const executeFinishAppointment = async (id: number) => {
+    const res = await fetch(`/appointments/${id}/finish`, { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      const aptToFix = appointments.find((a) => a.id === id) || null;
+      setModalBackendError(data.message || 'Validation error while completing appointment.');
+      handleOpenModal(aptToFix);
+      return;
     }
+    await fetchScheduleData();
   };
 
-  const getPaymentBadge = (paymentStatus?: string) => {
-    switch (paymentStatus) {
-      case 'paid':
-        return <span className="text-[10px] font-medium bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded">Paid</span>;
-      case 'partial':
-        return <span className="text-[10px] font-medium bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">Partial</span>;
-      case 'pending':
-        return <span className="text-[10px] font-medium bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">Pending</span>;
-      default:
-        return null;
+  const handleFinishAppointment = async (id: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const apt = appointments.find((a) => a.id === id);
+    if (!apt) return;
+
+    const total = Number(apt.amount || 0);
+    const paid = Number(apt.paidAmount || 0);
+    const due = total - paid;
+
+    if (due > 0) {
+      setPendingPaymentWarning({ id, due });
+      return;
     }
+
+    await executeFinishAppointment(id);
   };
 
-  const getServiceNames = (appointment: ExtendedAppointment) => {
-    if (appointment.services && appointment.services.length > 0) {
-      return appointment.services.map((s) => s.serviceName).join(', ');
-    }
-    return appointment.serviceName || 'Service';
+  const handleCancelAppointment = (apt: ExtendedAppointment, e: React.MouseEvent) => {
+    e.stopPropagation();
+    handleOpenModal(apt);
   };
 
-  const getServiceCount = (appointment: ExtendedAppointment) => {
-    if (appointment.services && appointment.services.length > 0) {
-      return appointment.services.length;
+  const handleSaveAppointment = async (savedApt: any) => {
+    if (editingAppointmentId) {
+      var res =await api.updateAppointment(editingAppointmentId, savedApt);
+      if (!res.success) {
+        setModalBackendError(res.message || 'Failed to update appointment.');
+        return;
+      }
+    } else {
+      var resadd =await api.createAppointment(savedApt);
+      if (!resadd.success) {
+        setModalBackendError(resadd.message || 'Failed to create appointment.');
+        return;
+      }
     }
-    return appointment.serviceName ? 1 : 0;
-  };
-
-  const getAppointmentsForStaffAtTime = (staffId: number, timeSlot: string) => {
-    return appointments.filter(
-      (a) => String(a.staffId) === String(staffId) && a.startTime === timeSlot
-    );
+    await fetchScheduleData();
   };
 
   return (
@@ -199,7 +135,7 @@ export function CalendarView() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Schedule & Calendar</h1>
+          <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">Schedule & Calendar</h2>
           <p className="text-xs text-slate-500 mt-1">Manage staff timetables & daily bookings</p>
         </div>
 
@@ -209,26 +145,24 @@ export function CalendarView() {
             <select
               value={selectedStaffFilter}
               onChange={(e) => setSelectedStaffFilter(e.target.value)}
-              className="bg-transparent focus:outline-none cursor-pointer"
+              className="bg-transparent focus:outline-none cursor-pointer font-semibold"
             >
               <option value="all">All Staff</option>
               {staffList.map((staff) => (
-                <option key={staff.id} value={staff.id}>
-                  {staff.name}
-                </option>
+                <option key={staff.id} value={staff.id}>{staff.name}</option>
               ))}
             </select>
           </div>
 
           <div className="flex items-center bg-white border border-slate-200 rounded-xl p-1 shadow-sm text-xs font-semibold text-slate-800">
-            <button onClick={() => changeDate(-1)} className="p-1 hover:bg-slate-100 rounded-lg text-slate-600">
+            <button onClick={() => changeDate(-1)} className="p-1 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors">
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <span className="px-3 flex items-center gap-1.5">
+            <span className="px-3 flex items-center gap-1.5 font-bold">
               <CalendarIcon className="w-3.5 h-3.5 text-purple-600" />
               {currentDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
             </span>
-            <button onClick={() => changeDate(1)} className="p-1 hover:bg-slate-100 rounded-lg text-slate-600">
+            <button onClick={() => changeDate(1)} className="p-1 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors">
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
@@ -245,25 +179,25 @@ export function CalendarView() {
 
       {/* Stats Summary */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="bg-white rounded-xl border border-slate-200 p-3">
-          <p className="text-[10px] font-medium text-slate-500">Total Appointments</p>
-          <p className="text-lg font-bold text-slate-900">{appointments.length}</p>
+        <div className="bg-white rounded-xl border border-slate-200 p-3 shadow-xs">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Appointments</p>
+          <p className="text-xl font-extrabold text-slate-900 mt-0.5">{appointments.length}</p>
         </div>
-        <div className="bg-white rounded-xl border border-slate-200 p-3">
-          <p className="text-[10px] font-medium text-slate-500">Total Revenue</p>
-          <p className="text-lg font-bold text-emerald-600">
+        <div className="bg-white rounded-xl border border-slate-200 p-3 shadow-xs">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Value</p>
+          <p className="text-xl font-extrabold text-emerald-600 mt-0.5">
             {formatCurrency(appointments.reduce((sum, apt) => sum + Number(apt.amount || 0), 0))}
           </p>
         </div>
-        <div className="bg-white rounded-xl border border-slate-200 p-3">
-          <p className="text-[10px] font-medium text-slate-500">Collected</p>
-          <p className="text-lg font-bold text-blue-600">
+        <div className="bg-white rounded-xl border border-slate-200 p-3 shadow-xs">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Collected</p>
+          <p className="text-xl font-extrabold text-blue-600 mt-0.5">
             {formatCurrency(appointments.reduce((sum, apt) => sum + Number(apt.paidAmount || 0), 0))}
           </p>
         </div>
-        <div className="bg-white rounded-xl border border-slate-200 p-3">
-          <p className="text-[10px] font-medium text-slate-500">Pending Payments</p>
-          <p className="text-lg font-bold text-amber-600">
+        <div className="bg-white rounded-xl border border-slate-200 p-3 shadow-xs">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Pending Payments</p>
+          <p className="text-xl font-extrabold text-rose-600 mt-0.5">
             {formatCurrency(appointments.reduce((sum, apt) => sum + (Number(apt.amount || 0) - Number(apt.paidAmount || 0)), 0))}
           </p>
         </div>
@@ -271,178 +205,118 @@ export function CalendarView() {
 
       {/* Grid view */}
       {loading ? (
-        <div className="p-12 flex justify-center items-center bg-white rounded-2xl border border-slate-200">
+        <div className="p-12 flex justify-center items-center bg-white rounded-2xl border border-slate-200 shadow-xs">
           <Loader2 className="w-6 h-6 animate-spin text-purple-600" />
         </div>
       ) : (
-        <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
-          {/* Staff Header */}
-          <div className="grid grid-cols-12 border-b border-slate-200 bg-slate-50/80 sticky top-0 z-20">
-            <div className="col-span-2 p-4 text-xs font-bold text-slate-400 uppercase tracking-wider border-r border-slate-200">
-              Time Slot
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+          <div className="grid grid-cols-12 border-b border-slate-200 bg-slate-50/90 sticky top-0 z-20 backdrop-blur-xs">
+            <div className="col-span-2 p-3 text-[11px] font-extrabold text-slate-400 uppercase tracking-wider border-r border-slate-200">
+              Time
             </div>
             <div className="col-span-10 grid" style={{ gridTemplateColumns: `repeat(${Math.max(filteredStaff.length, 1)}, 1fr)` }}>
               {filteredStaff.map((staff) => (
-                <div key={staff.id} className="p-3 flex items-center gap-3 border-r border-slate-200 last:border-r-0">
-                  <div className="w-8 h-8 rounded-full bg-purple-600/20 text-purple-600 font-bold flex items-center justify-center text-xs">
+                <div key={staff.id} className="p-2.5 flex items-center gap-2.5 border-r border-slate-200 last:border-r-0">
+                  <div className="w-7 h-7 rounded-full bg-purple-100 text-purple-700 font-bold flex items-center justify-center text-xs">
                     {staff.name?.charAt(0)}
                   </div>
                   <div className="min-w-0">
-                    <h4 className="text-xs font-bold text-slate-900 truncate">{staff.name}</h4>
-                    <p className="text-[10px] text-slate-500 truncate">{staff.role || 'Staff'}</p>
+                    <h5 className="text-xs font-bold text-slate-900 truncate">{staff.name}</h5>
+                    <p className="text-[10px] text-slate-400 truncate font-medium">{staff.role || 'Stylist'}</p>
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Timeline Slots Grid */}
-          <div>
-            {TIME_SLOTS.map((slot) => {
-              const appointmentsAtSlot = appointments.filter((a) => a.startTime === slot);
-
-              return (
-                <div
-                  key={slot}
-                  style={{ height: `${BLOCK_HEIGHT_PX}px` }}
-                  className={cn(
-                    'grid grid-cols-12',
-                    slot.endsWith(':00 AM') || slot.endsWith(':00 PM')
-                      ? 'border-t border-slate-300'
-                      : 'border-t border-slate-100'
-                  )}
-                >
+          <div className="grid grid-cols-12">
+            {/* Timeline Column (Darkened Hour Separators, Slot Counts Removed) */}
+            <div className="col-span-2 border-r border-slate-200 bg-slate-50/40 select-none">
+              {TIME_SLOTS.map((slot) => {
+                const isHour = slot.endsWith(':00 AM') || slot.endsWith(':00 PM');
+                return (
                   <div
-                    className={cn(
-                      'col-span-2 border-r border-slate-200/80 bg-slate-50/40 flex items-center px-3',
-                      slot.endsWith(':00 AM') || slot.endsWith(':00 PM')
-                        ? 'text-xs font-semibold text-slate-500'
-                        : 'text-[10px] text-slate-300'
-                    )}
+                    key={slot}
+                    style={{ height: '36px' }}
+                    className={`flex items-center px-3 ${
+                      isHour ? 'border-t border-slate-300 text-xs font-bold text-slate-700' : 'border-t border-slate-100 text-[10px] text-slate-300'
+                    }`}
                   >
-                    {slot.endsWith(':00 AM') || slot.endsWith(':00 PM') ? slot : ''}
-                    {appointmentsAtSlot.length > 0 && (
-                      <span className="ml-1 text-[9px] text-purple-600 font-bold">
-                        ({appointmentsAtSlot.length})
-                      </span>
-                    )}
+                    {isHour ? slot : ''}
                   </div>
+                );
+              })}
+            </div>
 
-                  <div
-                    className="col-span-10 grid relative"
-                    style={{ gridTemplateColumns: `repeat(${Math.max(filteredStaff.length, 1)}, 1fr)` }}
-                  >
-                    {filteredStaff.map((staff) => {
-                      const staffAppointments = getAppointmentsForStaffAtTime(staff.id, slot);
-
-                      return (
-                        <div
-                          key={staff.id}
-                          className="relative group hover:bg-slate-50/50 transition-colors border-r border-slate-100 last:border-r-0 h-full"
-                        >
-                          <button
-                            onClick={() => handleOpenModal(null, staff.id, slot)}
-                            className="w-full h-full border border-dashed border-transparent group-hover:border-slate-300 flex items-center justify-center text-slate-400 opacity-0 group-hover:opacity-100 transition-all"
-                          >
-                            <Plus className="w-3.5 h-3.5 text-slate-400" />
-                          </button>
-
-                          {staffAppointments.map((apt) => {
-                            const blocksCount = getBlockSpan(apt.durationMinutes || 15);
-                            const cardHeight = blocksCount * BLOCK_HEIGHT_PX - 2;
-
-                            return (
-                              <div
-                                key={apt.id}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleOpenModal(apt);
-                                }}
-                                style={{
-                                  height: `${cardHeight}px`,
-                                  zIndex: 10,
-                                }}
-                                className={cn(
-                                  'absolute top-0.5 left-0.5 right-0.5 p-2 rounded-xl border text-xs flex flex-col justify-between shadow-sm transition-all hover:scale-[1.01] hover:z-20 cursor-pointer overflow-hidden',
-                                  getStatusColor(apt.status || 'scheduled')
-                                )}
-                              >
-                                <div>
-                                  <div className="flex items-center justify-between gap-1">
-                                    <span className="font-bold text-slate-900 text-xs truncate">
-                                      {apt.customerName}
-                                    </span>
-                                    <div className="flex items-center gap-1 shrink-0">
-                                      {apt.isPackageAppointment && (
-                                        <Package className="w-3 h-3 text-purple-600" />
-                                      )}
-                                      {getPaymentBadge(apt.paymentStatus)}
-                                    </div>
-                                  </div>
-
-                                  <p className="text-[10px] font-medium text-slate-600 mt-0.5 truncate">
-                                    {getServiceNames(apt)}
-                                    {getServiceCount(apt) > 1 && (
-                                      <span className="ml-1 text-[10px] font-bold text-purple-600">
-                                        (+{getServiceCount(apt) - 1})
-                                      </span>
-                                    )}
-                                  </p>
-
-                                  {apt.isPackageAppointment && apt.packageName && (
-                                    <p className="text-[9px] font-medium text-purple-600 mt-0.5 truncate">
-                                      📦 {apt.packageName}
-                                    </p>
-                                  )}
-                                </div>
-
-                                <div className="mt-1 flex items-center justify-between text-[10px] font-semibold border-t border-slate-200/40 pt-1">
-                                  <div className="flex items-center gap-1 flex-wrap">
-                                    <span>{formatCurrency(apt.amount || 0)}</span>
-                                    {apt.paidAmount !== undefined && apt.paidAmount > 0 && (
-                                      <span className="text-[9px] text-slate-400">
-                                        (₹{apt.paidAmount})
-                                      </span>
-                                    )}
-                                    {apt.balanceDue !== undefined && apt.balanceDue > 0 && (
-                                      <span className="text-[9px] text-amber-600 font-bold">
-                                        Bal: ₹{apt.balanceDue}
-                                      </span>
-                                    )}
-                                  </div>
-                                  <span className="capitalize text-[9px] opacity-75">
-                                    {apt.durationMinutes}m
-                                  </span>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
+            {/* Staff Schedule Columns */}
+            <div className="col-span-10 grid" style={{ gridTemplateColumns: `repeat(${Math.max(filteredStaff.length, 1)}, 1fr)` }}>
+              {filteredStaff.map((staff) => (
+                <StaffColumn
+                  key={staff.id}
+                  staff={staff}
+                  appointments={appointments}
+                  onAppointmentClick={(apt) => handleOpenModal(apt)}
+                  onNewBooking={(staffId, slot) => handleOpenModal(null, staffId, slot)}
+                  onFinish={handleFinishAppointment}
+                  onCancel={handleCancelAppointment}
+                />
+              ))}
+            </div>
           </div>
         </div>
       )}
 
-      {/* New Booking Form Modal - Pass currentDate */}
-      <NewBookingModal
+      {/* Pending Balance Confirmation Dialog */}
+      {pendingPaymentWarning && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl border border-slate-100 space-y-4">
+            <div className="flex items-center gap-3 text-amber-600">
+              <div className="p-2 bg-amber-50 rounded-xl border border-amber-100">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <h3 className="font-bold text-slate-900 text-base">Unpaid Balance Warning</h3>
+            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed">
+              This appointment has a pending balance of <strong className="text-slate-900 font-bold">{formatCurrency(pendingPaymentWarning.due)}</strong>. Are you sure you want to complete it without settling full payment?
+            </p>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                onClick={() => setPendingPaymentWarning(null)}
+                className="px-3.5 py-1.5 rounded-xl border border-slate-200 text-slate-600 text-xs font-bold hover:bg-slate-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  const id = pendingPaymentWarning.id;
+                  setPendingPaymentWarning(null);
+                  await executeFinishAppointment(id);
+                }}
+                className="px-4 py-1.5 rounded-xl bg-amber-600 text-white text-xs font-bold hover:bg-amber-700 shadow-sm transition-colors"
+              >
+                Complete Anyway
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <BookingModal
         isOpen={isModalOpen}
         onClose={() => {
           setIsModalOpen(false);
-          setEditingAppointment(null);
           setEditingAppointmentId(null);
+          setModalBackendError(null);
           fetchScheduleData();
         }}
         onSave={handleSaveAppointment}
         appointmentId={editingAppointmentId}
-        initialData={editingAppointment}
         currentDate={formattedDateString}
         staffId={selectedStaffId}
         slot={selectedStartTime}
+        initialError={modalBackendError}
       />
     </div>
   );

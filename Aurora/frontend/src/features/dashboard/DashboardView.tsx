@@ -12,8 +12,6 @@ export function DashboardView() {
   const [selectedDashboardDate, setSelectedDashboardDate] = useState(new Date());
   const [metricsData, setMetricsData] = useState<DashboardMetric[]>([]);
   const [revenueData, setRevenueData] = useState<Revenue[]>([]);
-
-
   const handleDateChange = (newDate: Date) => {
     setSelectedDashboardDate(newDate);
   };
@@ -21,8 +19,10 @@ export function DashboardView() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const data = await fetchDashboardData(selectedDashboardDate);
-        const revenue = await fetchDashboardRevenue(selectedDashboardDate);
+        const [data, revenue] = await Promise.all([
+          fetchDashboardData(selectedDashboardDate),
+          fetchDashboardRevenue(selectedDashboardDate),
+        ]);
         setMetricsData(data);
         setRevenueData(revenue);
       } catch (error) {
@@ -39,9 +39,9 @@ export function DashboardView() {
       {/* Top Greeting Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
+          <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">
             Good Morning, Saba 👋
-          </h1>
+          </h2>
           <p className="text-xs text-slate-500 mt-1">
             Here is what’s happening with your business today.
           </p>
@@ -69,7 +69,7 @@ export function DashboardView() {
       {/* Main Grid: Today's Schedule + Revenue Performance */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="lg:col-span-7">
-          <ScheduleTimeline />
+          <ScheduleTimeline date={selectedDashboardDate} />
         </div>
         <div className="lg:col-span-5">
           <RevenueChart key={1} data={revenueData} />

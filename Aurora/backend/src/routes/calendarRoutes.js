@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middlewares/authMiddleware');
 const calendarController = require('../controllers/calendarController');
+const asyncHandler = require('../middlewares/asyncHandler');
 
 // All calendar routes require authentication
 router.use(authenticate);
@@ -10,34 +11,26 @@ router.use(authenticate);
 // ============================================================
 // SPECIFIC ROUTES (before /:id)
 // ============================================================
-// GET /calendar/packages - Get available packages
-router.get('/packages', calendarController.getAvailablePackages);
 
 // GET /calendar/pending-payments - Get pending payments
-router.get('/pending-payments', calendarController.getPendingPayments);
-
-// GET /calendar/customer/:customerId/packages - Get customer's packages
-router.get('/customer/:customerId/packages', calendarController.getCustomerPackages);
+router.get('/pending-payments', asyncHandler(calendarController.getPendingPayments));
 
 // POST /calendar/payment - Record a payment
-router.post('/payment', calendarController.updatePayment);
-
-// POST /calendar/purchase-package - Buy a package
-router.post('/purchase-package', calendarController.purchasePackage);
+router.post('/payment', asyncHandler(calendarController.updatePayment));
 
 // ============================================================
 // GET /calendar/:id - Get appointment by ID (must come after specific routes)
 // ============================================================
-router.get('/:id', calendarController.getAppointmentById);
+router.get('/:id', asyncHandler(calendarController.getAppointmentById));
 
 // ============================================================
 // POST /calendar - Create or Update Appointment
 // ============================================================
-router.post('/', calendarController.createOrUpdateAppointment);
+router.post('/', asyncHandler(calendarController.createOrUpdateAppointment));
 
 // ============================================================
 // GET /calendar - Get schedule by date (must be last)
 // ============================================================
-router.get('/', calendarController.getScheduleByDate);
+router.get('/', asyncHandler(calendarController.getScheduleByDate));
 
 module.exports = router;

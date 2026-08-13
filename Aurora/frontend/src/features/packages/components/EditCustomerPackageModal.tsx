@@ -7,16 +7,15 @@ import {
   Calendar,
   AlertCircle,
   Check,
-  Edit2,
   CreditCard,
 } from 'lucide-react';
-import { cn, formatCurrency } from '../../../lib/utils';
-import type { CustomerPackage1 } from '../../../shared/types/domain';
+import { formatCurrency } from '../../../lib/utils';
+import type { CustomerPackage } from '../../../types/customerpackage.types';
 
 interface EditCustomerPackageModalProps {
   isOpen: boolean;
   onClose: () => void;
-  customerPackage: CustomerPackage1 | null;
+  customerPackage: CustomerPackage | null;
   onUpdate: (data: {
     customPrice?: number;
     expiryDate?: string;
@@ -89,7 +88,7 @@ export function EditCustomerPackageModal({
           <div className="flex items-center gap-3">
             <Package className="w-5 h-5" />
             <div>
-              <h3 className="font-bold text-base">Edit Package</h3>
+              <h4 className="font-bold text-base">Edit Package</h4>
               <p className="text-xs text-purple-200 opacity-80">
                 {customerPackage.packageName}
               </p>

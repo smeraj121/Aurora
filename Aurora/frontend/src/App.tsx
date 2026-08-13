@@ -10,11 +10,12 @@ import { PackagesView } from './features/packages/PackagesView';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LoginPage } from './features/login/LoginPage';
 import { TenantSelectionPage } from './features/login/TenantSelectionPage';
+import { ProfileView } from './features/profile/ProfileView';
 
 function PlaceholderView({ title }: { title: string }) {
   return (
     <div className="p-8 rounded-2xl bg-white border border-slate-200/80 shadow-sm">
-      <h2 className="text-xl font-bold text-slate-800">{title} Module</h2>
+      <h3 className="text-xl font-bold text-slate-800">{title} Module</h3>
       <p className="text-sm text-slate-500 mt-1">This module will be built in upcoming steps.</p>
     </div>
   );
@@ -60,6 +61,7 @@ function AppRoutes() {
           <Route path="ai-assistant" element={<AIAssistantView />} />
           <Route path="packages" element={<PackagesView />} />
           <Route path="settings" element={<PlaceholderView title="Settings" />} />
+          <Route path="profile" element={<ProfileView />} />
         </Route>
       ) : (
         /* If not authenticated and not on a public route, redirect to login */

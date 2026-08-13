@@ -89,9 +89,9 @@ export function DatePickerDropdown({
         >
           {/* Calendar Header (Month Navigator) */}
           <div className="flex items-center justify-between mb-3">
-            <h4 className="text-xs font-bold text-slate-800">
+            <h5 className="text-xs font-bold text-slate-800">
               {format(currentMonth, 'MMMM yyyy')}
-            </h4>
+            </h5>
             <div className="flex items-center gap-1">
               <button
                 onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}

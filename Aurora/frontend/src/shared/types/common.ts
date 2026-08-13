@@ -17,3 +17,12 @@ export interface KeyValuePair{
   id: number;
   name: string;
 }
+
+export interface User {
+  id: number;
+  fullName: string;
+  phone: string;
+  email?: string;
+  systemRole: string;
+  tenantId?: number;
+}

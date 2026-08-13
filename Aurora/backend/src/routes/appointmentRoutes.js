@@ -1,17 +1,24 @@
 const express = require('express');
 const router = express.Router();
-const controller = require('../controllers/appointmentController');
+const { authenticate, authorize } = require('../middlewares/authMiddleware');
+const appointmentController = require('../controllers/appointmentController');
+const asyncHandler = require('../middlewares/asyncHandler');
 
-// GET /api/appointments?date=2026-07-22
-router.get('/', (req, res) => controller.getByDate(req, res));
+router.use(authenticate);
 
-// POST /api/appointments
-router.post('/', (req, res) => controller.create(req, res));
+// GET /api/appointments/:id – Fetch a single appointment
+router.get('/:id', asyncHandler(appointmentController.getById));
 
-// PUT /api/appointments/:id
-router.put('/:id', (req, res) => controller.update(req, res));
+// POST /api/appointments – Create a new appointment
+router.post('/', asyncHandler(appointmentController.create));
 
-// DELETE /api/appointments/:id
-router.delete('/:id', (req, res) => controller.remove(req, res));
+// PUT /api/appointments/:id – Update an existing appointment
+router.put('/:id', asyncHandler(appointmentController.update));
+
+// POST /api/appointments/:id/finish – Mark an appointment as finished
+router.post('/:id/finish',authenticate, authorize('Staff', 'Admin'), asyncHandler(appointmentController.finish));
+
+// POST /api/appointments/:id/cancel – Cancel an appointment
+router.post('/:id/cancel',authenticate, authorize('Staff', 'Admin'), asyncHandler(appointmentController.cancel));
 
 module.exports = router;

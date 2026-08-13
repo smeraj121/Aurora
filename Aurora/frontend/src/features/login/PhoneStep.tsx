@@ -25,7 +25,7 @@ export function PhoneStep({ onSubmit, loading, error }: PhoneStepProps) {
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 mb-2">
             <span className="text-3xl">✨</span>
-            <span className="text-2xl font-bold text-slate-800">Aurora</span>
+            <span className="text-xl font-bold text-slate-800">Aurora</span>
           </div>
           <p className="text-sm text-slate-500">Salon & Clinic Platform</p>
         </div>
@@ -33,7 +33,7 @@ export function PhoneStep({ onSubmit, loading, error }: PhoneStepProps) {
         {/* Card */}
         <div className="bg-white rounded-2xl shadow-xl p-8">
           <div className="text-center mb-6">
-            <h1 className="text-2xl font-bold text-slate-800">Welcome to Aurora</h1>
+            <h2 className="text-xl font-bold text-slate-800">Welcome to Aurora</h2>
             <p className="text-sm text-slate-500 mt-1">Enter your mobile number to continue</p>
           </div>
 

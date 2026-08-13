@@ -1,17 +1,7 @@
 // src/context/AuthContext.tsx
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { apiService } from '../services/api';
-
-interface User {
-  id: number;
-  fullName: string;
-  phone: string;
-  email?: string;
-  systemRole: string;
-  tenantId?: number;
-  profileImageUrl?: string;
-  preferredLanguage?: string;
-}
+import type { User } from '../shared/types/common';
 
 interface AuthContextType {
   user: User | null;
@@ -34,8 +24,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const token = apiService.getAuthToken();
       if (token) {
         try {
-          const userData = await apiService.getCurrentUser();
-          setUser(userData);
+          const response = await apiService.getCurrentUser();
+          if (response.success) {
+            setUser(response.data);
+          }
         } catch (error) {
           apiService.clearAuthToken();
           setUser(null);
@@ -72,8 +64,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // ============================================================
 
   async function logout(): Promise<void> {
-    await apiService.logout();
-    setUser(null);
+    try {
+      await apiService.logout();
+    } finally {
+      setUser(null);
+    }
   }
 
   // ============================================================
@@ -82,8 +77,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function refreshUser(): Promise<void> {
     try {
-      const userData = await apiService.getCurrentUser();
-      setUser(userData);
+      const response = await apiService.getCurrentUser();
+      if (response.success) {
+        setUser(response.data);
+      }
     } catch (error) {
       setUser(null);
     }

@@ -78,7 +78,13 @@ class AuthService {
         phone,
       });
 
-      return { requiresTenantSelection: false, ...tokens, user:{userId:singleUser.user_id} };
+      return {
+        requiresTenantSelection: false, ...tokens, user: {
+          userId: singleUser.user_id,
+          fullName: singleUser.full_name,
+          email: singleUser.email,
+        }
+      };
     }
 
     // Prompt user to pick a tenant if multi-tenant and choice was omitted
@@ -128,7 +134,20 @@ class AuthService {
   }
 
   async updateProfile(userId, profileData) {
-    return await authRepository.updateProfile(userId, profileData);
+    if (!profileData.fullName || !profileData.fullName.trim()) {
+      throw new ValidationError('Full name is required');
+    }
+
+    if (!profileData.email || !profileData.email.trim()) {
+      throw new ValidationError('Email is required');
+    }
+    const updatedUser = await authRepository.updateProfile(userId, profileData);
+    if (!updatedUser) {
+      throw new NotFoundError('User not found');
+    }
+
+    return updatedUser;
+    //return await authRepository.updateProfile(userId, profileData);
   }
 
   async changeLanguage(userId, preferredLanguage) {

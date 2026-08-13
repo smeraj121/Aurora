@@ -924,7 +924,7 @@ Mobile:   ┌──────────────────────�
 
 <!-- Focus Management -->
 <div role="dialog" aria-modal="true">
-  <h2 id="dialog-title">Edit Appointment</h2>
+  <h3 id="dialog-title">Edit Appointment</h2>
   <button autofocus>Confirm</button>
 </div>
 ```

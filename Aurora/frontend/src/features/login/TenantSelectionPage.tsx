@@ -73,7 +73,7 @@ export function TenantSelectionPage() {
         {/* Card */}
         <div className="bg-white rounded-2xl shadow-xl p-8">
           <div className="text-center mb-6">
-            <h1 className="text-xl font-bold text-slate-800">Select Your Business</h1>
+            <h2 className="text-xl font-bold text-slate-800">Select Your Business</h2>
             <p className="text-sm text-slate-500 mt-1">
               You have access to multiple locations
             </p>

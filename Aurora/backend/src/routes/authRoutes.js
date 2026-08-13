@@ -1,25 +1,27 @@
 const express = require('express');
 const authController = require('../controllers/authController');
 const { authenticate } = require('../middlewares/authMiddleware');
+const asyncHandler = require('../middlewares/asyncHandler');
 
 const router = express.Router();
 
 // 1. Decoupled OTP endpoints
-router.post('/request-otp', (req, res, next) => authController.requestOtp(req, res, next));
-router.post('/verify-otp', (req, res, next) => authController.verifyOtp(req, res, next));
+router.post('/request-otp', asyncHandler(authController.requestOtp));
+router.post('/verify-otp', asyncHandler(authController.verifyOtp));
 
 // 2. Auth completion endpoints (takes verificationToken)
-router.post('/signup', (req, res, next) => authController.signup(req, res, next));
-router.post('/login', (req, res, next) => authController.login(req, res, next));
+router.post('/signup', asyncHandler(authController.signup));
+router.post('/login', asyncHandler(authController.login));
 
 // 3. Token management
-router.post('/refresh-token', (req, res, next) => authController.refreshToken(req, res, next));
-router.post('/logout', authenticate, (req, res, next) => authController.logout(req, res, next));
+router.post('/refresh-token', asyncHandler(authController.refreshToken));
+router.post('/logout', authenticate, asyncHandler(authController.logout));
 
 // 4. User profile & session
-router.get('/me', authenticate, (req, res, next) => authController.getCurrentUser(req, res, next));
-router.patch('/profile', authenticate, (req, res, next) => authController.updateProfile(req, res, next));
-router.patch('/language', authenticate, (req, res, next) => authController.changeLanguage(req, res, next));
-router.delete('/deactivate', authenticate, (req, res, next) => authController.deactivateAccount(req, res, next));
+router.get('/me', authenticate, asyncHandler(authController.getCurrentUser));
+router.get('/profile', authenticate, asyncHandler(authController.getCurrentUserProfile));
+router.patch('/profile', authenticate, asyncHandler(authController.updateProfile));
+router.patch('/language', authenticate, asyncHandler(authController.changeLanguage));
+router.delete('/deactivate', authenticate, asyncHandler(authController.deactivateAccount));
 
 module.exports = router;

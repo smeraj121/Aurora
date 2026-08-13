@@ -70,7 +70,7 @@ export function CampaignModal({
               <Sparkles className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-bold">AI Promo Campaign Builder</h3>
+              <h4 className="text-base font-bold">AI Promo Campaign Builder</h4>
               <p className="text-[11px] text-purple-200/80">Customize message & target specific client segments</p>
             </div>
           </div>
@@ -88,7 +88,7 @@ export function CampaignModal({
             <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 mx-auto flex items-center justify-center">
               <CheckCircle2 className="w-7 h-7" />
             </div>
-            <h3 className="text-lg font-bold text-slate-900">Campaign Sent Successfully!</h3>
+            <h4 className="text-lg font-bold text-slate-900">Campaign Sent Successfully!</h4>
             <p className="text-xs text-slate-500">
               Dispatched via {channel.toUpperCase()} to <span className="font-bold text-slate-800">{getRecipientCount()} clients</span>.
             </p>

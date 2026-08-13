@@ -37,7 +37,7 @@ export interface Appointment {
   customerId: string;
   customerName: string;
   serviceName: string;
-  staffId: string;
+  staffId: number;
   staffName: string;
   startTime: string; // ISO string or "10:00 AM"
   endTime: string;

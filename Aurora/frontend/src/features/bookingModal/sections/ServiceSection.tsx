@@ -1,13 +1,14 @@
-import { Plus, Scissors, Trash2 } from 'lucide-react';
 import { useState } from 'react';
+import { Scissors, Check, X } from 'lucide-react';
 import type { CustomerPackageServiceItem } from '../types/types';
 import type { BookingServiceItem } from '../../../types/booking.types';
 
 interface ServiceSectionProps {
+  staffId: number | null;
   services: CustomerPackageServiceItem[];
   serviceList: BookingServiceItem[];
   isPackageAppointment: boolean;
-  onAddService: (serviceId: string) => void;
+  onAddService: (serviceId: number) => void;
   onRemoveService: (serviceId: number) => void;
 }
 
@@ -18,55 +19,80 @@ export function ServiceSection({
   onAddService,
   onRemoveService,
 }: ServiceSectionProps) {
-  const [selectedServiceId, setSelectedServiceId] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isOpen, setIsOpen] = useState(false);
 
-  const handleAddClick = () => {
-    onAddService(selectedServiceId);
-    setSelectedServiceId(''); // Reset after adding
-  };
+  // Instant 1-click select filtering
+  const filteredServices = serviceList.filter(
+    (s) =>
+      s.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+      !services.some((added) => added.serviceId === s.id)
+  );
 
   return (
-    <div>
-      <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
-        <Scissors className="w-3.5 h-3.5 text-purple-600" /> Services <span className="text-rose-500">*</span>
-        {services.length > 0 && <span className="text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full ml-1">{services.length} selected</span>}
+    <div className="space-y-2">
+      <label className="block text-xs font-bold text-slate-700 flex items-center gap-1.5">
+        <Scissors className="w-3.5 h-3.5 text-purple-600" /> Services
       </label>
 
       {!isPackageAppointment && (
-        <div className="flex gap-2">
-          <select
-            value={selectedServiceId}
-            onChange={(e) => setSelectedServiceId(e.target.value)}
-            className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-purple-600 cursor-pointer"
-          >
-            <option value="">-- Add Service --</option>
-            {serviceList
-              .filter((s) => !services.some((added) => added.serviceId === s.id))
-              .map((srv) => (
-                <option key={srv.id} value={srv.id}>
-                  {srv.name} (₹{srv.price} • {srv.durationMinutes}min)
-                </option>
+        <div className="relative">
+          <input
+            type="text"
+            value={searchTerm}
+            onFocus={() => setIsOpen(true)}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setIsOpen(true);
+            }}
+            placeholder="Search service (e.g., Haircut)..."
+            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-purple-600"
+          />
+
+          {isOpen && filteredServices.length > 0 && (
+            <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-40 max-h-40 overflow-y-auto divide-y divide-slate-100">
+              {filteredServices.map((srv) => (
+                <div
+                  key={srv.id}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    onAddService(srv.id);
+                    setSearchTerm('');
+                    setIsOpen(false);
+                  }}
+                  className="p-2 hover:bg-purple-50 cursor-pointer flex items-center justify-between text-xs"
+                >
+                  <span className="font-medium text-slate-800">{srv.name}</span>
+                  <span className="text-slate-500 font-semibold">
+                    ₹{srv.price} • {srv.durationMinutes}m
+                  </span>
+                </div>
               ))}
-          </select>
-          <button type="button" onClick={handleAddClick} disabled={!selectedServiceId} className="px-4 py-2.5 bg-purple-600 hover:bg-purple-700 disabled:bg-slate-300 text-white rounded-xl transition-colors">
-            <Plus className="w-4 h-4" />
-          </button>
+            </div>
+          )}
         </div>
       )}
 
+      {/* Chips */}
       {services.length > 0 && (
-        <div className="mt-2 space-y-1.5">
+        <div className="flex flex-wrap gap-1.5 pt-1">
           {services.map((service) => (
-            <div key={service.serviceId} className="flex items-center justify-between bg-slate-50 px-3 py-2 rounded-lg border border-slate-200">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-medium text-slate-700">{service.serviceName}</span>
-                {isPackageAppointment && <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">Package</span>}
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="text-xs font-semibold text-slate-800">₹{service.price}</span>
-                {!isPackageAppointment && <button type="button" onClick={() => onRemoveService(service.serviceId)} className="text-rose-500 hover:text-rose-700 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>}
-              </div>
-            </div>
+            <span
+              key={service.serviceId}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-purple-50 text-purple-700 border border-purple-200"
+            >
+              <Check className="w-3 h-3 text-purple-600" />
+              {service.serviceName} (₹{service.price})
+              {!isPackageAppointment && (
+                <button
+                  type="button"
+                  onClick={() => onRemoveService(service.serviceId)}
+                  className="hover:text-rose-600 transition-colors ml-1"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </span>
           ))}
         </div>
       )}

@@ -13,7 +13,7 @@ class CustomError extends Error {
   }
 }
 
-class UnauthorizedError extends Error {
+class UnauthorizedError extends CustomError {
   constructor(message = 'Unauthorized access') {
     super(message);
     this.statusCode = 401;
@@ -42,6 +42,7 @@ class ValidationError extends CustomError {
 // Export all errors
 module.exports = {
   CustomError,
+  UnauthorizedError,
   ConflictError,
   NotFoundError,
   ValidationError,

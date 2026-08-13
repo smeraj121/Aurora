@@ -1,43 +1,39 @@
 const appointmentService = require('../services/appointmentService');
 
 class AppointmentController {
-  async getByDate(req, res) {
-    try {
-      const { date } = req.query;
-      const data = await appointmentService.getAppointmentsByDate(date);
-      res.status(200).json({ success: true, data });
-    } catch (error) {
-      res.status(400).json({ success: false, message: error.message });
-    }
+  async getById(req, res) {
+    const { tenantId, systemRole, userId } = req.user;
+    const { id } = req.params;
+    const data = await appointmentService.getAppointmentById(tenantId, parseInt(id, 10), systemRole, userId);
+    res.json({ success: true, data });
   }
 
   async create(req, res) {
-    try {
-      const newBooking = await appointmentService.createBooking(req.body);
-      res.status(201).json({ success: true, data: newBooking });
-    } catch (error) {
-      res.status(400).json({ success: false, message: error.message });
-    }
+    const { tenantId, systemRole, userId } = req.user;
+    const result = await appointmentService.createAppointment(tenantId, systemRole, req.body, userId);
+    res.status(201).json({ success: true, data: result });
   }
 
   async update(req, res) {
-    try {
-      const { id } = req.params;
-      const updated = await appointmentService.updateBooking(id, req.body);
-      res.status(200).json({ success: true, data: updated });
-    } catch (error) {
-      res.status(400).json({ success: false, message: error.message });
-    }
+    const { tenantId, systemRole, userId } = req.user;
+    const { id } = req.params;
+    const result = await appointmentService.updateAppointment(tenantId, systemRole, id, req.body, userId);
+    res.json({ success: true, data: result });
   }
 
-  async remove(req, res) {
-    try {
-      const { id } = req.params;
-      await appointmentService.cancelBooking(id);
-      res.status(200).json({ success: true, message: 'Appointment deleted successfully' });
-    } catch (error) {
-      res.status(400).json({ success: false, message: error.message });
-    }
+  async finish(req, res) {
+    const { tenantId, systemRole, userId } = req.user;
+    const { id } = req.params;
+    const result = await appointmentService.finishAppointment(tenantId, systemRole, id, req.body, userId);
+    res.json({ success: true, message: 'Appointment finished successfully.', data: result });
+  }
+
+  async cancel(req, res) {
+    const { tenantId, systemRole, userId } = req.user;
+    const { id } = req.params;
+    const { reason } = req.body;
+    const result = await appointmentService.cancelAppointment(tenantId, systemRole, id, reason, userId);
+    res.json({ success: true, message: 'Appointment cancelled successfully.', data: result });
   }
 }
 

@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const errorHandler = require('./src/middlewares/errorHandler');
 
 const app = express();
 
@@ -32,6 +33,8 @@ app.use('/api/appointments', appointmentRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/auth', authRoutes);
 
+
+app.use(errorHandler);
 
 // 5. Start Server
 const PORT = process.env.PORT || 5000;
