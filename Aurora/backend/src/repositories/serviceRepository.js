@@ -125,7 +125,7 @@ class ServiceRepository {
       data.name,
       data.description || null,
       data.category || null,
-      data.estimatedDurationMinutes,
+      data.durationMinutes,
       data.price,
       data.displayOrder || 0,
       data.color || null,
@@ -158,9 +158,9 @@ class ServiceRepository {
       updates.push(`category = $${paramCount++}`);
       values.push(data.category);
     }
-    if (data.estimatedDurationMinutes !== undefined) {
+    if (data.durationMinutes !== undefined) {
       updates.push(`estimated_duration_minutes = $${paramCount++}`);
-      values.push(data.estimatedDurationMinutes);
+      values.push(data.durationMinutes);
     }
     if (data.price !== undefined) {
       updates.push(`price = $${paramCount++}`);

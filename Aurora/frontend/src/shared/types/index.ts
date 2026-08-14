@@ -32,6 +32,7 @@ export interface Staff {
 }
 
 export interface Appointment {
+  paidAmount: number;
   date: string;
   id: number|null;
   customerId: string;

@@ -19,7 +19,7 @@ export interface StaffMember {
   email: string;
   phone: string;
   roleId: number;
-  role:string;
+  role: string;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -34,6 +34,9 @@ export interface StaffMember {
   commissionPercentage?: number;
 }
 export interface StaffSchedule {
+  start_time: string;
+  end_time: string;
+  isPackage: import("react").JSX.Element;
   id: number;
   time: string;
   customer: string;
@@ -70,6 +73,11 @@ export interface Designation {
   id: number;
   name: string;
 }
+export interface DesignationDetails extends Designation {
+  displayOrder: number;
+  description?: string;
+  isActive?: boolean;
+}
 
 export interface EmploymentDetails {
   type: string;               // e.g., 'Full-time', 'Part-time'
@@ -82,7 +90,7 @@ export interface EmploymentDetails {
 
 export interface WorkingSchedule {
   workingHoursStart: string;
-  workingHoursEnd: string; 
+  workingHoursEnd: string;
   weeklyOff: string;
 }
 

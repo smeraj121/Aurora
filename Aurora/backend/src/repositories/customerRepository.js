@@ -29,9 +29,9 @@ class CustomerRepository {
       LEFT JOIN users s ON st.user_id = s.id
       WHERE c.tenant_id = $1
     `;
-    
+
     const values = [tenantId];
-    
+
     if (search && search.trim()) {
       query += `
         AND (
@@ -42,9 +42,9 @@ class CustomerRepository {
       `;
       values.push(`%${search.trim()}%`);
     }
-    
+
     query += ` ORDER BY u.full_name ASC`;
-    
+
     const { rows } = await db.query(query, values);
     return rows;
   }
@@ -79,7 +79,7 @@ class CustomerRepository {
       LEFT JOIN users s ON st.user_id = s.id
       WHERE c.id = $1 AND c.tenant_id = $2
     `;
-    
+
     const { rows } = await client.query(query, [id, tenantId]);
     return rows[0] || null;
   }
@@ -129,12 +129,12 @@ class CustomerRepository {
       ORDER BY a.appointment_date DESC, a.start_time DESC
       LIMIT 20;
     `;
-    
+
     const { rows } = await db.query(query, [customerId, tenantId]);
-    
+
     return rows.map(row => ({
       ...row,
-      serviceName: row.services && row.services.length > 0 
+      serviceName: row.services && row.services.length > 0
         ? row.services.map(s => s.serviceName).join(', ')
         : 'Service',
     }));
@@ -145,7 +145,7 @@ class CustomerRepository {
   // ============================================================
   async createCustomer(tenantId, data, createdBy = null) {
     const client = await db.connect();
-    
+
     try {
       await client.query('BEGIN');
 
@@ -169,7 +169,7 @@ class CustomerRepository {
         VALUES ($1, $2, $3, $4, $5, $6, $7, 'Customer', $8, true, $9, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         RETURNING id
       `;
-      
+
       const userValues = [
         tenantId,
         data.fullName,
@@ -181,7 +181,7 @@ class CustomerRepository {
         data.otpVerified || false,
         createdBy
       ];
-      
+
       const { rows: userRows } = await client.query(userQuery, userValues);
       const userId = userRows[0].id;
 
@@ -223,7 +223,7 @@ class CustomerRepository {
           created_at AS "createdAt",
           updated_at AS "updatedAt"
       `;
-      
+
       const customerValues = [
         tenantId,
         userId,
@@ -235,13 +235,13 @@ class CustomerRepository {
         data.source || null,
         createdBy
       ];
-      
+
       const { rows: customerRows } = await client.query(customerQuery, customerValues);
-      
+
       await client.query('COMMIT');
-      
+
       return this.getCustomerDetails(tenantId, customerRows[0].id);
-      
+
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;
@@ -297,7 +297,7 @@ class CustomerRepository {
   // ============================================================
   async updateCustomer(tenantId, id, data, updatedBy = null) {
     const client = await db.connect();
-    
+
     try {
       await client.query('BEGIN');
 
@@ -309,7 +309,7 @@ class CustomerRepository {
       const userUpdates = [];
       const userValues = [];
       let userParamCount = 1;
-      
+
       if (data.fullName !== undefined) {
         userUpdates.push(`full_name = $${userParamCount++}`);
         userValues.push(data.fullName);
@@ -342,12 +342,12 @@ class CustomerRepository {
         userUpdates.push(`is_active = $${userParamCount++}`);
         userValues.push(data.isActive);
       }
-      
+
       if (userUpdates.length > 0) {
         userUpdates.push(`updated_at = CURRENT_TIMESTAMP`);
         userUpdates.push(`updated_by = $${userParamCount++}`);
         userValues.push(updatedBy);
-        
+
         const userQuery = `
           UPDATE users
           SET ${userUpdates.join(', ')}
@@ -360,7 +360,7 @@ class CustomerRepository {
       const customerUpdates = [];
       const customerValues = [];
       let customerParamCount = 1;
-      
+
       if (data.preferredStaffId !== undefined) {
         customerUpdates.push(`preferred_staff_id = $${customerParamCount++}`);
         customerValues.push(data.preferredStaffId);
@@ -385,12 +385,12 @@ class CustomerRepository {
         customerUpdates.push(`source = $${customerParamCount++}`);
         customerValues.push(data.source);
       }
-      
+
       if (customerUpdates.length > 0) {
         customerUpdates.push(`updated_at = CURRENT_TIMESTAMP`);
         customerUpdates.push(`updated_by = $${customerParamCount++}`);
         customerValues.push(updatedBy);
-        
+
         const customerQuery = `
           UPDATE customers
           SET ${customerUpdates.join(', ')}
@@ -402,9 +402,9 @@ class CustomerRepository {
       }
 
       await client.query('COMMIT');
-      
+
       return this.getCustomerDetails(tenantId, id);
-      
+
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;
@@ -501,7 +501,7 @@ class CustomerRepository {
   // ============================================================
   async deleteCustomer(tenantId, id, updatedBy = null) {
     const client = await db.connect();
-    
+
     try {
       await client.query('BEGIN');
 
@@ -512,7 +512,7 @@ class CustomerRepository {
           AND status NOT IN ('cancelled')
       `;
       const { rows: checkRows } = await client.query(checkQuery, [id, tenantId]);
-      
+
       if (parseInt(checkRows[0].count) > 0) {
         throw new Error('Cannot delete customer with active appointments');
       }
@@ -542,7 +542,7 @@ class CustomerRepository {
 
       await client.query('COMMIT');
       return { id, userId: customer.userId, deleted: true };
-      
+
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;
@@ -571,7 +571,7 @@ class CustomerRepository {
       ORDER BY c.total_spent DESC
       LIMIT $2
     `;
-    
+
     const { rows } = await db.query(query, [tenantId, limit]);
     return rows;
   }
@@ -596,7 +596,7 @@ class CustomerRepository {
       ORDER BY c.created_at DESC
       LIMIT $2
     `;
-    
+
     const { rows } = await db.query(query, [tenantId, limit]);
     return rows;
   }
@@ -604,151 +604,62 @@ class CustomerRepository {
   // ============================================================
   // UPDATE CUSTOMER STATS (shared helper)
   // ============================================================
-  async updateCustomerStats(tenantId, customerId) {
+
+  async recalculateCustomerStats(tenantId, customerId, client = db) {
     const query = `
-      WITH customer_stats AS (
-        SELECT 
-          COUNT(*) AS total_visits,
-          COALESCE(SUM(total_price), 0) AS total_spent,
-          COALESCE(SUM(paid_amount), 0) AS total_paid,
-          MAX(appointment_date) AS last_visit_date
-        FROM appointments
-        WHERE customer_id = $1
-          AND tenant_id = $2
-          AND status IN ('scheduled', 'confirmed', 'in_progress', 'completed')
-      )
-      UPDATE customers
-      SET 
-        total_visits = cs.total_visits,
-        total_spent = cs.total_spent,
-        total_paid = cs.total_paid,
-        last_visit_date = cs.last_visit_date,
-        updated_at = CURRENT_TIMESTAMP
-      FROM customer_stats cs
-      WHERE customers.id = $1 AND customers.tenant_id = $2
-      RETURNING 
-        customers.id,
-        customers.total_visits AS "totalVisits",
-        customers.total_spent AS "totalSpent",
-        customers.total_paid AS "totalPaid",
-        customers.last_visit_date AS "lastVisitDate"
-    `;
-    
-    const { rows } = await db.query(query, [customerId, tenantId]);
+    WITH
+    appointment_stats AS (
+      SELECT
+        COUNT(*) AS visits,
+        COALESCE(SUM(total_price), 0) AS spent,
+        COALESCE(SUM(paid_amount), 0) AS paid,
+        MAX(appointment_date) AS last_visit
+      FROM appointments
+      WHERE customer_id = $1
+        AND tenant_id = $2
+        AND status NOT IN ('cancelled')
+    ),
+    package_stats AS (
+      SELECT
+        COALESCE(
+          SUM(COALESCE(custom_price, total_price)),
+          0
+        ) AS package_spent,
+        COALESCE(
+          SUM(
+            CASE WHEN payment_status = 'paid'
+              THEN COALESCE(custom_price, total_price)
+              ELSE 0
+            END
+          ),
+          0
+        ) AS package_paid
+      FROM customer_packages
+      WHERE customer_id = $1
+        AND tenant_id = $2
+        -- include all packages, even expired, for lifetime spent
+    )
+    UPDATE customers
+    SET
+      total_visits = COALESCE(app.visits, 0),
+      total_spent = COALESCE(app.spent, 0) + COALESCE(pkg.package_spent, 0),
+      total_paid = COALESCE(app.paid, 0) + COALESCE(pkg.package_paid, 0),
+      last_visit_date = app.last_visit,
+      updated_at = CURRENT_TIMESTAMP
+    FROM appointment_stats app, package_stats pkg
+    WHERE customers.id = $1 AND customers.tenant_id = $2
+    RETURNING
+      customers.id,
+      customers.total_visits AS "totalVisits",
+      customers.total_spent AS "totalSpent",
+      customers.total_paid AS "totalPaid",
+      customers.last_visit_date AS "lastVisitDate"
+  `;
+
+    const { rows } = await client.query(query, [customerId, tenantId]);
     return rows[0] || null;
   }
 
-  // ============================================================
-  // UPDATE CUSTOMER STATS AFTER PACKAGE ASSIGNMENT
-  // ============================================================
-  async updateCustomerStatsAfterPackageAssignment(tenantId, customerId) {
-    const query = `
-      WITH customer_stats AS (
-        SELECT 
-          COALESCE(
-            (SELECT COUNT(*) FROM appointments 
-             WHERE customer_id = $1 
-               AND tenant_id = $2
-               AND status IN ('scheduled', 'confirmed', 'in_progress', 'completed')),
-            0
-          ) AS visits,
-          
-          COALESCE(
-            (SELECT SUM(total_price) FROM appointments 
-             WHERE customer_id = $1 
-               AND tenant_id = $2
-               AND status IN ('scheduled', 'confirmed', 'in_progress', 'completed')),
-            0
-          ) AS spent,
-          
-          COALESCE(
-            (SELECT SUM(paid_amount) FROM appointments 
-             WHERE customer_id = $1 
-               AND tenant_id = $2
-               AND status IN ('scheduled', 'confirmed', 'in_progress', 'completed')),
-            0
-          ) AS paid,
-          
-          COALESCE(
-            (SELECT MAX(appointment_date) FROM appointments 
-             WHERE customer_id = $1 
-               AND tenant_id = $2
-               AND status IN ('scheduled', 'confirmed', 'in_progress', 'completed')),
-            NULL
-          ) AS last_visit,
-          
-          COALESCE(
-            (SELECT SUM(total_price) FROM customer_packages 
-             WHERE customer_id = $1 
-               AND tenant_id = $2
-               AND payment_status = 'paid'),
-            0
-          ) AS package_spent
-      )
-      UPDATE customers
-      SET 
-        total_visits = cs.visits,
-        total_spent = cs.spent + cs.package_spent,
-        total_paid = cs.paid + cs.package_spent,
-        last_visit_date = cs.last_visit,
-        updated_at = CURRENT_TIMESTAMP
-      FROM customer_stats cs
-      WHERE customers.id = $1 AND customers.tenant_id = $2
-      RETURNING 
-        customers.id,
-        customers.total_visits AS "totalVisits",
-        customers.total_spent AS "totalSpent",
-        customers.total_paid AS "totalPaid",
-        customers.last_visit_date AS "lastVisitDate"
-    `;
-    
-    const { rows } = await db.query(query, [customerId, tenantId]);
-    return rows[0] || null;
-  }
-
-  // ============================================================
-  // UPDATE LOYALTY POINTS
-  // ============================================================
-  async updateLoyaltyPoints(tenantId, customerId, points, userId) {
-    const query = `
-      UPDATE customers
-      SET loyalty_points = loyalty_points + $1, updated_at = NOW(), updated_by = $2
-      WHERE id = $3 AND tenant_id = $4
-      RETURNING loyalty_points AS "loyaltyPoints"
-    `;
-    const { rows } = await db.query(query, [points, userId, customerId, tenantId]);
-    return rows[0] || null;
-  }
-
-  // ============================================================
-  // BULK UPDATE OPT-IN
-  // ============================================================
-  async bulkUpdateOptIn(tenantId, customerIds, optInType, value, userId) {
-    const query = `
-      UPDATE customers
-      SET ${optInType} = $1, updated_at = NOW(), updated_by = $2
-      WHERE id = ANY($3::int[]) AND tenant_id = $4
-      RETURNING id
-    `;
-    const { rows } = await db.query(query, [value, userId, customerIds, tenantId]);
-    return rows;
-  }
-
-  // ============================================================
-  // UPDATE STATISTICS (used by appointment service)
-  // ============================================================
-  async updateStatistics(tenantId, customerId, amountPaid, visitDate, client = db) {
-    const query = `
-      UPDATE customers
-      SET 
-        total_visits = total_visits + 1,
-        total_paid = total_paid + $1,
-        last_visit_date = $2,
-        updated_at = CURRENT_TIMESTAMP
-      WHERE id = $3 AND tenant_id = $4
-    `;
-    await client.query(query, [amountPaid, visitDate, customerId, tenantId]);
-  }
 }
 
 module.exports = new CustomerRepository();

@@ -2,7 +2,7 @@ const db = require('../config/db');
 const appointmentRepository = require('../repositories/appointmentRepository');
 const appointmentPackageService = require('./appointmentPackageService');
 const customerService = require('./customerService');
-const { ValidationError, NotFoundError } = require('../errors');
+const { ConflictError, ValidationError, NotFoundError } = require('../errors');
 const { get } = require('../routes/calendarRoutes');
 const e = require('express');
 const TimeHelper = require('../utils/timeHelper');
@@ -167,6 +167,14 @@ async function createAppointment(tenantId, role, data, userId) {
     const fullPayment = { ...payment, ...paymentCalc };
     const payload = buildBookingPayload(data, customerId, cleanDate, fullPayment, cleanStaffId, cleanServices, clearStatus);
 
+    // Right now we are allowing one staff to be booked multiple times in same slot. If you want to restrict that, uncomment the following block and handle overlap checks accordingly.
+    // const hasOverlap = await appointmentRepository.hasStaffOverlap(
+    //   tenantId,cleanStaffId,payload.date,payload.startTime,payload.endTime,null,client
+    // );
+    // if (hasOverlap) {
+    //   throw new ConflictError('Staff is already booked for this time slot.');
+    // }
+
     const appointment = await appointmentRepository.createAppointment(tenantId, payload, userId, client);
     await appointmentRepository.replaceAppointmentServices(
       tenantId,
@@ -238,6 +246,14 @@ async function updateAppointment(tenantId, role, id, data, userId) {
       cleanServices,
       existing.status
     );
+
+    // Right now we are allowing one staff to be booked multiple times in same slot. If you want to restrict that, uncomment the following block and handle overlap checks accordingly.
+    // const hasOverlap = await appointmentRepository.hasStaffOverlap(
+    //   tenantId,cleanStaffId,payload.date,payload.startTime,payload.endTime,id,client
+    // );
+    // if (hasOverlap) {
+    //   throw new ConflictError('Staff is already booked for this time slot.');
+    // }
 
     const appointment = await appointmentRepository.updateAppointment(tenantId, id, payload, userId, client);
     await appointmentRepository.replaceAppointmentServices(

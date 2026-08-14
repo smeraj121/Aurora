@@ -1,10 +1,21 @@
 import type { AppointmentStatus } from "../shared/types";
 import type { PaymentStatus } from "../shared/types/domain";
 
+export interface CustomerSearchResult {
+  id: number | string;
+  fullName?: string;
+  name?: string;
+  phone?: string;
+}
+// ============================================================
+// Booking Types (extended with customer info)
+// ============================================================
+
 export interface BookingStaffMember {
   id: number | string;
   name: string;
 }
+
 
 export interface BookingServiceItem {
   id: number;
@@ -13,26 +24,29 @@ export interface BookingServiceItem {
   durationMinutes: number;
 }
 
-export interface CustomerSearchResult {
-  id: number | string;
-  fullName?: string;
-  name?: string;
-  phone?: string;
-}
-
 export interface BookingFormData {
-  id: number;
-  customerId: number;
+  id?: string;
+
+  customerId: string;
   customerName: string;
   phone: string;
-  serviceId: string;
-  serviceName: string;
+
   staffId: string;
+
+  date: string;
   startTime: string;
   durationMinutes: number;
-  date: string;
-  amount: string | number;
+
+  amount: string;
+  paidAmount?: string;
+  paymentStatus?: PaymentStatus;
+  paymentMethod?: string;
+
   status: AppointmentStatus;
-  paymentStatus: PaymentStatus;
-  paidAmount: string | number;
+  notes?: string;
+
+  services: BookingServiceItem[];
+
+  customerPackageId?: string | null;
+  isPackageAppointment: boolean;
 }

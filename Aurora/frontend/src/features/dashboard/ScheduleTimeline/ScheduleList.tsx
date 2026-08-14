@@ -22,7 +22,7 @@ export function ScheduleList({ appointments, loading, onEdit }: ScheduleListProp
   if (appointments.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center text-slate-400 text-xs py-10 min-h-[300px]">
-        No appointments scheduled for today.
+        No appointments scheduled.
       </div>
     );
   }

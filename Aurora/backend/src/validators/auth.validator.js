@@ -43,6 +43,17 @@ const updateProfileSchema = z.object({
 const changeLanguageSchema = z.object({
   preferredLanguage: z.string().min(2).max(10),
 });
+const superAdminLoginSchema = z.object({
+  phone: z
+    .string()
+    .min(10, 'Phone number is required')
+    .max(15, 'Invalid phone number'),
+
+  pin: z
+    .string()
+    .min(1, 'PIN is required')
+    .max(100),
+});
 
 module.exports = {
   requestOtpSchema,
@@ -52,4 +63,5 @@ module.exports = {
   refreshTokenSchema,
   updateProfileSchema,
   changeLanguageSchema,
+  superAdminLoginSchema,
 };

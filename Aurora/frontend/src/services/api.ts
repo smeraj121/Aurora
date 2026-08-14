@@ -2,13 +2,15 @@
 
 import type { Appointment } from '../shared/types';
 import type { BookingServiceItem } from '../types/booking.types';
-import type { CustomerListItem, CustomerDetails, CustomerVisit } from '../shared/types/domain';
-import type { StaffDetails, StaffMember, StaffSchedule, StaffStats, TopStaff } from '../types/staff.types';
+import type { Designation, StaffDetails, StaffMember, StaffSchedule, StaffStats, TopStaff } from '../types/staff.types';
 import type { PackageModel, PackageFormData, PackageStats, PopularPackage } from '../shared/types/packages';
 import type { DashboardMetric, Revenue } from '../features/dashboard/types/dashboard.types';
 import type { KeyValuePair, User } from '../shared/types/common';
 import type { ProfileData, UpdateProfileRequest } from '../types/profile.types';
 import type { CustomerPackage } from '../types/customerpackage.types';
+import type { CustomerDetails, CustomerListItem, CustomerVisit } from '../types/customer.types';
+import type { Tenant } from '../types/tenant.types';
+import type { Service } from '../types/service.types';
 
 export interface ApiResponse<T = any> {
   success: boolean;
@@ -255,7 +257,7 @@ export class ApiService {
   async getCurrentUser(): Promise<ApiResponse<User>> {
     return this.get<User>(`/auth/me`);
   }
-  
+
   // ============================================================
   // PROFILE
   // ============================================================
@@ -424,6 +426,9 @@ export class ApiService {
     return this.get<StaffDetails>(`/staff/${id}`);
   }
 
+  async getStaffSlots(staffId: number, date: string): Promise<ApiResponse<string[]>> {
+    return this.get<string[]>(`/staff/${staffId}/availability`, { date, interval: 15 });
+  }
 
   async getStaffStats(): Promise<ApiResponse<StaffStats>> {
     return this.get<StaffStats>('/staff/stats');
@@ -477,17 +482,49 @@ export class ApiService {
     return this.get<KeyValuePair[]>('/staff/designations');
   }
 
-  async createService(data: any): Promise<ApiResponse<BookingServiceItem>> {
-    return this.post<BookingServiceItem>('/services', data);
+  async createService(data: any): Promise<ApiResponse<Service>> {
+    return this.post<Service>('/services', data);
   }
 
-  async updateService(id: number, data: any): Promise<ApiResponse<BookingServiceItem>> {
-    return this.put<BookingServiceItem>(`/services/${id}`, data);
+  async updateService(id: number, data: any): Promise<ApiResponse<Service>> {
+    return this.put<Service>(`/services/${id}`, data);
+  }
+  
+  async toggleServiceStatus(id: number, isActive: boolean): Promise<ApiResponse<Service>> {
+    return this.put<Service>(`/services/${id}/status`, isActive);
   }
 
   async deleteService(id: number): Promise<ApiResponse<void>> {
     return this.delete(`/services/${id}`);
   }
+
+  // ============================================================
+// DESIGNATION ENDPOINTS
+// ============================================================
+
+async getDesignations(includeInactive = false): Promise<ApiResponse<Designation[]>> {
+  return this.get<Designation[]>('/designations', { includeInactive });
+}
+
+async getDesignation(id: number): Promise<ApiResponse<Designation>> {
+  return this.get<Designation>(`/designations/${id}`);
+}
+
+async createDesignation(data: any): Promise<ApiResponse<Designation>> {
+  return this.post<Designation>('/designations', data);
+}
+
+async updateDesignation(id: number, data: any): Promise<ApiResponse<Designation>> {
+  return this.put<Designation>(`/designations/${id}`, data);
+}
+
+async toggleDesignationStatus(id: number, isActive: boolean): Promise<ApiResponse<Designation>> {
+  return this.patch<Designation>(`/designations/${id}/status`, { isActive });
+}
+
+async deleteDesignation(id: number): Promise<ApiResponse<void>> {
+  return this.delete(`/designations/${id}`);
+}
 
   // ============================================================
   // DASHBOARD ENDPOINTS
@@ -499,6 +536,31 @@ export class ApiService {
 
   async getDashboardRevenue(date: string): Promise<ApiResponse<Revenue[]>> {
     return this.get<Revenue[]>('/dashboard/revenue', { date });
+  }
+
+  // super admin level 
+  async getTenants(): Promise<ApiResponse<Tenant[]>> {
+    return this.get<Tenant[]>('/tenants');
+  }
+
+  async getTenant(id: number): Promise<ApiResponse<Tenant>> {
+    return this.get<Tenant>(`/tenants/${id}`);
+  }
+
+  async createTenant(data: any): Promise<ApiResponse<Tenant>> {
+    return this.post<Tenant>('/tenants', data);
+  }
+
+  async updateTenant(id: number, data: any): Promise<ApiResponse<Tenant>> {
+    return this.put<Tenant>(`/tenants/${id}`, data);
+  }
+
+  async updateTenantStatus(id: number, isActive: boolean): Promise<ApiResponse<Tenant>> {
+    return this.patch<Tenant>(`/tenants/${id}/status`, { isActive });
+  }
+
+  async superAdminLogin(phone: string , pin: string): Promise<ApiResponse<any>> {
+    return this.post('/auth/super-admin-login', { phone, pin });
   }
 }
 

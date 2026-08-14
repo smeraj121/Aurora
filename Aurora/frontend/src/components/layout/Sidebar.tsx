@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import { Sparkles, ChevronDown, PanelLeft } from 'lucide-react';
-import { NAV_ITEMS } from '../../shared/types/navigation';
+import { getNavItems } from '../../shared/types/navigation';
+import { useAuth } from '../../context/AuthContext';
 import { cn } from '../../lib/utils';
 
 interface SidebarProps {
@@ -16,6 +17,9 @@ export function Sidebar({
   mobileOpen,
   setMobileOpen,
 }: SidebarProps) {
+  const { user } = useAuth();
+  const navItems = getNavItems(user?.systemRole);
+
   return (
     <>
       {mobileOpen && (
@@ -57,7 +61,7 @@ export function Sidebar({
 
         {/* Navigation Links */}
         <nav className="flex-1 px-3 space-y-1 overflow-y-auto scrollbar-none py-2">
-          {NAV_ITEMS.map((item) => {
+          {navItems.map((item) => {
             const Icon = item.icon;
             return (
               <NavLink

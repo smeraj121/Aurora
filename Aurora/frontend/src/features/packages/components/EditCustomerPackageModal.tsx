@@ -1,21 +1,21 @@
-// views/customers/components/EditCustomerPackageModal.tsx
 import { useState, useEffect } from 'react';
 import {
-  X,
   Package,
   IndianRupee,
   Calendar,
-  AlertCircle,
   Check,
   CreditCard,
+  Loader2,
 } from 'lucide-react';
 import { formatCurrency } from '../../../lib/utils';
 import type { CustomerPackage } from '../../../types/customerpackage.types';
+import { BaseModal } from '../../modal/BaseModal';
+import { api } from '../../../services/api';
 
 interface EditCustomerPackageModalProps {
   isOpen: boolean;
   onClose: () => void;
-  customerPackage: CustomerPackage | null;
+  customerPackageId: number | null;
   onUpdate: (data: {
     customPrice?: number;
     expiryDate?: string;
@@ -27,31 +27,56 @@ interface EditCustomerPackageModalProps {
 export function EditCustomerPackageModal({
   isOpen,
   onClose,
-  customerPackage,
+  customerPackageId,
   onUpdate,
 }: EditCustomerPackageModalProps) {
+  const [customerPackage, setCustomerPackage] = useState<CustomerPackage | null>(null);
+  const [loadingPackage, setLoadingPackage] = useState(false);
+  
   const [customPrice, setCustomPrice] = useState<number | ''>('');
   const [expiryDate, setExpiryDate] = useState('');
   const [notes, setNotes] = useState('');
   const [paymentStatus, setPaymentStatus] = useState('paid');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
 
   useEffect(() => {
-    if (isOpen && customerPackage) {
-      setCustomPrice(customerPackage.customPrice || customerPackage.totalPrice || '');
-      setExpiryDate(customerPackage.expiryDate || '');
-      setNotes(customerPackage.notes || '');
-      setPaymentStatus(customerPackage.paymentStatus || 'paid');
-      setError('');
-      setSuccess(false);
+    async function loadPackageData() {
+      if (!isOpen || !customerPackageId) {
+        setCustomerPackage(null);
+        return;
+      }
+
+      try {
+        setLoadingPackage(true);
+        setError('');
+
+        // Fetch package details by ID
+        const response = await api.getCustomerPackageById(customerPackageId);
+        if(!response.success) {
+          throw new Error(response.message || 'Failed to fetch package details');
+        }
+        var data = response.data;
+        setCustomerPackage(data);
+
+        // Pre-fill form state
+        setCustomPrice(data.customPrice || data.totalPrice || '');
+        setExpiryDate(data.expiryDate || '');
+        setNotes(data.notes || '');
+        setPaymentStatus(data.paymentStatus || 'paid');
+      } catch (err: any) {
+        setError(err.message || 'Failed to load package details');
+      } finally {
+        setLoadingPackage(false);
+      }
     }
-  }, [isOpen, customerPackage]);
+
+    loadPackageData();
+  }, [isOpen, customerPackageId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!customerPackage) return;
 
     try {
@@ -66,12 +91,7 @@ export function EditCustomerPackageModal({
       };
 
       await onUpdate(updateData);
-      setSuccess(true);
-      
-      setTimeout(() => {
-        onClose();
-      }, 1500);
-      
+      onClose();
     } catch (err: any) {
       setError(err.message || 'Failed to update package');
     } finally {
@@ -79,59 +99,73 @@ export function EditCustomerPackageModal({
     }
   };
 
-  if (!isOpen || !customerPackage) return null;
+  const footerActions = (
+    <>
+      <button
+        type="button"
+        onClick={onClose}
+        disabled={submitting || loadingPackage}
+        className="btn-modal-secondary"
+      >
+        Cancel
+      </button>
+      <button
+        type="submit"
+        form="edit-package-form"
+        disabled={submitting || loadingPackage || !customerPackage}
+        className="btn-modal-primary flex items-center gap-2"
+      >
+        {submitting ? (
+          <>
+            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            Updating...
+          </>
+        ) : (
+          <>
+            <Check className="w-4 h-4" />
+            Update Package
+          </>
+        )}
+      </button>
+    </>
+  );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-hidden">
-        <div className="bg-gradient-to-r from-purple-600 to-purple-700 px-6 py-4 flex items-center justify-between text-white">
-          <div className="flex items-center gap-3">
-            <Package className="w-5 h-5" />
-            <div>
-              <h4 className="font-bold text-base">Edit Package</h4>
-              <p className="text-xs text-purple-200 opacity-80">
-                {customerPackage.packageName}
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-white/70 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+    <BaseModal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Edit Package"
+      icon={Package}
+      error={error}
+      footer={footerActions}
+      maxWidth="max-w-md"
+    >
+      {loadingPackage ? (
+        <div className="flex flex-col items-center justify-center py-10 space-y-3 text-slate-500">
+          <Loader2 className="w-7 h-7 animate-spin text-purple-600" />
+          <p className="text-xs font-medium">Loading package details...</p>
         </div>
-
-        {success && (
-          <div className="bg-emerald-50 border-l-4 border-emerald-500 p-3 px-6 flex items-center gap-2.5 text-xs text-emerald-600">
-            <Check className="w-4 h-4 shrink-0" />
-            <p>Package updated successfully!</p>
-          </div>
-        )}
-
-        {error && (
-          <div className="bg-rose-50 border-l-4 border-rose-500 p-3 px-6 flex items-center gap-2.5 text-xs text-rose-600">
-            <AlertCircle className="w-4 h-4 shrink-0" />
-            <p>{error}</p>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+      ) : (
+        <form id="edit-package-form" onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5">
-              Package Details
-            </label>
+            <label className="modal-label">Package Details</label>
             <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
-              <p className="text-sm font-semibold text-slate-900">{customerPackage.packageName}</p>
+              <p className="text-sm font-semibold text-slate-900">
+                {customerPackage?.packageName}
+              </p>
               <div className="flex items-center gap-4 mt-1 text-xs text-slate-600">
-                <span>{customerPackage.usedSessions}/{customerPackage.totalSessions} sessions used</span>
+                <span>
+                  {customerPackage?.usedSessions}/{customerPackage?.totalSessions} sessions used
+                </span>
                 <span className="font-bold text-emerald-600">
-                  {customerPackage.remainingSessions} remaining
+                  {customerPackage?.remainingSessions} remaining
                 </span>
               </div>
               <div className="flex items-center gap-2 mt-1 text-xs">
-                <span className="text-slate-500">Original: {formatCurrency(customerPackage.totalPrice)}</span>
-                {customerPackage.customPrice && (
+                <span className="text-slate-500">
+                  Original: {formatCurrency(customerPackage?.totalPrice || 0)}
+                </span>
+                {customerPackage?.customPrice && (
                   <span className="text-purple-600 font-medium">
                     Custom: {formatCurrency(customerPackage.customPrice)}
                   </span>
@@ -141,8 +175,8 @@ export function EditCustomerPackageModal({
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5">
-              <IndianRupee className="w-3.5 h-3.5 inline mr-1 text-purple-600" />
+            <label className="modal-label">
+              <IndianRupee className="w-3.5 h-3.5 text-purple-600 inline mr-1" />
               Custom Price (₹)
             </label>
             <input
@@ -150,34 +184,36 @@ export function EditCustomerPackageModal({
               min="0"
               step="0.01"
               value={customPrice}
-              onChange={(e) => setCustomPrice(e.target.value ? parseFloat(e.target.value) : '')}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600"
+              onChange={(e) =>
+                setCustomPrice(e.target.value ? parseFloat(e.target.value) : '')
+              }
+              className="modal-input"
               placeholder="Enter custom price"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5">
-              <Calendar className="w-3.5 h-3.5 inline mr-1 text-purple-600" />
+            <label className="modal-label">
+              <Calendar className="w-3.5 h-3.5 text-purple-600 inline mr-1" />
               Expiry Date
             </label>
             <input
               type="date"
               value={expiryDate}
               onChange={(e) => setExpiryDate(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600"
+              className="modal-input"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5">
-              <CreditCard className="w-3.5 h-3.5 inline mr-1 text-purple-600" />
+            <label className="modal-label">
+              <CreditCard className="w-3.5 h-3.5 text-purple-600 inline mr-1" />
               Payment Status
             </label>
             <select
               value={paymentStatus}
               onChange={(e) => setPaymentStatus(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600"
+              className="modal-input"
             >
               <option value="pending">Pending</option>
               <option value="partial">Partial</option>
@@ -187,47 +223,17 @@ export function EditCustomerPackageModal({
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5">
-              Notes
-            </label>
+            <label className="modal-label">Notes</label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 resize-none"
+              className="modal-input resize-none"
               placeholder="Add notes about this package..."
             />
           </div>
-
-          <div className="pt-4 flex flex-col-reverse sm:flex-row items-center justify-end gap-2.5 border-t border-slate-200">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={submitting}
-              className="w-full sm:w-auto px-5 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold shadow-lg shadow-purple-600/30 transition-all disabled:opacity-50"
-            >
-              {submitting ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Updating...
-                </>
-              ) : (
-                <>
-                  <Check className="w-4 h-4" />
-                  Update Package
-                </>
-              )}
-            </button>
-          </div>
         </form>
-      </div>
-    </div>
+      )}
+    </BaseModal>
   );
 }

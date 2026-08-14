@@ -1,15 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { Appointment } from '../shared/types';
 import { api } from '../services/api';
 import { fetchSchedule } from '../features/dashboard/data/dashboardService';
 
-export function useTodaySchedule(date: Date) {
+export function useAppointmentSchedule(date: Date) {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchTodaySchedule = async () => {
+  const refresh = useCallback(async () => {
     try {
       setLoading(true);
+
       const response = await fetchSchedule(date);
       setAppointments(response);
     } catch (err) {
@@ -17,21 +18,30 @@ export function useTodaySchedule(date: Date) {
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchTodaySchedule();
   }, [date]);
 
-  const saveAppointment = async (bookingData: any) => {
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  const saveAppointment = async (
+    bookingData: any,
+    appointmentId?: number | null
+  ) => {
     try {
-      const response = await api.createAppointment(bookingData);
+      const response = appointmentId
+        ? await api.updateAppointment(appointmentId, bookingData)
+        : await api.createAppointment(bookingData);
 
       if (!response.success) {
-        throw new Error(response.message || 'Failed to save booking.');
+        throw new Error(
+          response.message || 'Failed to save appointment.'
+        );
       }
 
-      await fetchTodaySchedule();
+      await refresh();
+
+      return response;
     } catch (err) {
       console.error('Error saving appointment:', err);
       throw err;
@@ -39,14 +49,16 @@ export function useTodaySchedule(date: Date) {
   };
 
   const remainingCount = appointments.filter(
-    (a) => a.status !== 'completed' && a.status !== 'cancelled'
+    (appointment) =>
+      appointment.status !== 'completed' &&
+      appointment.status !== 'cancelled'
   ).length;
 
   return {
     appointments,
     loading,
     remainingCount,
-    refresh: fetchTodaySchedule,
+    refresh,
     saveAppointment,
   };
 }

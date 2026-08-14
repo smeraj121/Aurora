@@ -10,6 +10,7 @@ const {
   refreshTokenSchema,
   updateProfileSchema,
   changeLanguageSchema,
+  superAdminLoginSchema
 } = require('../validators/auth.validator');
 const { ValidationError } = require('../errors');
 
@@ -22,8 +23,6 @@ class AuthController {
     try {
       const result = requestOtpSchema.safeParse(req.body);
       if (!result.success) {
-        console.log(result);
-        console.log(result.error.errors);
         throw new ValidationError('Invalid request body', result.error.errors);
       }
 
@@ -93,19 +92,23 @@ class AuthController {
   }
 
   async getCurrentUser(req, res, next) {
-    try {
-      const user = await authService.getCurrentUser(req.user.userId);
-      res.status(200).json({
-        success: true,
-        data: {
-          id: user.id,
-          fullName: user.fullName,
-          email: user.email
-        }
-      });
-    } catch (error) {
-      next(error);
-    }
+  try {
+    const user = await authService.getCurrentUser(req.user.userId);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        id: user.id,
+        tenantId: user.tenant_id,
+        fullName: user.fullName,
+        phone: user.phone,
+        email: user.email,
+        systemRole: user.system_role,
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
   }
 
   async getCurrentUserProfile(req, res, next) {
@@ -149,6 +152,32 @@ class AuthController {
       next(error);
     }
   }
+  async superAdminLogin(req, res, next) {
+  try {
+    const result = superAdminLoginSchema.safeParse(req.body);
+
+    if (!result.success) {
+      throw new ValidationError(
+        'Invalid request body',
+        result.error.errors
+      );
+    }
+
+    const { phone, pin } = result.data;
+
+    const data = await authService.superAdminLogin(
+      phone,
+      pin
+    );
+
+    res.status(200).json({
+      success: true,
+      data,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
 }
 
 module.exports = new AuthController();

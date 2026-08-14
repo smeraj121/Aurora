@@ -1,5 +1,6 @@
 import { Check, Package } from 'lucide-react';
-import type { CustomerPackage, CustomerPackageServiceItem } from '../types/types';
+import type { CustomerPackage, CustomerPackageServiceItem } from '../../../types/customerpackage.types';
+
 
 interface PackageSectionProps {
   isExistingCustomer: boolean;

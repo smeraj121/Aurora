@@ -1,5 +1,7 @@
 // services/serviceService.js
 const serviceRepository = require('../repositories/serviceRepository');
+const tenantRepository = require('../repositories/tenantRepository');
+const CATEGORY_DEFAULTS = require('../config/categoryDefaults');
 const { NotFoundError, ConflictError, ValidationError } = require('../errors');
 
 // ============================================================
@@ -27,7 +29,7 @@ async function createService(tenantId, data, userId) {
   // Basic validation
   if (!data.name) throw new ValidationError('Service name is required');
   if (!data.price || data.price < 0) throw new ValidationError('Valid price is required');
-  if (!data.estimatedDurationMinutes || data.estimatedDurationMinutes <= 0) {
+  if (!data.durationMinutes || data.durationMinutes <= 0) {
     throw new ValidationError('Valid duration is required');
   }
 
@@ -89,9 +91,15 @@ async function toggleServiceStatus(tenantId, id, userId) {
 async function getCategories(tenantId) {
   // We'll add a repository method for this
   // For now, we fetch all services and extract unique categories
+  const tenant = await tenantRepository.getById(tenantId);
+  if (!tenant) {
+    throw new Error('Tenant not found');
+  }
+  const defaultCategories = CATEGORY_DEFAULTS[tenant.businessTypeId] || [];
   const services = await serviceRepository.findAll(tenantId, true);
-  const categories = [...new Set(services.map(s => s.category).filter(Boolean))];
-  return categories.sort();
+  const dbCategories = services.map(s => s.category).filter(Boolean);
+  const allCategories = [...new Set([...defaultCategories, ...dbCategories])];
+  return allCategories.sort();
 }
 
 // ============================================================

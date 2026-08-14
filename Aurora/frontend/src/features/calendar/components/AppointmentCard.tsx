@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Package, AlertCircle, CheckCircle2, XCircle, Clock, Check, Loader2, X } from 'lucide-react';
+import { AlertCircle, Clock, Check, Loader2, X } from 'lucide-react';
 import type { ExtendedAppointment } from '../types';
 import { formatCurrency } from '../../../lib/utils';
 

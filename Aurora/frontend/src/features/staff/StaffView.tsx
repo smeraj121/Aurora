@@ -17,11 +17,13 @@ import {
   IndianRupee,
   AlertCircle,
   UserCheck,
+  Plus,
 } from 'lucide-react';
 import { StaffModal } from './components/StaffModal';
 import { api } from '../../services/api';
 import { cn, formatCurrency } from '../../lib/utils';
 import type { StaffMember, StaffSchedule, StaffStats, TopStaff } from '../../types/staff.types';
+import { BookingModal } from '../bookingModal/BookingModal';
 
 export function StaffView() {
   const [staffList, setStaffList] = useState<StaffMember[]>([]);
@@ -29,7 +31,7 @@ export function StaffView() {
   const [todaySchedule, setTodaySchedule] = useState<StaffSchedule[]>([]);
   const [, setStaffStats] = useState<StaffStats | null>(null);
   const [, setTopStaff] = useState<TopStaff[]>([]);
-  
+
   const [loading, setLoading] = useState(true);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -37,6 +39,11 @@ export function StaffView() {
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [showInactive, setShowInactive] = useState(false);
+
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+  const [editingAppointmentId, setEditingAppointmentId] = useState<number | null>(null);
+  const [selectedStartTime, setSelectedStartTime] = useState('');
+  const [modalBackendError, setModalBackendError] = useState<string | null>(null);
 
   // Load schedule for a staff member
   const loadStaffSchedule = async (staffId: number) => {
@@ -58,7 +65,7 @@ export function StaffView() {
     try {
       setDetailsLoading(true);
       const response = await api.getStaffDetailsWithStats(staffId);
-      
+
       if (response && response.success && response.data) {
         setSelectedStaff(response.data);
       } else {
@@ -66,7 +73,7 @@ export function StaffView() {
         const fallback = staffList.find((s) => s.id === staffId) || null;
         setSelectedStaff(fallback);
       }
-      
+
       await loadStaffSchedule(staffId);
     } catch (err) {
       console.error('Failed to load staff details:', err);
@@ -86,7 +93,7 @@ export function StaffView() {
       // Fetch Staff List
       const staffResponse = await api.getStaff(false, true);
       let loadedStaff: StaffMember[] = [];
-      
+
       if (staffResponse && staffResponse.success && Array.isArray(staffResponse.data)) {
         loadedStaff = staffResponse.data;
         setStaffList(loadedStaff);
@@ -138,11 +145,60 @@ export function StaffView() {
     setIsModalOpen(true);
   };
 
+  const handleOpenNewBooking = () => {
+    if (!selectedStaff) return;
+
+    setEditingAppointmentId(null);
+    setSelectedStartTime('');
+    setModalBackendError(null);
+    setIsBookingModalOpen(true);
+  };
+
+  const handleSaveAppointment = async (bookingData: any) => {
+    try {
+      const response = editingAppointmentId
+        ? await api.updateAppointment(
+          editingAppointmentId,
+          bookingData
+        )
+        : await api.createAppointment({
+          ...bookingData,
+          staffId: selectedStaff?.id,
+        });
+
+      if (!response.success) {
+        throw new Error(
+          response.message || 'Failed to save appointment.'
+        );
+      }
+
+      setIsBookingModalOpen(false);
+      setEditingAppointmentId(null);
+      setModalBackendError(null);
+
+      if (selectedStaff) {
+        await loadStaffSchedule(selectedStaff.id);
+      }
+    } catch (error: any) {
+      console.error('Failed to save appointment:', error);
+      setModalBackendError(
+        error.message || 'Failed to save appointment.'
+      );
+    }
+  };
+
+  const handleOpenEditBooking = (appointment: StaffSchedule) => {
+    setEditingAppointmentId(appointment.id);
+    setSelectedStartTime(appointment.time || '');
+    setModalBackendError(null);
+    setIsBookingModalOpen(true);
+  };
+
   const handleToggleStatus = async (staff: StaffMember) => {
     try {
       const updatedPayload = { ...staff, isActive: !staff.isActive };
       const response = await api.updateStaff(staff.id, updatedPayload);
-      
+
       if (response && response.success) {
         await loadAllData();
       }
@@ -222,7 +278,7 @@ export function StaffView() {
   // Safely extract stats regardless of backend nesting schema
   const currentStats = useMemo(() => {
     if (!selectedStaff) return { appointments: 0, completed: 0, revenue: 0, rating: 0, reviews: 0 };
-    
+
     const statsObj = (selectedStaff as any).stats || selectedStaff;
     return {
       appointments: statsObj.totalAppointments || statsObj.appointmentsCount || 0,
@@ -439,31 +495,77 @@ export function StaffView() {
 
               {/* Today's Schedule */}
               <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm">
-                <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2 mb-4">
-                  <Calendar className="w-4 h-4 text-purple-600" />
-                  Today's Schedule
-                </h4>
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-purple-600" />
+                    Today's Schedule
+                  </h4>
+
+                  <button
+                    onClick={handleOpenNewBooking}
+                    disabled={!selectedStaff}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-700 disabled:bg-slate-300 text-white text-[11px] font-semibold transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    New Booking
+                  </button>
+                </div>
                 {todaySchedule.length > 0 ? (
                   <div className="space-y-2">
                     {todaySchedule.map((item) => (
                       <div
                         key={item.id}
-                        className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200/60 hover:bg-slate-100 transition-colors"
+                        onClick={() => handleOpenEditBooking(item)}
+                        className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200/60 hover:bg-purple-50/40 hover:border-purple-200 transition-colors cursor-pointer"
                       >
                         <div className="flex items-center gap-4">
-                          <span className="text-xs font-bold text-slate-700 w-20">{item.time}</span>
+                          {/* Time */}
+                          <div className="w-28 shrink-0">
+                            <p className="text-xs font-bold text-slate-800">
+                              {item.start_time}
+                            </p>
+                            <p className="text-[10px] text-slate-400 mt-0.5">
+                              to {item.end_time}
+                            </p>
+                          </div>
+
+                          {/* Appointment details */}
                           <div>
-                            <p className="text-xs font-semibold text-slate-900">{item.customer}</p>
-                            <p className="text-[10px] text-slate-500">{item.service}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="text-xs font-semibold text-slate-900">
+                                {item.customer}
+                              </p>
+
+                              <span
+                                className={cn(
+                                  'text-[10px] font-medium px-2 py-0.5 rounded-full',
+                                  getStatusColor(item.status)
+                                )}
+                              >
+                                {item.status}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-2 mt-1">
+                              <p className="text-[10px] text-slate-500">
+                                {item.service}
+                              </p>
+
+                              {item.isPackage && (
+                                <>
+                                  <span className="text-slate-300">•</span>
+                                  <span className="text-[10px] font-medium text-purple-600">
+                                    Package
+                                  </span>
+                                </>
+                              )}
+                            </div>
                           </div>
                         </div>
-                        <span
-                          className={cn(
-                            'text-[10px] font-medium px-2 py-0.5 rounded-full',
-                            getStatusColor(item.status)
-                          )}
-                        >
-                          {item.status}
+
+                        {/* Appointment ID */}
+                        <span className="text-[10px] text-slate-400">
+                          #{item.id}
                         </span>
                       </div>
                     ))}
@@ -492,6 +594,19 @@ export function StaffView() {
         }}
         onSave={handleSaveStaff}
         initialData={editingStaff}
+      />
+      <BookingModal
+        isOpen={isBookingModalOpen}
+        onClose={() => {
+          setIsBookingModalOpen(false);
+          setEditingAppointmentId(null);
+          setModalBackendError(null);
+        }}
+        onSave={handleSaveAppointment}
+        appointmentId={editingAppointmentId}
+        staffId={selectedStaff?.id ?? null}
+        slot={selectedStartTime}
+        initialError={modalBackendError}
       />
     </div>
   );

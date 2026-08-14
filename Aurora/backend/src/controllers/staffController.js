@@ -2,7 +2,6 @@ const staffService = require('../services/staffService');
 const {
   createStaffSchema,
   updateStaffSchema,
-  queryStaffSchema,
 } = require('../validators/staff.validator');
 
 // ============================================================

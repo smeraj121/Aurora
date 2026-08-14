@@ -1,12 +1,12 @@
 const db = require('../config/db');
 
 class AppointmentRepository {
-  
+
   // ============================================================
-    // GET APPOINTMENT BY ID (with tenant)
-    // ============================================================
-    async getAppointmentById(tenantId, id) {
-      const query = `
+  // GET APPOINTMENT BY ID (with tenant)
+  // ============================================================
+  async getAppointmentById(tenantId, id) {
+    const query = `
         SELECT 
           a.id,
           a.customer_id AS "customerId",
@@ -46,9 +46,9 @@ class AppointmentRepository {
         WHERE a.id = $1 AND a.tenant_id = $2
         GROUP BY a.id, c.id, u.id, st.id, su.id
       `;
-      const { rows } = await db.query(query, [id, tenantId]);
-      return rows[0] || null;
-    }
+    const { rows } = await db.query(query, [id, tenantId]);
+    return rows[0] || null;
+  }
 
   async validateStaffBelongsToTenant(tenantId, staffId, client = db) {
     const query = `
@@ -67,6 +67,43 @@ class AppointmentRepository {
     `;
     const { rows } = await client.query(query, [serviceIds, tenantId]);
     return parseInt(rows[0].count, 10) === serviceIds.length;
+  }
+
+  async getBookedSlots(tenantId, staffId, date, client = db) {
+  const query = `
+    SELECT start_time, end_time
+    FROM appointments
+    WHERE tenant_id = $1
+      AND staff_id = $2
+      AND appointment_date = $3
+      AND status NOT IN ('cancelled')
+    ORDER BY start_time
+  `;
+
+  const { rows } = await client.query(query, [
+    tenantId,
+    staffId,
+    date
+  ]);
+
+  return rows;
+}
+
+  async hasStaffOverlap(tenantId, staffId, date, startTime, endTime, excludeId = null, client = db) {
+    const query = `
+    SELECT 1
+    FROM appointments
+    WHERE tenant_id = $1
+      AND staff_id = $2
+      AND appointment_date = $3
+      AND status NOT IN ('cancelled')
+      AND start_time < $5
+      AND end_time > $4
+      AND id != COALESCE($6, -1)
+    LIMIT 1
+  `;
+    const { rows } = await client.query(query, [tenantId, staffId, date, startTime, endTime, excludeId]);
+    return rows.length > 0;
   }
 
   async createAppointment(tenantId, data, userId, client = db) {

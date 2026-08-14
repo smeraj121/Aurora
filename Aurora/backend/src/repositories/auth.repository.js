@@ -176,6 +176,26 @@ class AuthRepository {
     const query = `UPDATE refresh_tokens SET is_revoked = true, updated_at = CURRENT_TIMESTAMP WHERE user_id = $1;`;
     await client.query(query, [userId]);
   }
+
+  async findSuperAdminByPhone(phone, client = pool) {
+  const query = `
+    SELECT
+      id,
+      full_name,
+      phone,
+      email,
+      system_role
+    FROM users
+    WHERE phone = $1
+      AND system_role = 'SuperAdmin'
+      AND tenant_id IS NULL
+    LIMIT 1
+  `;
+
+  const { rows } = await client.query(query, [phone]);
+
+  return rows[0] || null;
+}
 }
 
 module.exports = new AuthRepository();

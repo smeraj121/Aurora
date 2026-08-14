@@ -24,4 +24,10 @@ router.patch('/profile', authenticate, asyncHandler(authController.updateProfile
 router.patch('/language', authenticate, asyncHandler(authController.changeLanguage));
 router.delete('/deactivate', authenticate, asyncHandler(authController.deactivateAccount));
 
+// Platform admin authentication
+router.post(
+  '/super-admin-login',
+  asyncHandler(authController.superAdminLogin)
+);
+
 module.exports = router;

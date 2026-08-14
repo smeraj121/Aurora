@@ -46,3 +46,23 @@ export const formatDateForInput = (dateStr?: string | null): string => {
   }
   return dateStr;
 };
+
+export const formatTimeToMinutes = (timeStr: string): number => {
+  if (!timeStr) return 0;
+  const parts = timeStr.match(/(\d+):(\d+)\s?(AM|PM)?/i);
+  if (!parts) throw new Error(`Invalid time format: ${timeStr}`);
+  let hours = parseInt(parts[1], 10);
+  const minutes = parseInt(parts[2], 10);
+  const ampm = parts[3]?.toUpperCase();
+  if (ampm === 'PM' && hours !== 12) hours += 12;
+  if (ampm === 'AM' && hours === 12) hours = 0;
+  return hours * 60 + minutes;
+}
+
+export const minutesToTimeString = (minutes: number): string => {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const hour12 = h % 12 || 12;
+  return `${hour12.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')} ${ampm}`;
+}

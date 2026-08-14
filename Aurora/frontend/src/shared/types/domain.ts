@@ -1,7 +1,4 @@
 // shared/types/domain.ts
-
-import type { CustomerPackage } from "../../types/customerpackage.types";
-
 export type AppointmentStatus = 
   | 'scheduled' 
   | 'confirmed' 
@@ -18,149 +15,6 @@ export type PaymentStatus =
 
 export type CalendarViewMode = 'day' | 'week' | 'month';
 
-export interface CustomerListItem {
-  id: number;
-  fullName: string;
-  phone: string;
-  avatar?: string | null;
-  isVip: boolean;
-  totalVisits: number;
-  totalSpent: number;
-  totalPaid?: number;
-  lastVisitDate?: string | null;
-}
-
-export interface Customer extends CustomerListItem {
-  email?: string | null;
-  notes?: string | null;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-export interface CustomerDetails extends Customer {
-  averageTicket: number;
-  totalPaid: number;
-  balanceDue?: number;
-  history: CustomerVisit[];
-  packages: CustomerPackage[];
-  stats?: CustomerStats;
-}
-
-export interface CustomerVisit {
-  id: number;
-  appointmentDate: string;
-  startTime: string;
-  serviceName: string;
-  staffName: string;
-  amount: number;
-  paidAmount?: number;
-  paymentStatus?: PaymentStatus;
-  status: AppointmentStatus;
-  isPackageAppointment?: boolean;
-  customerPackageId?: number | null;
-  packageName?: string | null;
-  services?: CustomerVisitService[];
-  balanceDue?: number;
-}
-
-export interface CustomerVisitService {
-  serviceId: number;
-  serviceName: string;
-  price: number;
-  isPackage: boolean;
-}
-
-// shared/types/domain.ts
-
-export interface CustomerStats {
-  totalAppointments: number;
-  totalSpent: number;
-  totalPaid: number;
-  balanceDue: number;
-  activePackages: number;
-  lastVisitDate?: string | null;
-  daysSinceLastVisit?: number;
-}
-
-export interface CustomerCreateInput {
-  fullName: string;
-  phone: string;
-  email?: string | null;
-  notes?: string | null;
-  isVip?: boolean;
-}
-
-export interface CustomerUpdateInput {
-  fullName?: string;
-  phone?: string;
-  email?: string | null;
-  notes?: string | null;
-  isVip?: boolean;
-}
-
-export interface CustomersListResponse {
-  success: boolean;
-  data: CustomerListItem[];
-}
-
-export interface CustomerDetailsResponse {
-  success: boolean;
-  data: CustomerDetails;
-}
-
-export interface CustomerHistoryResponse {
-  success: boolean;
-  data: CustomerVisit[];
-}
-
-export interface CustomerPackagesResponse {
-  success: boolean;
-  data: CustomerPackage[];
-}
-
-// ============================================================
-// Booking Types (extended with customer info)
-// ============================================================
-
-export interface BookingCustomerInfo {
-  id: number;
-  fullName: string;
-  phone: string;
-  email?: string | null;
-  isVip: boolean;
-  totalVisits: number;
-  totalSpent: number;
-  availablePackages?: CustomerPackage[];
-}
-
-export interface BookingFormData {
-  id?: string;
-  customerId: string;
-  customerName: string;
-  phone: string;
-  serviceId?: string;
-  serviceName?: string;
-  staffId: string;
-  startTime: string;
-  durationMinutes: number;
-  date: string;
-  amount: string;
-  paidAmount?: string;
-  paymentStatus?: PaymentStatus;
-  paymentMethod?: string;
-  status: AppointmentStatus;
-  notes?: string;
-  services: BookingService[];
-  customerPackageId?: string | null;
-  isPackageAppointment: boolean;
-}
-
-export interface BookingService {
-  serviceId: number;
-  serviceName: string;
-  price: number;
-  isPackage?: boolean;
-}
 
 
 export interface ServiceItem {
@@ -171,16 +25,6 @@ export interface ServiceItem {
   price: number;
   description?: string;
   isActive: boolean;
-}
-
-export interface CustomerSearchResult {
-  id: number;
-  fullName: string;
-  name?: string;
-  phone: string;
-  email?: string;
-  avatar?: string;
-  isVip?: boolean;
 }
 // shared/types/domain.ts
 export interface CustomerPackageAssignment {

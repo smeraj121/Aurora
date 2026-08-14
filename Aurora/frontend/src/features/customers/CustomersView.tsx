@@ -18,30 +18,28 @@ import {
   Gift,
 } from 'lucide-react';
 
-import { AddCustomerDrawer } from './components/AddCustomerDrawer';
-import { EditCustomerDrawer } from './components/EditCustomerDrawer';
 import { AssignPackageModal } from '../packages/components/AssignPackageModal';
 import { EditCustomerPackageModal } from '../packages/components/EditCustomerPackageModal';
 import { cn, formatCurrency } from '../../lib/utils';
 import { api } from '../../services/api';
-import type { CustomerListItem, CustomerDetails, CustomerVisit } from '../../shared/types/domain';
 import { BookingModal } from '../bookingModal/BookingModal';
 import type { CustomerPackage } from '../../types/customerpackage.types';
+import { CustomerModal } from './components/CustomerModal';
+import type { CustomerListItem, CustomerDetails, CustomerVisit } from '../../types/customer.types';
 
 export function CustomersView() {
   const [customers, setCustomers] = useState<CustomerListItem[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerDetails | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [isAddDrawerOpen, setIsAddDrawerOpen] = useState(false);
-  const [isEditDrawerOpen, setIsEditDrawerOpen] = useState(false);
+  const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState<any | null>(null);
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [isAssignPackageModalOpen, setIsAssignPackageModalOpen] = useState(false);
   const [isEditPackageModalOpen, setIsEditPackageModalOpen] = useState(false);
   const [editingCustomerPackage, setEditingCustomerPackage] = useState<CustomerPackage | null>(null);
   const [appointmentId, setAppointmentId] = useState<number | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [pageLoading, setLoading] = useState(true);
   const [searchTimeout, setSearchTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
-
   // Load initial customers
   useEffect(() => {
     loadCustomers();
@@ -86,49 +84,35 @@ export function CustomersView() {
     setSearchTimeout(timeout);
   };
 
-  const handleAddCustomer = async (customer: any) => {
-    try {
-      const { data } = await api.createCustomer(customer);
-      await loadCustomers(searchTerm);
-
-      if (data && data.id) {
-        await loadCustomer(data.id);
-      }
-
-      setIsAddDrawerOpen(false);
-    } catch (error) {
-      console.error('Failed to add customer', error);
-    }
+  // Open modal for adding a new customer
+  const openAddCustomer = () => {
+    setEditingCustomer(null);
+    setIsCustomerModalOpen(true);
   };
 
-  const handleEditCustomer = async (customer: Partial<CustomerDetails>) => {
-    try {
-      const { data } = await api.updateCustomer(selectedCustomer!.id, customer);
-      await loadCustomers(searchTerm);
-
-      if (data && data.id) {
-        await loadCustomer(data.id);
-      }
-
-      setIsEditDrawerOpen(false);
-    } catch (error) {
-      console.error('Failed to update customer', error);
-    }
+  // Open modal for editing an existing customer
+  const openEditCustomer = (customer: any) => {
+    setEditingCustomer(customer);
+    setIsCustomerModalOpen(true);
   };
 
-  const handleDeleteCustomer = async () => {
-    if (!selectedCustomer) return;
-
-    if (window.confirm(`Are you sure you want to delete ${selectedCustomer.fullName}?`)) {
-      try {
-        await api.deleteCustomer(selectedCustomer.id);
-        await loadCustomers(searchTerm);
-        setSelectedCustomer(null);
-      } catch (error) {
-        console.error('Failed to delete customer', error);
-        alert('Failed to delete customer. They may have existing appointments.');
+  const handleSaveCustomer = async (data: any) => {
+    try {
+      if (editingCustomer) {
+        await api.updateCustomer(editingCustomer.id, data);
+      } else {
+        await api.createCustomer(data);
       }
+      //setSearchTerm('');
+      //loadCustomers();
+      handleSearch('');
+    } catch (error) {
+      throw error; // Let the modal handle the error
     }
+  };
+  const handleDeactivateCustomer = async (customerId: number) => {
+    await api.deleteCustomer(customerId);
+    // Refresh list
   };
 
   // ============================================================
@@ -144,28 +128,37 @@ export function CustomersView() {
   };
 
   const handleSaveAppointment = async (bookingData: any) => {
-    try {
-      const dataToSave = {
-        ...bookingData,
-        customerId: selectedCustomer?.id || bookingData.customerId,
-        customerName: selectedCustomer?.fullName || bookingData.customerName,
-        phone: selectedCustomer?.phone || bookingData.phone,
-      };
+  try {
+    const dataToSave = {
+      ...bookingData,
+      customerId: selectedCustomer?.id || bookingData.customerId,
+      customerName: selectedCustomer?.fullName || bookingData.customerName,
+      phone: selectedCustomer?.phone || bookingData.phone,
+    };
 
-      await api.createAppointment(dataToSave);
-      setIsBookingModalOpen(false);
+    const response = appointmentId
+      ? await api.updateAppointment(appointmentId, dataToSave)
+      : await api.createAppointment(dataToSave);
 
-      if (selectedCustomer) {
-        await loadCustomer(selectedCustomer.id);
-      }
-
-      alert('Appointment booked successfully!');
-    } catch (error) {
-      console.error('Failed to book appointment', error);
-      alert('Failed to book appointment. Please try again.');
+    if (!response.success) {
+      throw new Error(
+        response.message || 'Failed to save appointment.'
+      );
     }
-  };
 
+    setIsBookingModalOpen(false);
+    setAppointmentId(null);
+
+    if (selectedCustomer) {
+      await loadCustomer(selectedCustomer.id);
+    }
+
+    alert('Appointment saved successfully!');
+  } catch (error: any) {
+    console.error('Failed to save appointment', error);
+    alert(error.message || 'Failed to save appointment.');
+  }
+};
   // ============================================================
   // PACKAGE ASSIGNMENT HANDLERS
   // ============================================================
@@ -291,7 +284,7 @@ export function CustomersView() {
         </div>
 
         <button
-          onClick={() => setIsAddDrawerOpen(true)}
+          onClick={() => openAddCustomer()}
           className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white text-xs font-semibold shadow-xs transition-all shrink-0 self-start sm:self-auto"
         >
           <UserPlus className="w-3.5 h-3.5" />
@@ -319,7 +312,7 @@ export function CustomersView() {
 
           {/* Customer Item List */}
           <div className="flex-1 overflow-y-auto divide-y divide-slate-100/80">
-            {loading ? (
+            {pageLoading ? (
               <div className="flex items-center justify-center h-full">
                 <div className="w-5 h-5 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />
               </div>
@@ -449,7 +442,7 @@ export function CustomersView() {
                     {/* Secondary actions */}
                     <div className="flex items-center gap-1 shrink-0">
                       <button
-                        onClick={() => setIsEditDrawerOpen(true)}
+                        onClick={() => openEditCustomer(selectedCustomer)}
                         className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 transition-colors"
                         title="Edit Customer"
                       >
@@ -457,9 +450,9 @@ export function CustomersView() {
                       </button>
 
                       <button
-                        onClick={handleDeleteCustomer}
+                        onClick={() => handleDeactivateCustomer(selectedCustomer.id)}
                         className="p-2 rounded-lg border border-slate-200 hover:bg-rose-50 text-slate-500 hover:text-rose-600 transition-colors"
-                        title="Delete Customer"
+                        title="Deactivate Customer"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -707,22 +700,13 @@ export function CustomersView() {
         </div>
       </div>
 
-      {/* Add Customer Drawer */}
-      <AddCustomerDrawer
-        isOpen={isAddDrawerOpen}
-        onClose={() => setIsAddDrawerOpen(false)}
-        onAddCustomer={handleAddCustomer}
+      <CustomerModal
+        isOpen={isCustomerModalOpen}
+        onClose={() => setIsCustomerModalOpen(false)}
+        customer={editingCustomer}
+        onSave={handleSaveCustomer}
+        onDeactivate={handleDeactivateCustomer}
       />
-
-      {/* Edit Customer Drawer */}
-      {selectedCustomer && (
-        <EditCustomerDrawer
-          isOpen={isEditDrawerOpen}
-          onClose={() => setIsEditDrawerOpen(false)}
-          customer={selectedCustomer}
-          onUpdateCustomer={handleEditCustomer}
-        />
-      )}
 
       {/* New Booking Modal */}
       <BookingModal
@@ -752,7 +736,7 @@ export function CustomersView() {
             setIsEditPackageModalOpen(false);
             setEditingCustomerPackage(null);
           }}
-          customerPackage={editingCustomerPackage}
+          customerPackageId={editingCustomerPackage.id}
           onUpdate={handleUpdateCustomerPackage}
         />
       )}

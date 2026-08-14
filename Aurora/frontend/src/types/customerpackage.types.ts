@@ -1,14 +1,5 @@
 import type { PaymentStatus } from "../shared/types/domain";
 
-
-//export interface CustomerPackageServiceItem {
-  //serviceId: number;
-  //serviceName: string;
-  //price: number;
-  //totalQuantity?: number;
-  //usedQuantity: number;
-//}
-
 export interface CustomerPackageServiceItem {
   serviceId: number;
   serviceName: string;
@@ -18,15 +9,6 @@ export interface CustomerPackageServiceItem {
   isPackage: boolean;
   discount?: number;
 }
-
-//export interface CustomerPackage {
-  //id: number;
-  //packageName: string;
-  //remainingSessions: number;
-  //totalSessions: number;
-  //expiryDate: string;
-  //services: CustomerPackageServiceItem[];
-//}
 
 export interface CustomerPackage {
   id: number;

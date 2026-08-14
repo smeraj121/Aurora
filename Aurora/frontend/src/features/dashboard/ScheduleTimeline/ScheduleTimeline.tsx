@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import type { Appointment } from '../../../shared/types';
+import type { BookingFormData } from '../../../types/booking.types';
 import { BookingModal } from '../../bookingModal/BookingModal';
 import { TimelineHeader } from './TimelineHeader';
 import { ScheduleList } from './ScheduleList';
-import { useTodaySchedule } from '../../../hooks/useTodaySchedule';
+import { useAppointmentSchedule } from '../../../hooks/useAppointmentSchedule';
 import { getLocalDateString } from '../../../lib/dateUtils';
 
 interface ScheduleTimelineProps {
@@ -17,10 +18,11 @@ export function ScheduleTimeline({ date }: ScheduleTimelineProps) {
     loading,
     refresh,
     saveAppointment
-  } = useTodaySchedule(date);
+  } = useAppointmentSchedule(date);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
+  const [editingAppointment, setEditingAppointment] =
+    useState<Appointment | null>(null);
 
   const handleOpenAddModal = () => {
     setEditingAppointment(null);
@@ -35,12 +37,16 @@ export function ScheduleTimeline({ date }: ScheduleTimelineProps) {
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setEditingAppointment(null);
-    refresh(); // Refresh on close
   };
 
-  const handleSave = async (bookingData: any) => {
-    await saveAppointment(bookingData);
+  const handleSave = async (bookingData: BookingFormData) => {
+    await saveAppointment(
+      bookingData,
+      editingAppointment?.id
+    );
+
     setIsModalOpen(false);
+    setEditingAppointment(null);
   };
 
   return (

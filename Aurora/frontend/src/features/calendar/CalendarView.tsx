@@ -5,20 +5,20 @@ import { formatCurrency } from '../../lib/utils';
 import { api } from '../../services/api';
 import type { ExtendedAppointment } from './types';
 import { TIME_SLOTS } from '../bookingModal/types/constants';
-import { getLocalDateString, normalizeTime } from '../../lib/dateUtils';
+import { getLocalDateString } from '../../lib/dateUtils';
 import { StaffColumn } from './components/StaffColumn';
+import { useAppointmentSchedule } from '../../hooks/useAppointmentSchedule';
 
 export function CalendarView() {
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [editingAppointmentId, setEditingAppointmentId] = useState<number | null>(null);
-  const [appointments, setAppointments] = useState<ExtendedAppointment[]>([]);
   const [staffList, setStaffList] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedStaffFilter, setSelectedStaffFilter] = useState<string>('all');
   const [selectedStaffId, setSelectedStaffId] = useState<number | null>(null);
   const [selectedStartTime, setSelectedStartTime] = useState('');
   const [modalBackendError, setModalBackendError] = useState<string | null>(null);
+  const { appointments, loading, refresh, saveAppointment } = useAppointmentSchedule(currentDate);
 
   // Partial Payment Confirmation Dialog State
   const [pendingPaymentWarning, setPendingPaymentWarning] = useState<{ id: number; due: number } | null>(null);
@@ -26,32 +26,18 @@ export function CalendarView() {
   const formattedDateString = getLocalDateString(currentDate);
 
   useEffect(() => {
-    fetchScheduleData();
-  }, [formattedDateString]);
+    fetchStaff();
+  }, []);
 
-  const fetchScheduleData = async () => {
-    setLoading(true);
+  const fetchStaff = async () => {
     try {
-      const [calRes, staffRes] = await Promise.all([
-        api.getSchedule(formattedDateString),
-        api.getStaff(),
-      ]);
+      const staffRes = await api.getStaff();
 
-      if (calRes.success) {
-        const normalized = calRes.data.map((apt: any) => ({
-          ...apt,
-          startTime: normalizeTime(apt.startTime),
-          durationMinutes: Number(apt.durationMinutes ?? apt.duration ?? 15),
-        }));
-        setAppointments(normalized);
-      }
       if (staffRes.success) {
         setStaffList(staffRes.data);
       }
     } catch (err) {
-      console.error('Failed to load schedule:', err);
-    } finally {
-      setLoading(false);
+      console.error('Failed to load staff:', err);
     }
   };
 
@@ -79,25 +65,13 @@ export function CalendarView() {
     setIsModalOpen(true);
   };
 
-  const executeFinishAppointment = async (id: number) => {
-    const res = await fetch(`/appointments/${id}/finish`, { method: 'POST' });
-    const data = await res.json();
-    if (!res.ok || !data.success) {
-      const aptToFix = appointments.find((a) => a.id === id) || null;
-      setModalBackendError(data.message || 'Validation error while completing appointment.');
-      handleOpenModal(aptToFix);
-      return;
-    }
-    await fetchScheduleData();
-  };
-
   const handleFinishAppointment = async (id: number, e: React.MouseEvent) => {
     e.stopPropagation();
     const apt = appointments.find((a) => a.id === id);
     if (!apt) return;
 
     const total = Number(apt.amount || 0);
-    const paid = Number(apt.paidAmount || 0);
+    const paid = 0;//Number(apt.paidAmount || 0);
     const due = total - paid;
 
     if (due > 0) {
@@ -105,7 +79,7 @@ export function CalendarView() {
       return;
     }
 
-    await executeFinishAppointment(id);
+    //await executeFinishAppointment(id);
   };
 
   const handleCancelAppointment = (apt: ExtendedAppointment, e: React.MouseEvent) => {
@@ -114,20 +88,17 @@ export function CalendarView() {
   };
 
   const handleSaveAppointment = async (savedApt: any) => {
-    if (editingAppointmentId) {
-      var res =await api.updateAppointment(editingAppointmentId, savedApt);
-      if (!res.success) {
-        setModalBackendError(res.message || 'Failed to update appointment.');
-        return;
-      }
-    } else {
-      var resadd =await api.createAppointment(savedApt);
-      if (!resadd.success) {
-        setModalBackendError(resadd.message || 'Failed to create appointment.');
-        return;
-      }
+    try {
+      await saveAppointment(savedApt, editingAppointmentId);
+
+      setIsModalOpen(false);
+      setEditingAppointmentId(null);
+      setModalBackendError(null);
+    } catch (err: any) {
+      setModalBackendError(
+        err.message || 'Failed to save appointment.'
+      );
     }
-    await fetchScheduleData();
   };
 
   return (
@@ -238,9 +209,8 @@ export function CalendarView() {
                   <div
                     key={slot}
                     style={{ height: '36px' }}
-                    className={`flex items-center px-3 ${
-                      isHour ? 'border-t border-slate-300 text-xs font-bold text-slate-700' : 'border-t border-slate-100 text-[10px] text-slate-300'
-                    }`}
+                    className={`flex items-center px-3 ${isHour ? 'border-t border-slate-300 text-xs font-bold text-slate-700' : 'border-t border-slate-100 text-[10px] text-slate-300'
+                      }`}
                   >
                     {isHour ? slot : ''}
                   </div>
@@ -309,7 +279,6 @@ export function CalendarView() {
           setIsModalOpen(false);
           setEditingAppointmentId(null);
           setModalBackendError(null);
-          fetchScheduleData();
         }}
         onSave={handleSaveAppointment}
         appointmentId={editingAppointmentId}

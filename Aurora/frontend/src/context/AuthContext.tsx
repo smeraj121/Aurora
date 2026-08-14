@@ -10,6 +10,10 @@ interface AuthContextType {
   login: (verificationToken: string, tenantId?: number) => Promise<{ requiresTenantSelection: boolean; tenants?: any[] }>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  superAdminLogin: (
+  phone: string,
+  pin: string
+) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -85,6 +89,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(null);
     }
   }
+  
+  async function superAdminLogin(
+  phone: string,
+  pin: string
+): Promise<void> {
+  const result = await apiService.superAdminLogin(
+    phone,
+    pin
+  );
+
+  if (!result.success) {
+    throw new Error(
+      result.message || 'Invalid credentials.'
+    );
+  }
+    apiService.setAuthToken(result.data.accessToken);
+
+  setUser(result.data.user);
+}
 
   return (
     <AuthContext.Provider
@@ -95,6 +118,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         login,
         logout,
         refreshUser,
+        superAdminLogin,
       }}
     >
       {children}

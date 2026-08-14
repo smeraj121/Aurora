@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Scissors, Check, X } from 'lucide-react';
-import type { CustomerPackageServiceItem } from '../types/types';
 import type { BookingServiceItem } from '../../../types/booking.types';
+import type { CustomerPackageServiceItem } from '../../../types/customerpackage.types';
 
 interface ServiceSectionProps {
   staffId: number | null;

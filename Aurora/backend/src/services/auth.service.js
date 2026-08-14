@@ -2,7 +2,7 @@
 const pool = require('../config/db');
 const authRepository = require('../repositories/auth.repository');
 const tokenService = require('./token.service');
-const { UnauthorizedError, NotFoundError } = require('../errors');
+const { UnauthorizedError, NotFoundError, ValidationError } = require('../errors');
 
 class AuthService {
   constructor(otpService) {
@@ -83,6 +83,8 @@ class AuthService {
           userId: singleUser.user_id,
           fullName: singleUser.full_name,
           email: singleUser.email,
+          systemRole: singleUser.system_role,
+          tenantId: singleUser.tenantId
         }
       };
     }
@@ -159,6 +161,52 @@ class AuthService {
     await authRepository.deactivateUser(userId);
     await tokenService.revokeAllUserSessions(userId);
     return { message: 'Account deactivated' };
+  }
+
+  async superAdminLogin(phone, pin) {
+    const client = await pool.connect();
+    try {
+      const configuredPin = process.env.SUPER_ADMIN_PIN;
+
+      if (!configuredPin) {
+        throw new Error('Super admin authentication is not configured.');
+      }
+
+      const systemUser = await authRepository.findSuperAdminByPhone(phone, client);
+
+      if (!systemUser) {
+        throw new UnauthorizedError('Invalid credentials.');
+      }
+
+      if (pin !== configuredPin) {
+        throw new UnauthorizedError('Invalid credentials.');
+      }
+
+      await authRepository.updateLastLogin(systemUser.id);
+
+      const tokens = await tokenService.issueTokens({
+        userId: systemUser.id,
+        tenantId: null,
+        systemRole: 'SuperAdmin',
+        phone: systemUser.phone,
+      });
+
+      return {
+        user: {
+          id: systemUser.id,
+          tenantId: null,
+          fullName: systemUser.full_name,
+          phone: systemUser.phone,
+          email: systemUser.email,
+          systemRole: 'SuperAdmin',
+        },
+        ...tokens,
+      };
+    } catch (error) {
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 }
 

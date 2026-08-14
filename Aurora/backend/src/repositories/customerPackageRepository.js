@@ -145,9 +145,9 @@ class CustomerPackageRepository {
       );
 
       // 7. Update customer stats if paid
-      if (data.paymentStatus === 'paid') {
-        await customerRepository.updateCustomerStatsAfterPackageAssignment(tenantId, data.customerId);
-      }
+      //if (data.paymentStatus === 'paid') {
+        await customerRepository.recalculateCustomerStats(tenantId, data.customerId);
+      //}
 
       await client.query('COMMIT');
       return this.getCustomerPackageById(tenantId, customerPackageId);
@@ -245,70 +245,90 @@ class CustomerPackageRepository {
   // ============================================================
   // UPDATE CUSTOMER PACKAGE
   // ============================================================
-  async updateCustomerPackage(tenantId, id, data, updatedBy = null) {
-    const client = await db.connect();
-    
-    try {
-      await client.query('BEGIN');
+  // customerPackageRepository.js
+async updateCustomerPackage(tenantId, id, data, updatedBy = null, client = db) {
+  // If no client provided, use the default db (and start a transaction)
+  const useOwnClient = !client;
+  if (useOwnClient) {
+    client = await db.connect();
+    await client.query('BEGIN');
+  }
 
-      const updates = [];
-      const values = [];
-      let paramCount = 1;
+  try {
+    // Build dynamic UPDATE query (same as existing)
+    const updates = [];
+    const values = [];
+    let paramCount = 1;
 
-      if (data.customPrice !== undefined) {
-        updates.push(`custom_price = $${paramCount++}`);
-        values.push(data.customPrice);
-      }
-      if (data.paymentStatus !== undefined) {
-        updates.push(`payment_status = $${paramCount++}`);
-        values.push(data.paymentStatus);
-      }
-      if (data.notes !== undefined) {
-        updates.push(`notes = $${paramCount++}`);
-        values.push(data.notes);
-      }
-      if (data.expiryDate !== undefined) {
-        updates.push(`expiry_date = $${paramCount++}`);
-        values.push(data.expiryDate);
-      }
-      if (data.totalSessions !== undefined) {
-        updates.push(`total_sessions = $${paramCount++}`);
-        values.push(data.totalSessions);
-      }
+    if (data.customPrice !== undefined) {
+      updates.push(`custom_price = $${paramCount++}`);
+      values.push(data.customPrice);
+    }
+    if (data.paymentStatus !== undefined) {
+      updates.push(`payment_status = $${paramCount++}`);
+      values.push(data.paymentStatus);
+    }
+    if (data.notes !== undefined) {
+      updates.push(`notes = $${paramCount++}`);
+      values.push(data.notes);
+    }
+    if (data.expiryDate !== undefined) {
+      updates.push(`expiry_date = $${paramCount++}`);
+      values.push(data.expiryDate);
+    }
+    if (data.totalSessions !== undefined) {
+      updates.push(`total_sessions = $${paramCount++}`);
+      values.push(data.totalSessions);
+    }
 
-      if (updates.length === 0) {
-        return this.getCustomerPackageById(tenantId, id);
+    if (updates.length === 0) {
+      // No changes – still need to commit if we started the transaction
+      if (useOwnClient) {
+        await client.query('COMMIT');
+        client.release();
       }
-
-      updates.push(`updated_at = CURRENT_TIMESTAMP`);
-      updates.push(`updated_by = $${paramCount++}`);
-      values.push(updatedBy);
-
-      const query = `
-        UPDATE customer_packages
-        SET ${updates.join(', ')}
-        WHERE id = $${paramCount} AND tenant_id = $${paramCount + 1}
-        RETURNING id
-      `;
-      
-      values.push(id);
-      values.push(tenantId);
-      const { rows } = await client.query(query, values);
-      
-      if (rows.length === 0) {
-        throw new Error('Customer package not found');
-      }
-
-      await client.query('COMMIT');
       return this.getCustomerPackageById(tenantId, id);
+    }
 
-    } catch (error) {
+    updates.push(`updated_at = CURRENT_TIMESTAMP`);
+    updates.push(`updated_by = $${paramCount++}`);
+    values.push(updatedBy);
+
+    const query = `
+      UPDATE customer_packages
+      SET ${updates.join(', ')}
+      WHERE id = $${paramCount} AND tenant_id = $${paramCount + 1}
+      RETURNING id
+    `;
+    values.push(id);
+    values.push(tenantId);
+
+    const { rows } = await client.query(query, values);
+
+    if (rows.length === 0) {
+      throw new Error('Customer package not found');
+    }
+
+    // ✅ Commit if we started the transaction (will be committed by outer caller otherwise)
+    if (useOwnClient) {
+      await client.query('COMMIT');
+    }
+
+    // Return the updated package (outside transaction)
+    const updatedPackage = await this.getCustomerPackageById(tenantId, id);
+    return updatedPackage;
+
+  } catch (error) {
+    if (useOwnClient) {
       await client.query('ROLLBACK');
-      throw error;
-    } finally {
+    }
+    throw error;
+  } finally {
+    if (useOwnClient) {
       client.release();
     }
   }
+}
 
   // ============================================================
   // USE PACKAGE SESSION

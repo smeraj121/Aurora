@@ -18,7 +18,7 @@ async function getCustomer(tenantId, id) {
     throw new NotFoundError('Customer not found');
   }
 
-  const averageTicket = Math.round(customer.totalSpent / (customer.totalVisits || 1));
+  const averageTicket = customer.totalVisits > 0 ? Math.round(customer.totalSpent / customer.totalVisits) : 0;
 
   // Fetch history, packages, stats in parallel – packages now from the package repository
   const [history, packages, stats] = await Promise.all([
@@ -187,7 +187,7 @@ async function resolveCustomer(tenantId, data, userId, client) {
 // UPDATE STATISTICS (used by appointment finish)
 // ============================================================
 async function updateStatistics(tenantId, customerId, amountPaid, visitDate, client) {
-  await customerRepository.updateStatistics(tenantId, customerId, amountPaid, visitDate, client);
+  await customerRepository.recalculateCustomerStats(tenantId, customerId);
 }
 
 // ============================================================

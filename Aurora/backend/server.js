@@ -17,6 +17,10 @@ const packageRoutes = require('./src/routes/packageRoutes');
 const appointmentRoutes = require('./src/routes/appointmentRoutes');
 const dashboardRoutes = require('./src/routes/dashboardRoutes');
 const authRoutes = require('./src/routes/authRoutes');
+const tenantRoutes = require('./src/routes/tenantRoutes');
+const designationRoutes = require('./src/routes/designationRoutes');
+
+
 
 // 3. Health Check / Root route (Prevents 404 on http://localhost:5000/)
 app.get('/', (req, res) => {
@@ -32,6 +36,8 @@ app.use('/api/packages', packageRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/tenants', tenantRoutes);
+app.use('/api/designations', designationRoutes);
 
 
 app.use(errorHandler);

@@ -1,8 +1,8 @@
 const dbPool = require('../config/db');
 const staffRepo = require('../repositories/staffRepository');
-const userRepo = require('../repositories/userRepository');
+const appointmentRepository = require('../repositories/appointmentRepository');
 const { StaffMapper } = require('../mapper/staff.mapper');
-const { ConflictError, NotFoundError, ValidationError }= require('../errors');
+const { ConflictError, NotFoundError, ValidationError } = require('../errors');
 const TimeHelper = require('../utils/timeHelper');
 
 // ============================================================
@@ -211,6 +211,51 @@ async function getStaffById(tenantId, staffId) {
   }
 }
 
+async function getAvailableSlots(tenantId, staffId, date, intervalMinutes = 30) {
+  // 1. Get staff working hours for that day
+  const client = await dbPool.connect();
+  try {
+    const staff = await staffRepo.findStaffById(client, tenantId, staffId);
+    if (!staff) throw new NotFoundError('Staff not found');
+
+    // Weekly off check
+    const dayOfWeek = new Date(date).toLocaleDateString('en-US', { weekday: 'long' });
+    if (staff.weekly_off === dayOfWeek) {
+      return []; // no slots on weekly off
+    }
+
+    const workStart = staff.start_time || "09:00 AM";
+    const workEnd = staff.end_time || "06:00 PM";
+
+    // Convert to minutes from midnight for easier arithmetic
+    const startMinutes = TimeHelper.toDb(workStart);
+    const endMinutes = TimeHelper.toDb(workEnd);
+
+    // 2. Get existing bookings
+    const bookings = await appointmentRepository.getBookedSlots(tenantId, staffId, date);
+
+    // 3. Generate all possible slots (every intervalMinutes)
+    const slots = [];
+    for (let t = startMinutes; t + intervalMinutes <= endMinutes; t += intervalMinutes) {
+      const startStr = TimeHelper.toDisplay(t);
+      const endStr = TimeHelper.toDisplay(t + intervalMinutes);
+      // Check if this slot overlaps with any booking
+      const isBooked = bookings.some(b => {
+        const bStart = TimeHelper.toDb(b.start_time);
+        const bEnd = TimeHelper.toDb(b.end_time);
+        // Overlap if new.start < b.end && new.end > b.start
+        return t < bEnd && (t + intervalMinutes) > bStart;
+      });
+      if (!isBooked) {
+        slots.push(startStr); // or { start: startStr, end: endStr }
+      }
+    }
+    return slots;
+  } finally {
+    client.release();
+  }
+}
+
 // ============================================================
 // DELETE STAFF (soft delete)
 // ============================================================
@@ -280,10 +325,10 @@ async function getAllStaffWithStats(tenantId, onlyActive = false) {
 async function getStaffByIdWithStats(tenantId, staffId) {
   const client = await dbPool.connect();
   try {
-    
+
     const staff = staffId ? await staffRepo.getStaffByIdWithStats(client, tenantId, staffId)
-    :
-    await staffRepo.getStaffById(client, tenantId);
+      :
+      await staffRepo.getStaffById(client, tenantId);
     if (!staff) throw new NotFoundError('Staff member not found.');
     return staff;
   } finally {
@@ -325,6 +370,7 @@ module.exports = {
   updateStaff,
   getStaffList,
   getStaffById,
+  getAvailableSlots,
   deleteStaff,
   getAllServices,
   getAllDesignations,
