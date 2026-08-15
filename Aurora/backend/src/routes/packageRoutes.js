@@ -1,7 +1,7 @@
 // routes/packageRoutes.js
 const express = require('express');
 const router = express.Router();
-const { authenticate } = require('../middlewares/authMiddleware');
+const { authenticate, authorize } = require('../middlewares/authMiddleware');
 const packageController = require('../controllers/packageController');
 const asyncHandler = require('../middlewares/asyncHandler');
 
@@ -24,15 +24,17 @@ router.get('/popular', asyncHandler(packageController.getPopularPackages));
 router.get('/:id', asyncHandler(packageController.getPackage));
 
 // PUT /packages/:id - Update package
-router.put('/:id', asyncHandler(packageController.updatePackage));
+router.put('/:id', authorize('Owner', 'Admin'), asyncHandler(packageController.updatePackage));
 
 // DELETE /packages/:id - Soft delete package
-router.delete('/:id', asyncHandler(packageController.deletePackage));
+// DELETE /packages/:id - Soft delete package (Owner/Admin only)
+router.delete('/:id', authorize('Owner', 'Admin'), asyncHandler(packageController.deletePackage));
 
 // ============================================================
 // CREATE PACKAGE (no :id)
 // ============================================================
-router.post('/', asyncHandler(packageController.createPackage));
+// CREATE PACKAGE (no :id) - Owner/Admin only
+router.post('/', authorize('Owner', 'Admin'), asyncHandler(packageController.createPackage));
 
 // ============================================================
 // GET /packages - List all packages (must be last)
