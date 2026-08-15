@@ -291,6 +291,14 @@ export class ApiService {
     return this.put(`/appointments/${id}`, data);
   }
 
+  async finishAppointment(id: number, data: { paymentStatus?: string ; paidAmount?: number; status: string; }): Promise<ApiResponse<any>> {
+    return this.post(`/appointments/${id}/finish`, data );
+  }
+
+  async cancelAppointment(id: number, reason: string | undefined): Promise<ApiResponse<any>> {
+    return this.post(`/appointments/${id}/cancel`, {reason});
+  }
+
   // ============================================================
   // CUSTOMER ENDPOINTS
   // ============================================================
@@ -489,7 +497,7 @@ export class ApiService {
   async updateService(id: number, data: any): Promise<ApiResponse<Service>> {
     return this.put<Service>(`/services/${id}`, data);
   }
-  
+
   async toggleServiceStatus(id: number, isActive: boolean): Promise<ApiResponse<Service>> {
     return this.put<Service>(`/services/${id}/status`, isActive);
   }

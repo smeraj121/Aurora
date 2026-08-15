@@ -35,7 +35,7 @@ export interface Appointment {
   paidAmount: number;
   date: string;
   id: number|null;
-  customerId: string;
+  customerId: number;
   customerName: string;
   serviceName: string;
   staffId: number;

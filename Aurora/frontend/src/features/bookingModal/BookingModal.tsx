@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { UserCheck, Edit2 } from 'lucide-react';
+import { UserCheck, Edit2, Check, Clock, CheckCircle2, IndianRupee, CreditCard, X } from 'lucide-react';
 import { api } from '../../services/api';
 import type { BookingFormState } from './types/types';
 import type { BookingServiceItem } from '../../types/booking.types';
@@ -15,11 +15,15 @@ import { StaffSection } from './sections/StaffSection';
 import { CancelAppointmentModal } from '../cancelModal/CancelAppointmentModal';
 import type { CustomerPackage, CustomerPackageServiceItem } from '../../types/customerpackage.types';
 import { BaseModal } from '../modal/BaseModal';
+import { getStatusConfig } from '../../helper/status.helper';
+import { useAuth } from '../../context/AuthContext';
 
 interface BookingModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (bookingData: any) => Promise<void>;
+  onFinishAppointment?: (appointmentId: number) => Promise<void>;
+  onCancelAppointment?: (appointmentId: number, reason?: string) => Promise<void>;
   appointmentId?: number | null;
   currentDate?: string;
   staffId?: number | null;
@@ -36,6 +40,8 @@ export function BookingModal({
   isOpen,
   onClose,
   onSave,
+  onFinishAppointment,
+  onCancelAppointment,
   appointmentId,
   currentDate,
   staffId,
@@ -55,6 +61,7 @@ export function BookingModal({
   const [isEditingDuration, setIsEditingDuration] = useState(false);
   const [isDurationOverridden, setIsDurationOverridden] = useState(false);
   const [isEditingTotal, setIsEditingTotal] = useState(false);
+  const [isEditingStatus, setIsEditingStatus] = useState(false);
   const [isTotalOverridden, setIsTotalOverridden] = useState(false);
 
   // Modal state
@@ -63,10 +70,15 @@ export function BookingModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
+  const { user } = useAuth();
+  const isCustomerActive = user?.systemRole.toLocaleLowerCase()==='customer';
+  const currentStatusConfig = getStatusConfig(formState.status || 'scheduled');
+  const StatusIcon = currentStatusConfig.icon;
+
   // Compute total duration automatically from services
   const computedDuration = useMemo(() => {
     return formState.services.reduce((total, svc) => {
-      const serviceItem = serviceList.find(s => s.id === svc.serviceId);
+      const serviceItem = serviceList.find((s) => s.id === svc.serviceId);
       return total + (serviceItem?.durationMinutes || 0);
     }, 0);
   }, [formState.services, serviceList]);
@@ -80,6 +92,14 @@ export function BookingModal({
     if (paid < total) return 'partial';
     return 'paid';
   }, [formState.amount, formState.paidAmount, formState.isPackageAppointment]);
+
+  // Keep formState.paymentStatus updated automatically
+  useEffect(() => {
+    setFormState((prev) => {
+      if (prev.paymentStatus === computedPaymentStatus) return prev;
+      return { ...prev, paymentStatus: computedPaymentStatus };
+    });
+  }, [computedPaymentStatus]);
 
   // Initial reference load
   useEffect(() => {
@@ -95,6 +115,8 @@ export function BookingModal({
       setFormError(null);
       return;
     }
+
+    if (initialError) setFormError(initialError);
 
     let isSubscribed = true;
 
@@ -129,13 +151,13 @@ export function BookingModal({
 
           setFormState((prev) => ({
             ...prev,
-            customerId: initialCustomer?.id ?? null,
-            customerName: initialCustomer?.fullName ?? '',
-            phone: initialCustomer?.phone ?? '',
+            customerId: initialCustomer?.id ?? (isCustomerActive?user.id:0),
+            customerName: initialCustomer?.fullName ?? (isCustomerActive?user.fullName:''),
+            phone: initialCustomer?.phone ?? (isCustomerActive?user.phone:''),
             staffId: defaultStaff,
             date: currentDate || DEFAULT_FORM_STATE.date,
             startTime: slot || DEFAULT_FORM_STATE.startTime,
-            status: userRole === 'customer' ? 'scheduled' : 'confirmed',
+            status: isCustomerActive ? 'scheduled' : 'confirmed',
           }));
 
           setIsExistingCustomer(!!initialCustomer);
@@ -154,7 +176,7 @@ export function BookingModal({
     return () => {
       isSubscribed = false;
     };
-  }, [isOpen, appointmentId, currentDate, staffId, slot, userRole]);
+  }, [isOpen, appointmentId, currentDate, staffId, slot, userRole, initialError]);
 
   // Fetch customer packages
   useEffect(() => {
@@ -187,16 +209,34 @@ export function BookingModal({
   }, [formState.customerId]);
 
   // Handlers
-  const handleSelectCustomer = useCallback((customer: { id: number; fullName: string; phone: string }) => {
-    setFormState((prev) => ({
-      ...prev,
-      customerId: customer.id,
-      customerName: customer.fullName,
-      phone: customer.phone,
-    }));
-    setIsExistingCustomer(true);
-    setFormError(null);
-  }, []);
+  const handleSelectCustomer = useCallback(
+    (customer: { id: number; fullName: string; phone: string }) => {
+      setFormState((prev) => ({
+        ...prev,
+        customerId: customer.id,
+        customerName: customer.fullName,
+        phone: customer.phone,
+      }));
+      setIsExistingCustomer(true);
+      setFormError(null);
+    },
+    []
+  );
+
+  const handleFinish = async () => {
+    if (!appointmentId || !onFinishAppointment) return;
+
+    try {
+      setIsSubmitting(true);
+      setFormError(null);
+      await onFinishAppointment(appointmentId);
+      onClose();
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : 'Failed to finish appointment');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleClearCustomer = useCallback(() => {
     setFormState((prev) => ({
@@ -233,7 +273,7 @@ export function BookingModal({
     setFormState((prev) => ({
       ...prev,
       services: updatedServices,
-      amount: prev.isPackageAppointment ? 0 : (isTotalOverridden ? prev.amount : amount),
+      amount: prev.isPackageAppointment ? 0 : isTotalOverridden ? prev.amount : amount,
       durationMinutes: isDurationOverridden ? prev.durationMinutes : durationMinutes,
     }));
   };
@@ -245,30 +285,24 @@ export function BookingModal({
     setFormState((prev) => ({
       ...prev,
       services: updatedServices,
-      amount: prev.isPackageAppointment ? 0 : (isTotalOverridden ? prev.amount : amount),
+      amount: prev.isPackageAppointment ? 0 : isTotalOverridden ? prev.amount : amount,
       durationMinutes: isDurationOverridden ? prev.durationMinutes : durationMinutes,
     }));
   };
 
   const handleCancelSubmit = async (reason: string, cancelType: string) => {
+    if (!appointmentId || !onCancelAppointment) return;
+
     try {
       setIsSubmitting(true);
-      const cancelPayload = {
-        ...(appointmentId ? { id: appointmentId } : {}),
-        ...buildBookingPayload(formState),
-        status: 'cancelled',
-        amount: 0,
-        paidAmount: 0,
-        paymentStatus: 'refunded',
-        cancelReason: reason || cancelType
-      };
-      await onSave(cancelPayload);
-      setShowCancelModal(false);
+      setFormError(null);
+      await onCancelAppointment(appointmentId, reason || cancelType);
       onClose();
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'Failed to cancel appointment');
     } finally {
       setIsSubmitting(false);
+      setShowCancelModal(false);
     }
   };
 
@@ -305,7 +339,9 @@ export function BookingModal({
 
   const footerActions = (
     <>
+      {/* Left Action: Cancel / Close */}
       {appointmentId ? (
+        !!onCancelAppointment &&
         <button
           type="button"
           onClick={() => setShowCancelModal(true)}
@@ -322,14 +358,47 @@ export function BookingModal({
           Close
         </button>
       )}
-      <button
-        type="submit"
-        form="booking-form"
-        disabled={isSubmitting}
-        className="btn-modal-primary"
-      >
-        {isSubmitting ? 'Saving...' : appointmentId ? 'Update Booking' : 'Book Appointment'}
-      </button>
+
+      {/* Right Actions: Update / Save and Finish */}
+      {(() => {
+        const hasFinishButton =
+          !!appointmentId &&
+          formState.status !== 'completed' &&
+          formState.status !== 'cancelled' && !!onFinishAppointment;
+
+        return (
+          <div className="flex items-center gap-2">
+            <button
+              type="submit"
+              form="booking-form"
+              disabled={isSubmitting}
+              className={
+                hasFinishButton
+                  ? "px-2 py-1.5 rounded-xl border border-purple-600 text-purple-600 hover:bg-purple-50 text-xs font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  : "btn-modal-primary"
+              }
+            >
+              {isSubmitting
+                ? 'Saving...'
+                : appointmentId
+                  ? 'Update Booking'
+                  : 'Book Appointment'}
+            </button>
+
+            {hasFinishButton && (
+              <button
+                type="button"
+                onClick={handleFinish}
+                disabled={isSubmitting}
+                className="btn-modal-primary flex items-center gap-1.5"
+              >
+                <Check className="w-3.5 h-3.5" />
+                {isSubmitting ? 'Finishing...' : 'Finish'}
+              </button>
+            )}
+          </div>
+        );
+      })()}
     </>
   );
 
@@ -352,24 +421,31 @@ export function BookingModal({
           <form id="booking-form" onSubmit={handleSubmit} className="space-y-4">
             {/* 1. Customer Section */}
             <CustomerSection
-              customerName={formState.customerName}
-              phone={formState.phone}
+              customerName={ formState.customerName }
+              phone={ formState.phone}
               isExistingCustomer={isExistingCustomer}
-              onCustomerNameChange={(customerName) => setFormState(prev => ({ ...prev, customerName }))}
-              onPhoneChange={(phone) => setFormState(prev => ({ ...prev, phone }))}
+              onCustomerNameChange={(customerName) =>
+                setFormState((prev) => ({ ...prev, customerName }))
+              }
+              onPhoneChange={(phone) => setFormState((prev) => ({ ...prev, phone }))}
               onSelectCustomer={handleSelectCustomer}
               onClearCustomer={handleClearCustomer}
+              isDisabled={isCustomerActive}
             />
 
             {/* 2. Staff Selection */}
             <StaffSection
               staffId={formState.staffId}
               staffList={staffList}
-              onStaffChange={(selectedId) => setFormState(prev => ({ ...prev, staffId: selectedId }))}
+              onStaffChange={(selectedId) =>
+                setFormState((prev) => ({ ...prev, staffId: selectedId }))
+              }
               date={formState.date}
-              onDateChange={(date) => setFormState(prev => ({ ...prev, date }))}
+              onDateChange={(date) => setFormState((prev) => ({ ...prev, date }))}
               startTime={formState.startTime}
-              onStartTimeChange={(startTime) => setFormState(prev => ({ ...prev, startTime }))}
+              onStartTimeChange={(startTime) =>
+                setFormState((prev) => ({ ...prev, startTime }))
+              }
             />
 
             {/* 3. Service Packages */}
@@ -378,22 +454,36 @@ export function BookingModal({
               customerPackages={customerPackages}
               isPackageAppointment={formState.isPackageAppointment}
               showPackageSelector={showPackageSelector}
-              selectedPackageId={formState.customerPackageId ? String(formState.customerPackageId) : null}
+              selectedPackageId={
+                formState.customerPackageId ? String(formState.customerPackageId) : null
+              }
               selectedServices={formState.services.map((s) => s.serviceId)}
               onOpenPackageSelector={() => setShowPackageSelector(!showPackageSelector)}
               onSelectPackage={(packageId) => {
-                setFormState(prev => ({ ...prev, customerPackageId: packageId, isPackageAppointment: true, services: [], amount: 0 }));
+                setFormState((prev) => ({
+                  ...prev,
+                  customerPackageId: packageId,
+                  isPackageAppointment: true,
+                  services: [],
+                  amount: 0,
+                }));
                 setShowPackageSelector(false);
               }}
               onTogglePackageService={(svc) => {
-                const isSelected = formState.services.some(s => s.serviceId === svc.serviceId);
+                const isSelected = formState.services.some((s) => s.serviceId === svc.serviceId);
                 const updated = isSelected
-                  ? formState.services.filter(s => s.serviceId !== svc.serviceId)
+                  ? formState.services.filter((s) => s.serviceId !== svc.serviceId)
                   : [...formState.services, { ...svc, price: 0 }];
-                setFormState(prev => ({ ...prev, services: updated }));
+                setFormState((prev) => ({ ...prev, services: updated }));
               }}
               onRemovePackage={() => {
-                setFormState(prev => ({ ...prev, customerPackageId: null, isPackageAppointment: false, services: [], amount: 0 }));
+                setFormState((prev) => ({
+                  ...prev,
+                  customerPackageId: null,
+                  isPackageAppointment: false,
+                  services: [],
+                  amount: 0,
+                }));
               }}
             />
 
@@ -407,89 +497,149 @@ export function BookingModal({
               onRemoveService={handleRemoveService}
             />
 
-            {/* 5. Summary / Quick Inline Adjustments */}
-            <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+
+            <div className="grid grid-cols-3 gap-2 text-xs">
               {/* Duration */}
-              <div className="flex items-center gap-1.5 text-slate-600">
-                <span>Duration:</span>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 mb-1 flex items-center gap-1">
+                  <Clock className="w-3 h-3 text-purple-600" /> Duration
+                </label>
                 {isEditingDuration ? (
                   <input
-                    type="number"
-                    step="5"
+                    type="text"
                     value={formState.durationMinutes}
                     onChange={(e) => {
                       const val = parseInt(e.target.value, 10) || 0;
-                      setFormState(prev => ({ ...prev, durationMinutes: val }));
+                      setFormState((prev) => ({ ...prev, durationMinutes: val }));
                       setIsDurationOverridden(true);
                     }}
-                    className="w-16 px-1.5 py-0.5 border border-purple-300 rounded text-xs font-semibold"
                     onBlur={() => setIsEditingDuration(false)}
                     autoFocus
+                    className="bg-slate-50 border border-purple-300 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-900 focus:outline-none focus:border-purple-600"
                   />
                 ) : (
                   <button
                     type="button"
                     onClick={() => {
+                      if(isCustomerActive) return;
                       if (!isDurationOverridden) {
-                        setFormState(prev => ({ ...prev, durationMinutes: computedDuration }));
+                        setFormState((prev) => ({ ...prev, durationMinutes: computedDuration }));
                       }
+                      setIsDurationOverridden(true);
                       setIsEditingDuration(true);
                     }}
-                    className="font-semibold text-slate-800 hover:text-purple-600 flex items-center gap-1 group"
+                    className="px-2.5 py-1.5 text-xs font-bold text-slate-900 flex gap-1 items-center group hover:border-purple-300 transition-colors"
                   >
-                    {displayDuration} min
-                    <Edit2 className="w-3 h-3 text-slate-400 group-hover:text-purple-600" />
+                    <span>{displayDuration} min</span>
+                    <Edit2 className="w-3 h-3 text-slate-400 group-hover:text-purple-600 transition-colors" />
                   </button>
                 )}
               </div>
 
-              {/* Total & Received */}
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1">
-                  <span className="text-slate-500">Total:</span>
+              {/* Status */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 mb-1 flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3 text-purple-600" /> Status
+                </label>
+                {isEditingStatus ? (
+                  <select
+                    value={formState.status || 'scheduled'}
+                    onChange={(e) => {
+                      setFormState((prev) => ({ ...prev, status: e.target.value }));
+                      setIsEditingStatus(false);
+                    }}
+                    onBlur={() => setIsEditingStatus(false)}
+                    autoFocus
+                    className="bg-slate-50 border border-purple-300 rounded-xl px-2 py-1.5 text-xs font-semibold text-slate-900 focus:outline-none focus:border-purple-600"
+                  >
+                    <option value="scheduled">Scheduled</option>
+                    <option value="confirmed">Confirmed</option>
+                    <option value="completed">Completed</option>
+                    <option value="cancelled">Cancelled</option>
+                  </select>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => !isCustomerActive && setIsEditingStatus(true)}
+                    className={`border rounded-xl px-2.5 py-1.5 text-xs font-semibold flex gap-1 items-center transition-all ${currentStatusConfig.text} ${currentStatusConfig.border}`}
+                  >
+                    <span className="flex items-center gap-1">
+                      <StatusIcon className="w-3 h-3" />
+                      {currentStatusConfig.label}
+                    </span>
+                    <Edit2 className="w-3 h-3 opacity-50 hover:opacity-100 transition-opacity" />
+                  </button>
+                )}
+              </div>
+
+              {/* 2 Rows x 2 Cols Grid Layout: Total & Received */}
+              <div className="grid grid-cols-[auto_1fr] items-center gap-x-2 gap-y-1">
+                {/* ROW 1, COL 1: Total Label */}
+                <label className="text-[11px] font-bold text-slate-600 flex items-center gap-1 whitespace-nowrap">
+                  <IndianRupee className="w-3 h-3 text-purple-600" /> Total
+                </label>
+
+                {/* ROW 1, COL 2: Total Input / Button */}
+                <div>
                   {isEditingTotal && !formState.isPackageAppointment ? (
                     <input
-                      type="number"
+                      type="text"
                       value={formState.amount}
                       onChange={(e) => {
                         const val = parseFloat(e.target.value) || 0;
-                        setFormState(prev => ({ ...prev, amount: val }));
+                        setFormState((prev) => ({ ...prev, amount: val }));
                         setIsTotalOverridden(true);
                       }}
-                      className="w-20 px-1.5 py-0.5 border border-purple-300 rounded text-xs font-bold"
                       onBlur={() => setIsEditingTotal(false)}
                       autoFocus
+                      className="w-full bg-slate-50 border border-purple-300 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-900 focus:outline-none focus:border-purple-600"
                     />
                   ) : (
                     <button
                       type="button"
-                      onClick={() => !formState.isPackageAppointment && setIsEditingTotal(true)}
-                      className="font-bold text-slate-900 hover:text-purple-600 flex items-center gap-1 group"
+                      onClick={() => !isCustomerActive && !formState.isPackageAppointment && setIsEditingTotal(true)}
+                      disabled={formState.isPackageAppointment}
+                      className="w-full rounded-xl px-1.5 py-0.5 text-xs font-bold text-slate-900 flex items-center justify-between group disabled:opacity-60 disabled:cursor-not-allowed hover:border-purple-300 transition-colors"
                     >
-                      ₹{formState.amount}
-                      {!formState.isPackageAppointment && <Edit2 className="w-3 h-3 text-slate-400 group-hover:text-purple-600" />}
+                      <span>₹{formState.amount}</span>
+                      {!formState.isPackageAppointment && (
+                        <Edit2 className="w-3 h-3 text-slate-400 group-hover:text-purple-600 transition-colors" />
+                      )}
                     </button>
                   )}
                 </div>
 
-                {/* Payment Received Input */}
-                {!formState.isPackageAppointment && (
-                  <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1">
-                    <span className="text-[10px] text-slate-500 font-medium">Recv:</span>
-                    <input
-                      type="number"
-                      value={formState.paidAmount || ''}
-                      onChange={(e) => setFormState(prev => ({ ...prev, paidAmount: parseFloat(e.target.value) || 0 }))}
-                      placeholder="0"
-                      className="w-14 bg-transparent text-xs font-semibold focus:outline-none"
-                    />
-                  </div>
+                {/* ROW 2: Received (Label + Input) */}
+                {!isCustomerActive && !formState.isPackageAppointment && (
+                  <>
+                    {/* ROW 2, COL 1: Received Label */}
+                    <label className="text-[11px] font-bold text-slate-600 flex items-center gap-1 whitespace-nowrap">
+                      <IndianRupee className="w-3 h-3 text-purple-600" /> Received
+                    </label>
+
+                    {/* ROW 2, COL 2: Received Input */}
+                    <div>
+                      <input
+                        type="text"
+                        value={formState.paidAmount || ''}
+                        onChange={(e) =>
+                          setFormState((prev) => ({
+                            ...prev,
+                            paidAmount: parseFloat(e.target.value) || 0,
+                          }))
+                        }
+                        placeholder="0"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-purple-600 [appearance:textfield]"
+                      />
+                    </div>
+                  </>
                 )}
               </div>
             </div>
           </form>
         )}
       </BaseModal>
+
 
       {showCancelModal && (
         <CancelAppointmentModal

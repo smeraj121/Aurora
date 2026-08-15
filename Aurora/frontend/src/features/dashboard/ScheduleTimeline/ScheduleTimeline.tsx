@@ -17,7 +17,9 @@ export function ScheduleTimeline({ date }: ScheduleTimelineProps) {
     remainingCount,
     loading,
     refresh,
-    saveAppointment
+    saveAppointment,
+    finishAppointment,
+    cancelAppointment,
   } = useAppointmentSchedule(date);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -69,6 +71,14 @@ export function ScheduleTimeline({ date }: ScheduleTimelineProps) {
         onSave={handleSave}
         appointmentId={editingAppointment?.id}
         currentDate={getLocalDateString(date)}
+        onFinishAppointment={async (id) => {
+          await finishAppointment(id);
+          refresh();
+        }}
+        onCancelAppointment={async (id, reason) => {
+          await cancelAppointment(id, reason);
+          refresh();
+        }}
       />
     </div>
   );

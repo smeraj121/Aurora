@@ -5,7 +5,7 @@ export interface TimeSlot {
   staffId: string;
 }
 import type { Appointment } from '../../shared/types';
-import type { PaymentStatus } from '../../types/booking.types';
+import type { PaymentStatus } from '../../shared/types/domain';
 
 export interface AppointmentServiceItem {
   serviceId: number;
@@ -15,9 +15,9 @@ export interface AppointmentServiceItem {
 }
 
 export interface ExtendedAppointment extends Appointment {
-  customerPhone: import("react").JSX.Element;
+  customerPhone?: string| null;
   services?: AppointmentServiceItem[];
-  paidAmount?: number;
+  //paidAmount: number | null;
   paymentStatus?: PaymentStatus;
   paymentMethod?: string;
   isPackageAppointment?: boolean;

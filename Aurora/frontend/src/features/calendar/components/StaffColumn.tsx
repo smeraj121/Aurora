@@ -10,6 +10,7 @@ interface StaffColumnProps {
   onNewBooking: (staffId: number, slot: string) => void;
   onFinish: (id: number, e: React.MouseEvent) => Promise<void>;
   onCancel: (apt: ExtendedAppointment, e: React.MouseEvent) => void;
+  isCustomerActive: boolean;
 }
 
 // Converts time slot string "11:00 AM" into minutes from midnight
@@ -31,6 +32,7 @@ export function StaffColumn({
   onNewBooking,
   onFinish,
   onCancel,
+  isCustomerActive,
 }: StaffColumnProps) {
   // Filter appointments for this staff member
   const staffAppointments = useMemo(() => {
@@ -93,6 +95,7 @@ export function StaffColumn({
           onClick={onAppointmentClick}
           onFinish={onFinish}
           onCancel={onCancel}
+          isCustomerActive={isCustomerActive}
         />
       ))}
     </div>

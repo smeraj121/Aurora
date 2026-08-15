@@ -186,8 +186,8 @@ async function resolveCustomer(tenantId, data, userId, client) {
 // ============================================================
 // UPDATE STATISTICS (used by appointment finish)
 // ============================================================
-async function updateStatistics(tenantId, customerId, amountPaid, visitDate, client) {
-  await customerRepository.recalculateCustomerStats(tenantId, customerId);
+async function updateStatistics(tenantId, customerId, client) {
+  await customerRepository.recalculateCustomerStats(tenantId, customerId, client);
 }
 
 // ============================================================

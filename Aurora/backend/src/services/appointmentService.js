@@ -2,9 +2,7 @@ const db = require('../config/db');
 const appointmentRepository = require('../repositories/appointmentRepository');
 const appointmentPackageService = require('./appointmentPackageService');
 const customerService = require('./customerService');
-const { ConflictError, ValidationError, NotFoundError } = require('../errors');
-const { get } = require('../routes/calendarRoutes');
-const e = require('express');
+const { ValidationError, NotFoundError } = require('../errors');
 const TimeHelper = require('../utils/timeHelper');
 
 // ============================================================
@@ -70,18 +68,6 @@ async function validateStaff(tenantId, staffId, client) {
     throw new ValidationError('Selected staff member is invalid or inactive.');
   }
   return staffId;
-}
-
-async function validateStatus(role, status) {
-  const validStatuses = ['scheduled', 'confirmed', 'cancelled', 'completed'];
-  if (!validStatuses.includes(status)) {
-    throw new ValidationError(`Invalid status. Must be one of: ${validStatuses.join(', ')}`);
-  }
-  // Restrict certain status changes based on user role
-  else if (role.trim().toLowerCase() === 'customer' && ['confirmed', 'cancelled', 'completed'].includes(status)) {
-    throw new ValidationError('Only admin/staff users can set status to scheduled, cancelled or completed.');
-  }
-  return status;
 }
 
 async function validateServices(tenantId, services, client) {
@@ -154,8 +140,17 @@ async function createAppointment(tenantId, role, data, userId) {
     const paymentCalc = calculatePaymentStatus(payment.parsedAmount, payment.parsedPaidAmount, data.paymentStatus);
     const cleanStaffId = await validateStaff(tenantId, parseNumericId(data.staffId), client);
     const cleanServices = await validateServices(tenantId, data.services, client);
-    const clearStatus = await validateStatus(role, data.status);
+
+    const initialStatus = data.status || 'scheduled';
+    if (role.toLowerCase() === 'customer' && initialStatus !== 'scheduled') {
+      throw new ValidationError('Customers can only create appointments with a "scheduled" status.');
+    }
+
     const customerId = await customerService.resolveCustomer(tenantId, data, userId, client);
+
+    if (role === 'Customer' && customerId !== userId) {
+      throw new ValidationError("You can only create you appointment")
+    }
 
     const packageId = parseNumericId(data.customerPackageId);
     if (data.isPackageAppointment && packageId) {
@@ -165,7 +160,7 @@ async function createAppointment(tenantId, role, data, userId) {
     }
 
     const fullPayment = { ...payment, ...paymentCalc };
-    const payload = buildBookingPayload(data, customerId, cleanDate, fullPayment, cleanStaffId, cleanServices, clearStatus);
+    const payload = buildBookingPayload(data, customerId, cleanDate, fullPayment, cleanStaffId, cleanServices, initialStatus);
 
     // Right now we are allowing one staff to be booked multiple times in same slot. If you want to restrict that, uncomment the following block and handle overlap checks accordingly.
     // const hasOverlap = await appointmentRepository.hasStaffOverlap(
@@ -210,14 +205,9 @@ async function updateAppointment(tenantId, role, id, data, userId) {
     if (!existing) {
       throw new NotFoundError('Appointment not found.');
     }
-    
-    if (role.trim().toLowerCase() === 'customer' && userId !== existing.customerId) {
-      throw new ValidationError('Only admin or staff users can update appointments.');
-    }
 
-    if (['completed', 'cancelled'].includes(existing.status)) {
-      throw new ValidationError(`Cannot update an appointment that is already ${existing.status}.`);
-    }
+    validateCustomerUpdate(role, userId, existing, data);
+    validateCompleteEdit(role, existing);
 
     // Lock structural fields
     if (data.customerId && parseNumericId(data.customerId) !== existing.customerId) {
@@ -227,6 +217,11 @@ async function updateAppointment(tenantId, role, id, data, userId) {
       throw new ValidationError('Cannot change package on an existing appointment.');
     }
 
+    // Centralized status transition validation
+    if (data.status && data.status !== existing.status) {
+      validateStatusTransition(existing.status, data.status, role);
+    }
+
     const cleanDate = validateDate(data.date || existing.date);
     const payment = validatePayment(
       data.amount !== undefined ? data.amount : existing.amount,
@@ -234,7 +229,11 @@ async function updateAppointment(tenantId, role, id, data, userId) {
     );
     const paymentCalc = calculatePaymentStatus(payment.parsedAmount, payment.parsedPaidAmount, data.paymentStatus);
     const cleanStaffId = await validateStaff(tenantId, parseNumericId(data.staffId || existing.staffId), client);
-    const cleanServices = await validateServices(tenantId, data.services, client);
+
+    // If data.services is not provided, use existing services to prevent accidental deletion.
+    const cleanServices = data.services !== undefined
+      ? await validateServices(tenantId, data.services, client)
+      : existing.services;
 
     const fullPayment = { ...payment, ...paymentCalc };
     const payload = buildBookingPayload(
@@ -243,8 +242,8 @@ async function updateAppointment(tenantId, role, id, data, userId) {
       cleanDate,
       fullPayment,
       cleanStaffId,
-      cleanServices,
-      existing.status
+      cleanServices, // Services are replaced, not merged
+      data.status || existing.status
     );
 
     // Right now we are allowing one staff to be booked multiple times in same slot. If you want to restrict that, uncomment the following block and handle overlap checks accordingly.
@@ -281,38 +280,81 @@ async function updateAppointment(tenantId, role, id, data, userId) {
   }
 }
 
-async function finishAppointment(tenantId, role, id, data, userId) {
+function validateCompleteEdit(role, existing) {
+  const ALLOWED_OVERRIDE_ROLES = ['owner', 'admin'];
+  const GRACE_PERIOD_HOURS = 24;
+
+  const isLockedStatus = ['completed', 'cancelled'].includes(existing.status);
+  const isElevatedRole = ALLOWED_OVERRIDE_ROLES.includes(role?.toLowerCase());
+
+  if (isLockedStatus && !isElevatedRole) {
+    // Use completedAt, or fallback to updatedAt / appointment date
+    const completedTime = new Date(existing.completedAt || existing.updatedAt || existing.date).getTime();
+    const currentTime = Date.now();
+
+    const hoursSinceCompletion = (currentTime - completedTime) / (1000 * 60 * 60);
+
+    if (hoursSinceCompletion > GRACE_PERIOD_HOURS) {
+      throw new ValidationError(
+        `Cannot update a ${existing.status} appointment older than 24 hours. Please contact an Owner or Admin.`
+      );
+    }
+  }
+}
+
+async function finishAppointment(tenantId, role, id, data = {}, userId) {
   const client = await db.connect();
+
   try {
     await client.query('BEGIN');
 
-    const appointment = await appointmentRepository.getAppointmentById(tenantId, id, client);
-    if (!appointment) {
-      throw new NotFoundError('Appointment not found.');
-    }
-    if (role.trim().toLowerCase() !== 'admin' && role.trim().toLowerCase() !== 'staff') {
-      throw new ValidationError('Only admin or staff users can finish appointments.');
-    }
-    var status = await validateStatus(role, data.status || 'completed');
-    if (appointment.status === 'completed') {
-      throw new ValidationError('Appointment is already completed.');
-    }
-    if (appointment.status === 'cancelled') {
-      throw new ValidationError('Cannot finish a cancelled appointment.');
-    }
+    validateAppointmentActionRole(role);
 
-    const finalPaidAmount = data && data.paidAmount !== undefined ? parseFloat(data.paidAmount) : appointment.paidAmount;
-    const payment = validatePayment(appointment.amount, finalPaidAmount);
-    const paymentCalc = calculatePaymentStatus(payment.parsedAmount, payment.parsedPaidAmount, data?.paymentStatus);
+    const appointment = await getAppointmentForAction(
+      tenantId,
+      id,
+      client
+    );
 
-    await appointmentRepository.updateStatus(tenantId, id, status, userId, client);
-    await appointmentRepository.updatePayment(tenantId, id, { ...payment, ...paymentCalc }, client);
+    validateStatusTransition(appointment.status, 'completed', role);
+
+    const finalPaidAmount =
+      data.paidAmount !== undefined
+        ? parseFloat(data.paidAmount)
+        : appointment.paidAmount;
+
+    const payment = validatePayment(
+      appointment.amount,
+      finalPaidAmount
+    );
+
+    const paymentCalc = calculatePaymentStatus(
+      payment.parsedAmount,
+      payment.parsedPaidAmount,
+      data.paymentStatus
+    );
+
+    await appointmentRepository.updateStatus(
+      tenantId,
+      id,
+      'completed',
+      userId,
+      client
+    );
+
+    await appointmentRepository.updatePayment(
+      tenantId,
+      id,
+      {
+        ...payment,
+        ...paymentCalc,
+      },
+      client
+    );
 
     await customerService.updateStatistics(
       tenantId,
       appointment.customerId,
-      payment.parsedPaidAmount,
-      appointment.date,
       client
     );
 
@@ -322,8 +364,9 @@ async function finishAppointment(tenantId, role, id, data, userId) {
       id,
       status: 'completed',
       paymentStatus: paymentCalc.paymentStatus,
-      balanceDue: paymentCalc.balanceDue
+      balanceDue: paymentCalc.balanceDue,
     };
+
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;
@@ -332,43 +375,157 @@ async function finishAppointment(tenantId, role, id, data, userId) {
   }
 }
 
-async function cancelAppointment(tenantId, id, reason, userId) {
+async function cancelAppointment(
+  tenantId,
+  role,
+  id,
+  reason,
+  userId
+) {
   const client = await db.connect();
+
   try {
     await client.query('BEGIN');
 
-    const appointment = await appointmentRepository.getAppointmentById(tenantId, id, client);
-    if (!appointment) {
-      throw new NotFoundError('Appointment not found.');
-    }
-    if (appointment.status === 'cancelled') {
-      throw new ValidationError('Appointment is already cancelled.');
-    }
-    if (appointment.status === 'completed') {
-      throw new ValidationError('Cannot cancel an appointment that has already been completed.');
-    }
+    const appointment = await getAppointmentForAction(
+      tenantId,
+      id,
+      client
+    );
+    validateCustomerAction(role, userId, appointment, 'cancel');
+    validateStatusTransition(appointment.status, 'cancelled', role);
 
+    // Restore package services if this appointment consumed a package.
     if (appointment.isPackageAppointment && appointment.customerPackageId) {
-      const { rows: serviceRows } = await client.query(
-        `SELECT service_id FROM appointment_services WHERE appointment_id = $1 AND is_package_usage = true`,
+      const { rows } = await client.query(
+        `
+          SELECT service_id
+          FROM appointment_services
+          WHERE appointment_id = $1
+            AND is_package_usage = true
+        `,
         [id]
       );
-      const packageServiceIds = serviceRows.map(r => r.service_id);
+
+      const packageServiceIds = rows.map(
+        row => row.service_id
+      );
+
       if (packageServiceIds.length > 0) {
-        await appointmentPackageService.restorePackage(tenantId, appointment.customerPackageId, id, packageServiceIds, client);
+        await appointmentPackageService.restorePackage(
+          tenantId,
+          appointment.customerPackageId,
+          id,
+          packageServiceIds,
+          client
+        );
       }
     }
 
-    await appointmentRepository.updateStatus(tenantId, id, 'cancelled', userId, client, reason);
+    await appointmentRepository.updateStatus(
+      tenantId,
+      id,
+      'cancelled',
+      userId,
+      client,
+      reason
+    );
+
+    await customerService.updateStatistics(
+      tenantId,
+      appointment.customerId,
+      client
+    );
 
     await client.query('COMMIT');
 
-    return { id, status: 'cancelled' };
+    return {
+      id,
+      status: 'cancelled',
+    };
+
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;
   } finally {
     client.release();
+  }
+}
+
+async function getAppointmentForAction(tenantId, id, client) {
+  const appointment = await appointmentRepository.getAppointmentById(tenantId, id, client);
+
+  if (!appointment) {
+    throw new NotFoundError('Appointment not found.');
+  }
+
+  return appointment;
+}
+
+function validateAppointmentActionRole(role) {
+  const normalizedRole = role?.trim().toLowerCase();
+
+  if (!['owner', 'admin', 'staff'].includes(normalizedRole)) {
+    throw new ValidationError('Only admin or staff users can perform this action.');
+  }
+
+  return normalizedRole;
+}
+
+function validateCustomerAction(role, userId, appointment, action) {
+  const normalizedRole = role?.trim().toLowerCase();
+  if (normalizedRole === 'customer') {
+    if (appointment.customerId !== userId) {
+      throw new ValidationError(`You do not have permission to ${action} this appointment.`);
+    }
+    if (action === 'cancel' && appointment.status !== 'scheduled') {
+      throw new ValidationError('Only scheduled appointments can be cancelled by a customer.');
+    }
+  } else {
+    validateAppointmentActionRole(role);
+  }
+}
+
+function validateCustomerUpdate(role, userId, existing, data) {
+  const normalizedRole = role?.trim().toLowerCase();
+  if (normalizedRole !== 'customer') {
+    return; // This check is only for customers
+  }
+
+  if (existing.customerId !== userId) {
+    throw new ValidationError('You can only update your own appointments.');
+  }
+
+  if (existing.status !== 'scheduled') {
+    throw new ValidationError('Customers can only modify scheduled appointments.');
+  }
+
+  const CUSTOMER_EDITABLE_FIELDS = [
+    'date',
+    'startTime',
+    'notes',
+    'services'
+    // durationMinutes is implicitly changed by services, so not listed here.
+  ];
+
+  const attemptedUpdateFields = Object.keys(data);
+  const invalidField = attemptedUpdateFields.find(field => !CUSTOMER_EDITABLE_FIELDS.includes(field));
+
+  if (invalidField) {
+    throw new ValidationError(`Customers are not allowed to modify the '${invalidField}' field. You can only modify: ${CUSTOMER_EDITABLE_FIELDS.join(', ')}.`);
+  }
+}
+
+function validateStatusTransition(currentStatus, newStatus, role) {
+  const transitions = {
+    scheduled: ['confirmed', 'cancelled', 'completed'],
+    confirmed: ['cancelled', 'completed'],
+    cancelled: [],
+    completed: []
+  };
+
+  if (!transitions[currentStatus] || !transitions[currentStatus].includes(newStatus)) {
+    throw new ValidationError(`Cannot transition appointment from '${currentStatus}' to '${newStatus}'.`);
   }
 }
 

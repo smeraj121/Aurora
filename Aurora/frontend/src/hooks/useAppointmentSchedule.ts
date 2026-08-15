@@ -24,6 +24,10 @@ export function useAppointmentSchedule(date: Date) {
     refresh();
   }, [refresh]);
 
+  // ============================================================
+  // Create / Update
+  // ============================================================
+
   const saveAppointment = async (
     bookingData: any,
     appointmentId?: number | null
@@ -48,6 +52,67 @@ export function useAppointmentSchedule(date: Date) {
     }
   };
 
+  // ============================================================
+  // Finish Appointment
+  // ============================================================
+
+  const finishAppointment = async (
+    appointmentId: number,
+    options?: {
+      paidAmount?: number;
+      paymentStatus?: string;
+    }
+  ) => {
+    try {
+      const response = await api.finishAppointment(appointmentId, {
+        status: 'completed',
+        ...(options?.paidAmount !== undefined && { paidAmount: options.paidAmount }),
+        ...(options?.paymentStatus && { paymentStatus: options.paymentStatus }),
+      });
+
+      if (!response.success) {
+        throw new Error(
+          response.message || 'Failed to finish appointment.'
+        );
+      }
+
+      await refresh();
+
+      return response;
+    } catch (err) {
+      console.error('Error finishing appointment:', err);
+      throw err;
+    }
+  };
+
+  // ============================================================
+  // Cancel Appointment
+  // ============================================================
+
+  const cancelAppointment = async (
+    appointmentId: number,
+    reason?: string
+  ) => {
+    try {
+      const response = await api.cancelAppointment(
+        appointmentId, reason
+      );
+
+      if (!response.success) {
+        throw new Error(
+          response.message || 'Failed to cancel appointment.'
+        );
+      }
+
+      await refresh();
+
+      return response;
+    } catch (err) {
+      console.error('Error cancelling appointment:', err);
+      throw err;
+    }
+  };
+
   const remainingCount = appointments.filter(
     (appointment) =>
       appointment.status !== 'completed' &&
@@ -60,5 +125,7 @@ export function useAppointmentSchedule(date: Date) {
     remainingCount,
     refresh,
     saveAppointment,
+    finishAppointment,
+    cancelAppointment,
   };
 }

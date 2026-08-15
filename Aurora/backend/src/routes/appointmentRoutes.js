@@ -16,9 +16,9 @@ router.post('/', asyncHandler(appointmentController.create));
 router.put('/:id', asyncHandler(appointmentController.update));
 
 // POST /api/appointments/:id/finish – Mark an appointment as finished
-router.post('/:id/finish',authenticate, authorize('Staff', 'Admin'), asyncHandler(appointmentController.finish));
+router.post('/:id/finish',authenticate, authorize('Staff', 'Owner', 'Admin'), asyncHandler(appointmentController.finish));
 
 // POST /api/appointments/:id/cancel – Cancel an appointment
-router.post('/:id/cancel',authenticate, authorize('Staff', 'Admin'), asyncHandler(appointmentController.cancel));
+router.post('/:id/cancel',authenticate, asyncHandler(appointmentController.cancel));
 
 module.exports = router;

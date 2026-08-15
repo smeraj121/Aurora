@@ -8,6 +8,7 @@ import { TIME_SLOTS } from '../bookingModal/types/constants';
 import { getLocalDateString } from '../../lib/dateUtils';
 import { StaffColumn } from './components/StaffColumn';
 import { useAppointmentSchedule } from '../../hooks/useAppointmentSchedule';
+import { useAuth } from '../../context/AuthContext';
 
 export function CalendarView() {
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
@@ -18,10 +19,18 @@ export function CalendarView() {
   const [selectedStaffId, setSelectedStaffId] = useState<number | null>(null);
   const [selectedStartTime, setSelectedStartTime] = useState('');
   const [modalBackendError, setModalBackendError] = useState<string | null>(null);
-  const { appointments, loading, refresh, saveAppointment } = useAppointmentSchedule(currentDate);
+  const {
+  appointments,
+  loading,
+  saveAppointment,
+  finishAppointment,
+  cancelAppointment,
+} = useAppointmentSchedule(currentDate);
 
   // Partial Payment Confirmation Dialog State
   const [pendingPaymentWarning, setPendingPaymentWarning] = useState<{ id: number; due: number } | null>(null);
+  const { user } = useAuth();
+  const isCustomerActive = user?.systemRole.toLocaleLowerCase()==='customer';
 
   const formattedDateString = getLocalDateString(currentDate);
 
@@ -54,6 +63,7 @@ export function CalendarView() {
   }, [selectedStaffFilter, staffList]);
 
   const handleOpenModal = (apt: ExtendedAppointment | null = null, staffId?: number, startTime?: string) => {
+    //if(apt && isCustomerActive && apt?.customerId !== user.id) return;
     setModalBackendError(null);
     if (apt?.status === 'cancelled') {
       setEditingAppointmentId(null);
@@ -65,27 +75,47 @@ export function CalendarView() {
     setIsModalOpen(true);
   };
 
-  const handleFinishAppointment = async (id: number, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const apt = appointments.find((a) => a.id === id);
-    if (!apt) return;
+  const handleFinishAppointment = async (
+  id: number,
+  e?: React.MouseEvent
+) => {
+  e?.stopPropagation();
 
-    const total = Number(apt.amount || 0);
-    const paid = 0;//Number(apt.paidAmount || 0);
-    const due = total - paid;
+  const apt = appointments.find((a) => a.id === id);
 
-    if (due > 0) {
-      setPendingPaymentWarning({ id, due });
-      return;
-    }
+  if (!apt) return;
 
-    //await executeFinishAppointment(id);
-  };
+  const total = Number(apt.amount || 0);
+  const paid = Number(apt.paidAmount || 0);
+  const due = total - paid;
 
-  const handleCancelAppointment = (apt: ExtendedAppointment, e: React.MouseEvent) => {
-    e.stopPropagation();
-    handleOpenModal(apt);
-  };
+  if (due > 0) {
+    setPendingPaymentWarning({
+      id,
+      due,
+    });
+
+    return;
+  }
+
+  try {
+    await finishAppointment(id);
+  } catch (err: any) {
+    console.error(err);
+    setModalBackendError(
+      err.message || 'Failed to finish appointment.'
+    );
+  }
+};
+
+  const handleCancelAppointment = (
+  apt: ExtendedAppointment,
+  e: React.MouseEvent
+) => {
+  e.stopPropagation();
+
+  handleOpenModal(apt);
+};
 
   const handleSaveAppointment = async (savedApt: any) => {
     try {
@@ -229,6 +259,7 @@ export function CalendarView() {
                   onNewBooking={(staffId, slot) => handleOpenModal(null, staffId, slot)}
                   onFinish={handleFinishAppointment}
                   onCancel={handleCancelAppointment}
+                  isCustomerActive={isCustomerActive}
                 />
               ))}
             </div>
@@ -260,10 +291,18 @@ export function CalendarView() {
               </button>
               <button
                 onClick={async () => {
-                  const id = pendingPaymentWarning.id;
-                  setPendingPaymentWarning(null);
-                  await executeFinishAppointment(id);
-                }}
+  const id = pendingPaymentWarning.id;
+
+  setPendingPaymentWarning(null);
+
+  try {
+    await finishAppointment(id);
+  } catch (err: any) {
+    setModalBackendError(
+      err.message || 'Failed to finish appointment.'
+    );
+  }
+}}
                 className="px-4 py-1.5 rounded-xl bg-amber-600 text-white text-xs font-bold hover:bg-amber-700 shadow-sm transition-colors"
               >
                 Complete Anyway
@@ -274,19 +313,25 @@ export function CalendarView() {
       )}
 
       <BookingModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingAppointmentId(null);
-          setModalBackendError(null);
-        }}
-        onSave={handleSaveAppointment}
-        appointmentId={editingAppointmentId}
-        currentDate={formattedDateString}
-        staffId={selectedStaffId}
-        slot={selectedStartTime}
-        initialError={modalBackendError}
-      />
+  isOpen={isModalOpen}
+  onClose={() => {
+    setIsModalOpen(false);
+    setEditingAppointmentId(null);
+    setModalBackendError(null);
+  }}
+  onSave={handleSaveAppointment}
+  onFinishAppointment={async (id) => {
+    await finishAppointment(id);
+  }}
+  onCancelAppointment={async (id, reason) => {
+    await cancelAppointment(id, reason);
+  }}
+  appointmentId={editingAppointmentId}
+  currentDate={formattedDateString}
+  staffId={selectedStaffId}
+  slot={selectedStartTime}
+  initialError={modalBackendError}
+/>
     </div>
   );
 }

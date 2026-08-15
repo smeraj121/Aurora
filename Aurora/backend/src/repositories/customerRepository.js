@@ -1,3 +1,4 @@
+const { ca } = require('zod/v4/locales');
 const db = require('../config/db');
 
 class CustomerRepository {

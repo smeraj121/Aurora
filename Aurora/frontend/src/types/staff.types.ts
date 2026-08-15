@@ -74,7 +74,7 @@ export interface Designation {
   name: string;
 }
 export interface DesignationDetails extends Designation {
-  displayOrder: number;
+  displayOrder?: number;
   description?: string;
   isActive?: boolean;
 }

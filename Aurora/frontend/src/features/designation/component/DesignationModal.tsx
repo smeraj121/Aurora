@@ -12,6 +12,7 @@ interface DesignationModalProps {
 
 const DEFAULT_FORM: DesignationDetails = {
     id: 0,
+    displayOrder: 0,
     name: '',
     description: '',
     isActive: true,

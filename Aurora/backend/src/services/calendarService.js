@@ -24,7 +24,7 @@ async function getScheduleByDate(tenantId, userId, date, systemRole) {
   const schedule = await calendarRepository.findScheduleByDate(tenantId, date);
   schedule.forEach((appointment) => {
     if(!appointment) return;
-    if(systemRole.trim().toLowerCase() !== 'admin' && systemRole.trim().toLowerCase() !== 'staff' && appointment.customerId !== userId) {
+    if(systemRole.trim().toLowerCase() === 'customer' && appointment.customerId !== userId) {
       // Hide sensitive customer information for non-admin/staff users
       appointment.customerId = null;
       appointment.customerName = 'Booked Customer';

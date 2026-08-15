@@ -34,24 +34,6 @@ function PlaceholderView({ title }: { title: string }) {
 }
 
 // ============================================================
-// CUSTOMER ONLY
-// ============================================================
-
-function CustomerRoute({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const { user } = useAuth();
-
-  if (user?.systemRole !== 'Customer') {
-    return <Navigate to="/" replace />;
-  }
-
-  return <>{children}</>;
-}
-
-// ============================================================
 // STAFF / TENANT USER
 //
 // Everything except Customer and SuperAdmin is treated as a
