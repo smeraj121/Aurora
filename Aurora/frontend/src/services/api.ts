@@ -291,7 +291,7 @@ export class ApiService {
     return this.put(`/appointments/${id}`, data);
   }
 
-  async finishAppointment(id: number, data: { paymentStatus?: string ; paidAmount?: number; status: string; }): Promise<ApiResponse<any>> {
+  async finishAppointment(id: number, data: Record<string, unknown>): Promise<ApiResponse<any>> {
     return this.post(`/appointments/${id}/finish`, data );
   }
 

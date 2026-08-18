@@ -1,6 +1,6 @@
 
 import type { BookingServiceItem } from "../../../types/booking.types";
-import type { CustomerPackageServiceItem } from "../types/types";
+import type { CustomerPackageServiceItem } from '../../../types/customerpackage.types';
 
 
 /**

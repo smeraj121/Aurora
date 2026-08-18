@@ -12,7 +12,7 @@ export function convertAppointmentToForm(apt: any): Partial<BookingFormState> {
     customerId: apt.customerId,
     customerName: apt.customerName,
     phone: apt.customerPhone || '',
-    staffId: String(apt.staffId || ''),
+    staffId: apt.staffId || null,
     startTime: apt.startTime || '11:00 AM',
     durationMinutes: apt.durationMinutes || 30,
     date: formatDateForInput(apt.date),

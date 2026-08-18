@@ -58,17 +58,11 @@ export function useAppointmentSchedule(date: Date) {
 
   const finishAppointment = async (
     appointmentId: number,
-    options?: {
-      paidAmount?: number;
-      paymentStatus?: string;
-    }
+    finishData?: Record<string, unknown>
   ) => {
     try {
-      const response = await api.finishAppointment(appointmentId, {
-        status: 'completed',
-        ...(options?.paidAmount !== undefined && { paidAmount: options.paidAmount }),
-        ...(options?.paymentStatus && { paymentStatus: options.paymentStatus }),
-      });
+      const payload = finishData ?? (await api.getAppointment(appointmentId)).data;
+      const response = await api.finishAppointment(appointmentId, payload);
 
       if (!response.success) {
         throw new Error(

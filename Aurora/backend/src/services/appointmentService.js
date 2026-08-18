@@ -5,6 +5,7 @@ const customerService = require('./customerService');
 const { ValidationError, NotFoundError } = require('../errors');
 const TimeHelper = require('../utils/timeHelper');
 
+
 const {
   parseNumericId,
   validateDate,
@@ -15,7 +16,8 @@ const {
   validateStatusTransition,
   validateCustomerAction,
   validateCustomerUpdate,
-  validateCompleteEdit
+  validateCompleteEdit,
+  validateAppointmentActionRole 
 } = require('../validators/appointment.validator');
 
 // ============================================================
@@ -33,6 +35,10 @@ function buildBookingPayload(data, existing, customerId, cleanDate, payment, cle
     ? new Date().toISOString()
     : existing.paymentDate;
 
+  const isPackageAppointment = data.isPackageAppointment !== undefined
+    ? data.isPackageAppointment === true || data.isPackageAppointment === 'true'
+    : existing.isPackageAppointment;
+
   return {
     customerId,
     staffId: cleanStaffId,
@@ -49,8 +55,83 @@ function buildBookingPayload(data, existing, customerId, cleanDate, payment, cle
     notes: data.notes !== undefined ? (data.notes || data.customer_notes || '') : existing.notes,
     status: forcedStatus,
     customerPackageId: data.customerPackageId !== undefined ? parseNumericId(data.customerPackageId) : existing.customerPackageId,
-    isPackageAppointment: data.isPackageAppointment !== undefined ? Boolean(data.isPackageAppointment) : existing.isPackageAppointment
+    isPackageAppointment
   };
+}
+
+function validateDurationMinutes(value) {
+  const duration = Number(value);
+  if (!Number.isInteger(duration) || duration <= 0) {
+    throw new ValidationError('Appointment duration must be a positive whole number of minutes.');
+  }
+  return duration;
+}
+
+async function reconcilePackageUsage(tenantId, appointmentId, existing, payload, client) {
+  const originalPackageServiceIds = existing.isPackageAppointment
+    ? existing.services.filter(service => service.isPackage).map(service => service.serviceId)
+    : [];
+  const newPackageServiceIds = payload.services.map(service => service.serviceId);
+  const packageChanged = existing.isPackageAppointment
+    && (!payload.isPackageAppointment || payload.customerPackageId !== existing.customerPackageId);
+
+  if (existing.isPackageAppointment && packageChanged) {
+    await appointmentPackageService.restorePackage(
+      tenantId,
+      existing.customerPackageId,
+      appointmentId,
+      originalPackageServiceIds,
+      client
+    );
+  }
+
+  if (!payload.isPackageAppointment) return;
+
+  if (!payload.customerPackageId) {
+    throw new ValidationError('A customer package is required for a package appointment.');
+  }
+
+  if (!existing.isPackageAppointment || packageChanged) {
+    await appointmentPackageService.validatePackage(
+      tenantId,
+      payload.customerPackageId,
+      existing.customerId,
+      newPackageServiceIds,
+      client
+    );
+    await appointmentPackageService.consumePackage(
+      tenantId,
+      payload.customerPackageId,
+      appointmentId,
+      newPackageServiceIds,
+      client
+    );
+    return;
+  }
+
+  const servicesToAdd = newPackageServiceIds.filter(serviceId => !originalPackageServiceIds.includes(serviceId));
+  const servicesToRemove = originalPackageServiceIds.filter(serviceId => !newPackageServiceIds.includes(serviceId));
+  await appointmentPackageService.restorePackage(
+    tenantId,
+    payload.customerPackageId,
+    appointmentId,
+    servicesToRemove,
+    client
+  );
+  await appointmentPackageService.validatePackage(
+    tenantId,
+    payload.customerPackageId,
+    existing.customerId,
+    servicesToAdd,
+    client
+  );
+  await appointmentPackageService.consumePackage(
+    tenantId,
+    payload.customerPackageId,
+    appointmentId,
+    servicesToAdd,
+    client
+  );
 }
 
 // ============================================================
@@ -97,9 +178,13 @@ async function createAppointment(tenantId, role, data, userId) {
     }
 
     const packageId = parseNumericId(data.customerPackageId);
-    if (data.isPackageAppointment && packageId) {
-      await appointmentPackageService.validatePackage(tenantId, packageId, customerId, client);
+    const isPackageAppointment = data.isPackageAppointment === true || data.isPackageAppointment === 'true';
+    if (isPackageAppointment) {
+      if (!packageId) {
+        throw new ValidationError('A customer package is required for a package appointment.');
+      }
       const packageServiceIds = cleanServices.map(s => s.serviceId);
+      await appointmentPackageService.validatePackage(tenantId, packageId, customerId, packageServiceIds, client);
       await appointmentPackageService.consumePackage(tenantId, packageId, null, packageServiceIds, client);
     }
 
@@ -171,17 +256,11 @@ async function updateAppointment(tenantId, role, id, data, userId) {
     if (data.customerId && parseNumericId(data.customerId) !== existing.customerId) {
       throw new ValidationError('Cannot change customer on an existing appointment.');
     }
-    if (data.customerPackageId !== undefined && parseNumericId(data.customerPackageId) !== existing.customerPackageId) {
-      throw new ValidationError('Cannot change package on an existing appointment.');
-    }
-    if (data.isPackageAppointment !== undefined && Boolean(data.isPackageAppointment) !== existing.isPackageAppointment) {
-      throw new ValidationError('Cannot change package appointment status on an existing appointment.');
-    }
 
     // Build sanitized update data for customers (only allowed fields)
     let updateData = data;
     if (role?.toLowerCase() === 'customer') {
-      const CUSTOMER_EDITABLE_FIELDS = ['date', 'startTime', 'notes', 'services'];
+      const CUSTOMER_EDITABLE_FIELDS = ['date', 'startTime', 'notes', 'services', 'durationMinutes'];
       updateData = {};
       CUSTOMER_EDITABLE_FIELDS.forEach(field => {
         if (data[field] !== undefined) {
@@ -236,6 +315,8 @@ async function updateAppointment(tenantId, role, id, data, userId) {
       finalStatus
     );
 
+    await reconcilePackageUsage(tenantId, id, existing, payload, client);
+
     // Optionally check for staff overlap (exclude this appointment by passing id)
     // const hasOverlap = await appointmentRepository.hasStaffOverlap(tenantId, cleanStaffId, payload.date, payload.startTime, payload.endTime, id, client);
     // if (hasOverlap) throw new ConflictError('...');
@@ -287,15 +368,57 @@ async function finishAppointment(tenantId, role, id, data = {}, userId) {
 
     validateStatusTransition(appointment.status, 'completed', role);
 
-    const finalPaidAmount = data.paidAmount !== undefined
-      ? parseFloat(data.paidAmount)
-      : appointment.paidAmount;
+    if (data.customerId !== undefined && parseNumericId(data.customerId) !== appointment.customerId) {
+      throw new ValidationError('Cannot change customer on an existing appointment.');
+    }
 
-    const payment = validatePayment(appointment.amount, finalPaidAmount);
+    const cleanDate = validateDate(data.date !== undefined ? data.date : appointment.date, role);
+    const payment = validatePayment(
+      data.amount !== undefined ? data.amount : appointment.amount,
+      data.paidAmount !== undefined ? data.paidAmount : appointment.paidAmount
+    );
     const paymentCalc = calculatePaymentStatus(payment.parsedAmount, payment.parsedPaidAmount, data.paymentStatus);
+    const cleanStaffId = await validateStaff(
+      tenantId,
+      parseNumericId(data.staffId !== undefined ? data.staffId : appointment.staffId),
+      client
+    );
+    const cleanServices = await validateServices(
+      tenantId,
+      data.services !== undefined ? data.services : appointment.services,
+      client
+    );
+    if (cleanServices.length === 0) {
+      throw new ValidationError('At least one service is required.');
+    }
 
-    await appointmentRepository.updateStatus(tenantId, id, 'completed', userId, client);
-    await appointmentRepository.updatePayment(tenantId, id, { ...payment, ...paymentCalc }, client);
+    const finishData = {
+      ...data,
+      durationMinutes: validateDurationMinutes(
+        data.durationMinutes !== undefined ? data.durationMinutes : appointment.durationMinutes
+      ),
+    };
+    const payload = buildBookingPayload(
+      finishData,
+      appointment,
+      appointment.customerId,
+      cleanDate,
+      { ...payment, ...paymentCalc },
+      cleanStaffId,
+      cleanServices,
+      'completed'
+    );
+
+    await reconcilePackageUsage(tenantId, id, appointment, payload, client);
+    await appointmentRepository.updateAppointment(tenantId, id, payload, userId, client);
+    await appointmentRepository.replaceAppointmentServices(
+      tenantId,
+      id,
+      payload.services,
+      payload.customerPackageId,
+      payload.isPackageAppointment,
+      client
+    );
     await customerService.updateStatistics(tenantId, appointment.customerId, client);
 
     await client.query('COMMIT');
@@ -336,8 +459,9 @@ async function cancelAppointment(tenantId, role, id, reason, userId) {
     // Restore package services if this appointment consumed a package
     if (appointment.isPackageAppointment && appointment.customerPackageId) {
       const { rows } = await client.query(
-        `SELECT service_id FROM appointment_services WHERE appointment_id = $1 AND is_package_usage = true`,
-        [id]
+        `SELECT service_id FROM appointment_services
+         WHERE appointment_id = $1 AND tenant_id = $2 AND is_package_usage = true`,
+        [id, tenantId]
       );
       const packageServiceIds = rows.map(row => row.service_id);
       if (packageServiceIds.length > 0) {

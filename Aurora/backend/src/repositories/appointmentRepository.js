@@ -176,9 +176,11 @@ class AppointmentRepository {
         payment_date = $9,
         customer_notes = $10,
         status = $11,
-        updated_by = $12,
+        customer_package_id = $12,
+        is_package_appointment = $13,
+        updated_by = $14,
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = $13 AND tenant_id = $14
+      WHERE id = $15 AND tenant_id = $16
       RETURNING id, status;
     `;
     const values = [
@@ -193,6 +195,8 @@ class AppointmentRepository {
       data.paymentDate,
       data.notes,
       data.status,
+      data.customerPackageId,
+      data.isPackageAppointment,
       userId,
       id,
       tenantId
@@ -236,7 +240,10 @@ class AppointmentRepository {
   }
 
   async replaceAppointmentServices(tenantId, appointmentId, services, customerPackageId, isPackageAppointment, client = db) {
-    await client.query(`DELETE FROM appointment_services WHERE appointment_id = $1`, [appointmentId]);
+    await client.query(
+      `DELETE FROM appointment_services WHERE appointment_id = $1 AND tenant_id = $2`,
+      [appointmentId, tenantId]
+    );
 
     if (!services || services.length === 0) return;
 

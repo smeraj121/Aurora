@@ -31,9 +31,10 @@ function validateCompleteEdit(role, existing) {
   const GRACE_PERIOD_HOURS = 24;
 
   const isLockedStatus = ['completed', 'cancelled'].includes(existing.status);
-  const isElevatedRole = ALLOWED_OVERRIDE_ROLES.includes(role?.toLowerCase());
+  const normalizedRole = role?.toLowerCase();
+  const isElevatedRole = ALLOWED_OVERRIDE_ROLES.includes(normalizedRole);
 
-  if (isLockedStatus && !isElevatedRole) {
+  if (isLockedStatus && normalizedRole !== 'staff' && !isElevatedRole) {
     const completedTime = new Date(existing.completedAt || existing.updatedAt || existing.date).getTime();
     const currentTime = Date.now();
     const hoursSinceCompletion = (currentTime - completedTime) / (1000 * 60 * 60);
@@ -115,7 +116,7 @@ function validateCustomerAction(role, userId, appointment, action) {
 
 function calculatePaymentStatus(parsedAmount, parsedPaidAmount, inputStatus) {
   let status = inputStatus || 'pending';
-  if (parsedPaidAmount >= parsedAmount && parsedAmount > 0) {
+  if (parsedPaidAmount >= parsedAmount && parsedAmount >= 0) {
     status = 'paid';
   } else if (parsedPaidAmount > 0) {
     status = 'partial';
@@ -197,6 +198,10 @@ async function validateServices(tenantId, services, client) {
   });
 
   const serviceIds = cleanServices.map(s => s.serviceId);
+
+  if (new Set(serviceIds).size !== serviceIds.length) {
+    throw new ValidationError('The same service can only be selected once per appointment.');
+  }
 
   const isValid =
     await appointmentRepository.validateServicesBelongToTenant(

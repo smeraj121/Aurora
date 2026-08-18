@@ -103,7 +103,7 @@ class CustomerRepository {
         a.customer_package_id AS "customerPackageId",
         a.booking_source AS "bookingSource",
         a.confirmation_status AS "confirmationStatus",
-        a.customer_notes AS "customerNotes",
+        a.customer_notes AS "notes",
         u.full_name AS "staffName",
         p.name AS "packageName",
         COALESCE(

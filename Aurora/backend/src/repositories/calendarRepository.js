@@ -27,7 +27,7 @@ class CalendarRepository {
       a.is_package_appointment AS "isPackageAppointment",
       a.customer_package_id AS "customerPackageId",
       p.name AS "packageName",
-      a.customer_notes AS "customerNotes",
+      a.customer_notes AS "notes",
       COALESCE(
         (
           SELECT json_agg(json_build_object(

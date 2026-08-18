@@ -9,6 +9,9 @@ interface PackageSectionProps {
   showPackageSelector: boolean;
   selectedPackageId: string | null;
   selectedServices: number[];
+  isEditing: boolean;
+  originalPackageId: string | null;
+  originalPackageServiceIds: number[];
   onOpenPackageSelector: () => void;
   onSelectPackage: (packageId: string) => void;
   onTogglePackageService: (service: CustomerPackageServiceItem) => void;
@@ -22,6 +25,9 @@ export function PackageSection({
   showPackageSelector,
   selectedPackageId,
   selectedServices,
+  isEditing,
+  originalPackageId,
+  originalPackageServiceIds,
   onOpenPackageSelector,
   onSelectPackage,
   onTogglePackageService,
@@ -106,15 +112,20 @@ export function PackageSection({
             {activePackage.services.map((svc) => {
               const isSelected = selectedServices.includes(svc.serviceId);
               const isExhausted = svc.usedQuantity >= (svc.totalQuantity||0);
+              const wasOriginallySelectedByThisAppointment =
+                isEditing &&
+                selectedPackageId === originalPackageId &&
+                originalPackageServiceIds.includes(svc.serviceId);
+              const isDisabled = isExhausted && !wasOriginallySelectedByThisAppointment;
 
               return (
                 <button
                   key={svc.serviceId}
                   type="button"
-                  disabled={isExhausted}
+                  disabled={isDisabled}
                   onClick={() => onTogglePackageService(svc)}
                   className={`flex items-center justify-between p-2.5 rounded-lg border text-xs text-left transition-all ${
-                    isExhausted
+                    isDisabled
                       ? 'bg-slate-50 border-slate-200 opacity-60 cursor-not-allowed'
                       : isSelected
                       ? 'bg-purple-50 border-purple-500 ring-1 ring-purple-500/20 cursor-pointer'

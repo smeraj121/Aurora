@@ -102,6 +102,7 @@ export function CalendarView() {
     await finishAppointment(id);
   } catch (err: any) {
     console.error(err);
+    //handleOpenModal(apt);
     setModalBackendError(
       err.message || 'Failed to finish appointment.'
     );
@@ -114,7 +115,7 @@ export function CalendarView() {
 ) => {
   e.stopPropagation();
 
-  handleOpenModal(apt);
+  //handleOpenModal(apt);
 };
 
   const handleSaveAppointment = async (savedApt: any) => {
@@ -298,6 +299,8 @@ export function CalendarView() {
   try {
     await finishAppointment(id);
   } catch (err: any) {
+    const apt = appointments.find((appointment) => appointment.id === id);
+    if (apt) handleOpenModal(apt);
     setModalBackendError(
       err.message || 'Failed to finish appointment.'
     );
@@ -320,8 +323,8 @@ export function CalendarView() {
     setModalBackendError(null);
   }}
   onSave={handleSaveAppointment}
-  onFinishAppointment={async (id) => {
-    await finishAppointment(id);
+  onFinishAppointment={async (id, bookingData) => {
+    await finishAppointment(id, bookingData);
   }}
   onCancelAppointment={async (id, reason) => {
     await cancelAppointment(id, reason);

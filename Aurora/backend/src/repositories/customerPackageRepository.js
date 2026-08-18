@@ -163,7 +163,7 @@ class CustomerPackageRepository {
   // ============================================================
   // GET CUSTOMER PACKAGE BY ID
   // ============================================================
-  async getCustomerPackageValidationInfo(tenantId, id) {
+  async getCustomerPackageValidationInfo(tenantId, id, client = db) {
     const query = `
       SELECT 
         cp.id,
@@ -178,23 +178,24 @@ class CustomerPackageRepository {
         p.validity_days AS "validityDays",
         COALESCE(
           json_agg(DISTINCT jsonb_build_object(
-            'serviceId', ps.service_id,
+            'serviceId', cps.service_id,
             'serviceName', s.name,
             'servicePrice', s.price,
-            'quantity', ps.quantity,
-            'discount', ps.discount_per_service
-          )) FILTER (WHERE ps.service_id IS NOT NULL),
+            'totalQuantity', cps.total_quantity,
+            'usedQuantity', cps.used_quantity
+          )) FILTER (WHERE cps.service_id IS NOT NULL),
           '[]'::json
         ) AS services
       FROM customer_packages cp
       JOIN packages p ON cp.package_id = p.id
-      LEFT JOIN package_services ps ON ps.package_id = p.id
-      LEFT JOIN services s ON s.id = ps.service_id
+      LEFT JOIN customer_package_services cps
+        ON cps.customer_package_id = cp.id AND cps.tenant_id = cp.tenant_id
+      LEFT JOIN services s ON s.id = cps.service_id AND s.tenant_id = cp.tenant_id
       WHERE cp.id = $1 AND cp.tenant_id = $2
       GROUP BY cp.id, p.id
     `;
     
-    const { rows } = await db.query(query, [id, tenantId]);
+    const { rows } = await client.query(query, [id, tenantId]);
     return rows[0] || null;
   }
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { UserCheck, Edit2, Check, Clock, CheckCircle2, IndianRupee, CreditCard, X } from 'lucide-react';
+import { UserCheck, Edit2, Check, Clock, CheckCircle2, IndianRupee } from 'lucide-react';
 import { api } from '../../services/api';
 import type { BookingFormState } from './types/types';
 import type { BookingServiceItem } from '../../types/booking.types';
@@ -54,6 +54,8 @@ export function BookingModal({
   const [staffList, setStaffList] = useState<StaffMember[]>([]);
   const [serviceList, setServiceList] = useState<BookingServiceItem[]>([]);
   const [customerPackages, setCustomerPackages] = useState<CustomerPackage[]>([]);
+  const [originalPackageServiceIds, setOriginalPackageServiceIds] = useState<number[]>([]);
+  const [originalPackageId, setOriginalPackageId] = useState<string | null>(null);
   const [isExistingCustomer, setIsExistingCustomer] = useState(false);
   const [showPackageSelector, setShowPackageSelector] = useState(false);
 
@@ -74,14 +76,6 @@ export function BookingModal({
   const isCustomerActive = user?.systemRole.toLocaleLowerCase()==='customer';
   const currentStatusConfig = getStatusConfig(formState.status || 'scheduled');
   const StatusIcon = currentStatusConfig.icon;
-
-  // Compute total duration automatically from services
-  const computedDuration = useMemo(() => {
-    return formState.services.reduce((total, svc) => {
-      const serviceItem = serviceList.find((s) => s.id === svc.serviceId);
-      return total + (serviceItem?.durationMinutes || 0);
-    }, 0);
-  }, [formState.services, serviceList]);
 
   // Derived Payment Status
   const computedPaymentStatus = useMemo(() => {
@@ -107,6 +101,8 @@ export function BookingModal({
       setFormState(DEFAULT_FORM_STATE);
       setIsExistingCustomer(false);
       setCustomerPackages([]);
+      setOriginalPackageServiceIds([]);
+      setOriginalPackageId(null);
       setShowPackageSelector(false);
       setIsEditingDuration(false);
       setIsDurationOverridden(false);
@@ -140,10 +136,16 @@ export function BookingModal({
           if (isSubscribed && response.success) {
             const initialFormState = convertAppointmentToForm(response.data);
             setFormState((prev) => ({ ...prev, ...initialFormState }));
+            setOriginalPackageId(initialFormState.customerPackageId ?? null);
+            setOriginalPackageServiceIds(
+              (response.data.services || [])
+                .filter((service: CustomerPackageServiceItem) => service.isPackage)
+                .map((service: CustomerPackageServiceItem) => service.serviceId)
+            );
             setIsExistingCustomer(true);
-            if (initialFormState.durationMinutes) {
-              setIsDurationOverridden(true);
-            }
+            // A persisted duration represents the appointment's current value, not
+            // a manual override in this edit session.
+            setIsDurationOverridden(false);
           }
         } else {
           const defaultStaff =
@@ -318,7 +320,7 @@ export function BookingModal({
 
     try {
       setIsSubmitting(true);
-      const finalDuration = isDurationOverridden ? formState.durationMinutes : computedDuration;
+      const finalDuration = formState.durationMinutes;
 
       const payload = {
         ...(appointmentId ? { id: appointmentId } : {}),
@@ -326,7 +328,14 @@ export function BookingModal({
         durationMinutes: finalDuration,
         paymentStatus: computedPaymentStatus,
       };
-      await onSave(payload);
+      const customerEditPayload = {
+        date: payload.date,
+        startTime: payload.startTime,
+        durationMinutes: payload.durationMinutes,
+        services: payload.services,
+        ...(payload.notes !== undefined && { notes: payload.notes }),
+      };
+      await onSave(isCustomerActive && appointmentId ? customerEditPayload : payload);
       onClose();
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'Failed to save appointment');
@@ -335,7 +344,7 @@ export function BookingModal({
     }
   };
 
-  const displayDuration = isDurationOverridden ? formState.durationMinutes : computedDuration;
+  const displayDuration = formState.durationMinutes;
 
   const footerActions = (
     <>
@@ -458,6 +467,9 @@ export function BookingModal({
                 formState.customerPackageId ? String(formState.customerPackageId) : null
               }
               selectedServices={formState.services.map((s) => s.serviceId)}
+              isEditing={Boolean(appointmentId)}
+              originalPackageId={originalPackageId}
+              originalPackageServiceIds={originalPackageServiceIds}
               onOpenPackageSelector={() => setShowPackageSelector(!showPackageSelector)}
               onSelectPackage={(packageId) => {
                 setFormState((prev) => ({
@@ -466,6 +478,7 @@ export function BookingModal({
                   isPackageAppointment: true,
                   services: [],
                   amount: 0,
+                  durationMinutes: isDurationOverridden ? prev.durationMinutes : 0,
                 }));
                 setShowPackageSelector(false);
               }}
@@ -474,7 +487,12 @@ export function BookingModal({
                 const updated = isSelected
                   ? formState.services.filter((s) => s.serviceId !== svc.serviceId)
                   : [...formState.services, { ...svc, price: 0 }];
-                setFormState((prev) => ({ ...prev, services: updated }));
+                const { durationMinutes } = calculateBookingTotals(updated, serviceList);
+                setFormState((prev) => ({
+                  ...prev,
+                  services: updated,
+                  durationMinutes: isDurationOverridden ? prev.durationMinutes : durationMinutes,
+                }));
               }}
               onRemovePackage={() => {
                 setFormState((prev) => ({
@@ -483,6 +501,7 @@ export function BookingModal({
                   isPackageAppointment: false,
                   services: [],
                   amount: 0,
+                  durationMinutes: isDurationOverridden ? prev.durationMinutes : 0,
                 }));
               }}
             />
@@ -522,10 +541,6 @@ export function BookingModal({
                     type="button"
                     onClick={() => {
                       if(isCustomerActive) return;
-                      if (!isDurationOverridden) {
-                        setFormState((prev) => ({ ...prev, durationMinutes: computedDuration }));
-                      }
-                      setIsDurationOverridden(true);
                       setIsEditingDuration(true);
                     }}
                     className="px-2.5 py-1.5 text-xs font-bold text-slate-900 flex gap-1 items-center group hover:border-purple-300 transition-colors"
@@ -545,7 +560,7 @@ export function BookingModal({
                   <select
                     value={formState.status || 'scheduled'}
                     onChange={(e) => {
-                      setFormState((prev) => ({ ...prev, status: e.target.value }));
+                      setFormState((prev) => ({ ...prev, status: e.target.value as BookingFormState['status'] }));
                       setIsEditingStatus(false);
                     }}
                     onBlur={() => setIsEditingStatus(false)}
