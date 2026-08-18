@@ -5,7 +5,7 @@ class AppointmentRepository {
   // ============================================================
   // GET APPOINTMENT BY ID (with tenant)
   // ============================================================
-  async getAppointmentById(tenantId, id) {
+  async getAppointmentById(tenantId, id, client = db) {
     const query = `
         SELECT 
           a.id,
@@ -26,7 +26,7 @@ class AppointmentRepository {
           a.payment_date AS "paymentDate",
           a.is_package_appointment AS "isPackageAppointment",
           a.customer_package_id AS "customerPackageId",
-          a.customer_notes,
+          a.customer_notes AS "notes",
           COALESCE(
             json_agg(DISTINCT jsonb_build_object(
               'serviceId', srv.id,
@@ -46,7 +46,18 @@ class AppointmentRepository {
         WHERE a.id = $1 AND a.tenant_id = $2
         GROUP BY a.id, c.id, u.id, st.id, su.id
       `;
-    const { rows } = await db.query(query, [id, tenantId]);
+    const { rows } = await client.query(query, [id, tenantId]);
+    return rows[0] || null;
+  }
+
+  async lockAppointmentById(tenantId, id, client = db) {
+    const query = `
+      SELECT id 
+      FROM appointments 
+      WHERE id = $1 AND tenant_id = $2 
+      FOR UPDATE;
+    `;
+    const { rows } = await client.query(query, [id, tenantId]);
     return rows[0] || null;
   }
 
@@ -224,16 +235,16 @@ class AppointmentRepository {
     ]);
   }
 
-  async replaceAppointmentServices(tenantId, appointmentId, services, customerPackageId, client = db) {
+  async replaceAppointmentServices(tenantId, appointmentId, services, customerPackageId, isPackageAppointment, client = db) {
     await client.query(`DELETE FROM appointment_services WHERE appointment_id = $1`, [appointmentId]);
 
     if (!services || services.length === 0) return;
 
     const values = [];
     const valueStrings = services.map((s, idx) => {
-      const offset = idx * 5;
-      values.push(tenantId, appointmentId, s.serviceId, s.price, customerPackageId || null);
-      return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5})`;
+      const offset = idx * 6;
+      values.push(tenantId, appointmentId, s.serviceId, s.price, customerPackageId || null, isPackageAppointment);
+      return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6})`;
     });
 
     const query = `
@@ -242,7 +253,8 @@ class AppointmentRepository {
         appointment_id,
         service_id,
         service_price,
-        customer_package_id
+        customer_package_id,
+        is_package_usage
       ) VALUES ${valueStrings.join(', ')}
     `;
     await client.query(query, values);

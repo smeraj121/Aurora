@@ -39,6 +39,13 @@ class ValidationError extends CustomError {
   }
 }
 
+class ForbiddenError extends CustomError {
+  constructor(message = 'Forbidden') {
+    super(message, 403);
+    this.name = 'ForbiddenError';
+  }
+}
+
 // Export all errors
 module.exports = {
   CustomError,
@@ -46,4 +53,5 @@ module.exports = {
   ConflictError,
   NotFoundError,
   ValidationError,
+  ForbiddenError
 };

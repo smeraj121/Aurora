@@ -58,35 +58,6 @@ class CalendarRepository {
   return rows;
 }
 
-  // ============================================================
-  // PAYMENT METHODS (with tenant)
-  // ============================================================
-  async updatePayment(tenantId, appointmentId, paidAmount, paymentMethod, userId) {
-    const total = await this.getAppointmentTotal(tenantId, appointmentId);
-    const paymentStatus = paidAmount >= total ? 'paid' : paidAmount > 0 ? 'partial' : 'pending';
-
-    const query = `
-      UPDATE appointments
-      SET 
-        paid_amount = $1,
-        payment_status = $2,
-        payment_method = $3,
-        payment_date = CASE WHEN $1 > 0 THEN CURRENT_TIMESTAMP ELSE payment_date END,
-        updated_by = $4,
-        updated_at = CURRENT_TIMESTAMP
-      WHERE id = $5 AND tenant_id = $6
-      RETURNING id, paid_amount, payment_status;
-    `;
-    const { rows } = await db.query(query, [
-      paidAmount,
-      paymentStatus,
-      paymentMethod,
-      userId,
-      appointmentId,
-      tenantId
-    ]);
-    return rows[0];
-  }
 
   async getAppointmentTotal(tenantId, appointmentId) {
     const { rows } = await db.query(
