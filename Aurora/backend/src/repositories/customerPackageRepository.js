@@ -175,6 +175,7 @@ class CustomerPackageRepository {
         cp.used_sessions AS "usedSessions",
         cp.total_sessions - cp.used_sessions AS "remainingSessions",
         p.name AS "packageName",
+        p.is_active AS "isActive",
         p.validity_days AS "validityDays",
         COALESCE(
           json_agg(DISTINCT jsonb_build_object(

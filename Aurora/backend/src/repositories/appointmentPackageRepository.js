@@ -11,6 +11,12 @@ class AppointmentPackageRepository {
         AND tenant_id = $3 
         AND (used_sessions + $1) <= total_sessions
         AND (expiry_date IS NULL OR expiry_date >= CURRENT_DATE)
+        AND EXISTS (
+          SELECT 1 FROM packages p
+          WHERE p.id = customer_packages.package_id
+            AND p.tenant_id = customer_packages.tenant_id
+            AND p.is_active = true
+        )
       RETURNING id, total_sessions, used_sessions, (total_sessions - used_sessions) AS "remainingSessions"
     `;
     const { rows } = await client.query(query, [count, customerPackageId, tenantId]);
@@ -64,6 +70,19 @@ class AppointmentPackageRepository {
     `;
     const { rows } = await client.query(query, [customerPackageId, tenantId, serviceIds]);
     return rows;
+  }
+
+  async getAppointmentPackageServiceIds(client, tenantId, customerPackageId, appointmentId) {
+    const { rows } = await client.query(
+      `SELECT service_id
+       FROM appointment_services
+       WHERE tenant_id = $1
+         AND appointment_id = $2
+         AND customer_package_id = $3
+         AND is_package_usage = true`,
+      [tenantId, appointmentId, customerPackageId]
+    );
+    return rows.map(row => row.service_id);
   }
 }
 

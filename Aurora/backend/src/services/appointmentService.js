@@ -111,27 +111,31 @@ async function reconcilePackageUsage(tenantId, appointmentId, existing, payload,
 
   const servicesToAdd = newPackageServiceIds.filter(serviceId => !originalPackageServiceIds.includes(serviceId));
   const servicesToRemove = originalPackageServiceIds.filter(serviceId => !newPackageServiceIds.includes(serviceId));
-  await appointmentPackageService.restorePackage(
-    tenantId,
-    payload.customerPackageId,
-    appointmentId,
-    servicesToRemove,
-    client
-  );
-  await appointmentPackageService.validatePackage(
-    tenantId,
-    payload.customerPackageId,
-    existing.customerId,
-    servicesToAdd,
-    client
-  );
-  await appointmentPackageService.consumePackage(
-    tenantId,
-    payload.customerPackageId,
-    appointmentId,
-    servicesToAdd,
-    client
-  );
+  if (servicesToRemove.length > 0) {
+    await appointmentPackageService.restorePackage(
+      tenantId,
+      payload.customerPackageId,
+      appointmentId,
+      servicesToRemove,
+      client
+    );
+  }
+  if (servicesToAdd.length > 0) {
+    await appointmentPackageService.validatePackage(
+      tenantId,
+      payload.customerPackageId,
+      existing.customerId,
+      servicesToAdd,
+      client
+    );
+    await appointmentPackageService.consumePackage(
+      tenantId,
+      payload.customerPackageId,
+      appointmentId,
+      servicesToAdd,
+      client
+    );
+  }
 }
 
 // ============================================================

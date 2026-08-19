@@ -41,8 +41,10 @@ class AppointmentRepository {
         JOIN users u ON c.user_id = u.id
         LEFT JOIN staff st ON a.staff_id = st.id
         LEFT JOIN users su ON st.user_id = su.id
-        LEFT JOIN appointment_services aps ON aps.appointment_id = a.id
-        LEFT JOIN services srv ON aps.service_id = srv.id
+        LEFT JOIN appointment_services aps
+          ON aps.appointment_id = a.id AND aps.tenant_id = a.tenant_id
+        LEFT JOIN services srv
+          ON aps.service_id = srv.id AND srv.tenant_id = a.tenant_id
         WHERE a.id = $1 AND a.tenant_id = $2
         GROUP BY a.id, c.id, u.id, st.id, su.id
       `;
