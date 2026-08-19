@@ -161,7 +161,7 @@ class StaffRepository {
       userData.phone || null,
       userData.email || null,
       userData.profileImage || userData.profileImageUrl || null,
-      userData.status,
+      userData.isActive,
       updatedBy,
       userId,
       tenantId,

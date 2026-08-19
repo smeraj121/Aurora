@@ -129,6 +129,18 @@ async function getStaffSchedule(req, res, next) {
   }
 }
 
+// async function getAvailability(req,res,next){
+//   try{
+//     const { tenantId } = req.user;
+//     const { id, date } = req.params;
+//     const schedule = await staffService.getAvailableSlots(tenantId, parseInt(id, 10), date);
+//     res.json({ success: true, data: schedule });
+//   }
+//   catch(error){
+//     next(error);
+//   }
+// }
+
 // ============================================================
 // POST /staff - Create a new staff member
 // ============================================================

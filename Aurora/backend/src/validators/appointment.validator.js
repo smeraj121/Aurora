@@ -34,8 +34,8 @@ function validateCompleteEdit(role, existing) {
   const normalizedRole = role?.toLowerCase();
   const isElevatedRole = ALLOWED_OVERRIDE_ROLES.includes(normalizedRole);
 
-  if (isLockedStatus && normalizedRole !== 'staff' && !isElevatedRole) {
-    const completedTime = new Date(existing.completedAt || existing.updatedAt || existing.date).getTime();
+  if (isLockedStatus && !isElevatedRole) {
+    const completedTime = new Date(existing.endTime).getTime();
     const currentTime = Date.now();
     const hoursSinceCompletion = (currentTime - completedTime) / (1000 * 60 * 60);
 
@@ -157,8 +157,7 @@ function validateCustomerUpdate(role, userId, existing, data) {
     'date',
     'startTime',
     'notes',
-    'services',
-    'durationMinutes'
+    'services'
   ];
 
   const attemptedUpdateFields = Object.keys(data);

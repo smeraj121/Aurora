@@ -20,12 +20,12 @@ export function validateBooking(
   }
 
   // Payment validation
-  if (formState.status === 'completed') {
-    if (formState.paymentStatus !== 'paid' && !formState.isPackageAppointment) {
-      return 'Cannot complete with balance due, update total or paid amount.';
+  //if (formState.status === 'completed') {
+    //if (formState.paymentStatus !== 'paid' && !formState.isPackageAppointment) {
+      //return 'Cannot complete with balance due, update total or paid amount.';
       //formState.paidAmount.isValid = false;
-    }
-  }
+    //}
+  //}
 
   return null;
 }

@@ -252,15 +252,16 @@ async function updateAppointment(tenantId, role, id, data, userId) {
     validateCustomerUpdate(role, userId, existing, data);
     validateCompleteEdit(role, existing);
 
+    // allow everthing for now restricting later on
     // Lock structural fields – cannot be changed
-    if (data.customerId && parseNumericId(data.customerId) !== existing.customerId) {
-      throw new ValidationError('Cannot change customer on an existing appointment.');
-    }
+    //if (data.customerId && parseNumericId(data.customerId) !== existing.customerId) {
+    //throw new ValidationError('Cannot change customer on an existing appointment.');
+    //}
 
     // Build sanitized update data for customers (only allowed fields)
     let updateData = data;
     if (role?.toLowerCase() === 'customer') {
-      const CUSTOMER_EDITABLE_FIELDS = ['date', 'startTime', 'notes', 'services', 'durationMinutes'];
+      const CUSTOMER_EDITABLE_FIELDS = ['date', 'startTime', 'notes', 'services'];
       updateData = {};
       CUSTOMER_EDITABLE_FIELDS.forEach(field => {
         if (data[field] !== undefined) {

@@ -82,7 +82,7 @@ export function BookingModal({
     if (formState.isPackageAppointment) return 'paid';
     const total = formState.amount || 0;
     const paid = formState.paidAmount || 0;
-    if (paid <= 0) return 'pending';
+    if (paid <= 0) return total == 0 ? 'paid':'pending';
     if (paid < total) return 'partial';
     return 'paid';
   }, [formState.amount, formState.paidAmount, formState.isPackageAppointment]);

@@ -15,7 +15,7 @@ router.get('/services', asyncHandler(staffController.getServices));
 router.get('/designations', asyncHandler(staffController.getDesignations));
 
 // GET /api/appointments/:staffId/availability – Get available time slots for a staff member
-router.get('/:staffId/availability',asyncHandler(staffController.getAvailability));
+//router.get('/:staffId/availability',asyncHandler(staffController.getAvailability));
 
 // ============================================================
 // STAFF STATS & TOP PERFORMERS

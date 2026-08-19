@@ -264,8 +264,8 @@ async function deleteStaff(tenantId, staffId, userId) {
   const client = await dbPool.connect();
   try {
     await client.query('BEGIN');
-    const userId = await staffRepo.softDeleteStaff(client, tenantId, staffId, userId);
-    if (!userId) {
+    const dbUserId = await staffRepo.softDeleteStaff(client, tenantId, staffId, userId);
+    if (!dbUserId) {
       throw new NotFoundError('Staff member not found.');
     }
     await client.query('COMMIT');
