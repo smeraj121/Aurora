@@ -63,7 +63,7 @@ export function PhoneStep({ onSubmit, loading, error }: PhoneStepProps) {
             {/* Info */}
             <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-50 px-4 py-2.5 rounded-xl">
               <span>📱</span>
-              <span>We'll send a verification code through WhatsApp</span>
+              <span>We'll send a verification code on your phone</span>
             </div>
 
             {/* Submit Button */}
