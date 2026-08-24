@@ -1,16 +1,26 @@
 const { Pool } = require('pg');
+
 require('dotenv').config();
 
 const pool = new Pool({
-  user: process.env.DB_USER || 'postgres',
-  host: process.env.DB_HOST || 'localhost',
-  database: process.env.DB_NAME || 'auroradb4',
-  password: process.env.DB_PASSWORD || 'postgres',
-  port: process.env.DB_PORT || 5432,
+  user: process.env.DB_USER,
+  host: process.env.DB_HOST,
+  database: process.env.DB_NAME,
+  password: process.env.DB_PASSWORD,
+  port: process.env.DB_PORT,
+  ssl: {
+    rejectUnauthorized: false,
+  },
+});
+
+pool.on('connect', () => {
+  console.log('✅ PostgreSQL connection established');
+});
+
+pool.on('error', (err) => {
+  console.error('❌ PostgreSQL pool error:', err.message);
 });
 
 module.exports = {
   query: (text, params) => pool.query(text, params),
-  connect: () => pool.connect(), // Add this line
-  pool: pool, // Optional: export the pool directly
 };

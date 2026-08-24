@@ -14,7 +14,7 @@ const pool = new Pool({
 });
 
 pool.on('connect', () => {
-  console.log('✅ PostgreSQL SSL connection established');
+  console.log('✅ PostgreSQL connection established');
 });
 
 pool.on('error', (err) => {
