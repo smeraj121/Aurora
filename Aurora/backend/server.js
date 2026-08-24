@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const errorHandler = require('./src/middlewares/errorHandler');
-
+const db = require('./config/db');
 const app = express();
 
 // 1. Enable Middleware
@@ -47,3 +47,11 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
+
+db.query('SELECT NOW() AS now')
+  .then(result => {
+    console.log('✅ DATABASE CONNECTED:', result.rows[0]);
+  })
+  .catch(error => {
+    console.error('❌ DATABASE CONNECTION FAILED:', error.message);
+  });
