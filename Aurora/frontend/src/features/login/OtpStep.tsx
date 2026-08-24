@@ -26,8 +26,10 @@ export function OtpStep({
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   useEffect(() => {
-    if (inputRefs.current[0]) {
-      inputRefs.current[0]?.focus();
+    // Initial focus on first input
+    const firstInput = inputRefs.current[0];
+    if (firstInput) {
+      firstInput.focus();
     }
   }, []);
 
@@ -38,46 +40,82 @@ export function OtpStep({
     }
   }, [timer]);
 
-  const handleChange = (index: number, value: string) => {
-    if (value.length > 1) return;
-    if (!/^\d*$/.test(value)) return;
+  const handleChange = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawVal = e.target.value;
+    const digit = rawVal.slice(-1);
+
+    if (digit && !/^\d$/.test(digit)) return;
 
     const newOtp = [...otp];
-    newOtp[index] = value;
+    newOtp[index] = digit;
     setOtp(newOtp);
 
-    if (value && index < 5) {
-      inputRefs.current[index + 1]?.focus();
+    // Move focus immediately — focus() doesn't need to wait for this
+    // input's own re-render, so the setTimeout was unnecessary and
+    // could occasionally race with typing
+    if (digit && index < 5) {
+      const nextInput = inputRefs.current[index + 1];
+      if (nextInput) {
+        nextInput.focus();
+        nextInput.select();
+      }
     }
 
-    if (newOtp.every((digit) => digit !== '')) {
+    if (newOtp.every((d) => d !== '')) {
       onVerify(newOtp.join(''));
     }
   };
 
-  const handleKeyDown = (index: number, e: React.KeyboardEvent) => {
+  const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Backspace' && !otp[index] && index > 0) {
-      inputRefs.current[index - 1]?.focus();
+      const prevInput = inputRefs.current[index - 1];
+      if (prevInput) {
+        prevInput.focus();
+        prevInput.select();
+      }
     }
     if (e.key === 'Enter') {
       onVerify(otp.join(''));
     }
   };
 
+  const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    // Select input text on focus for easy replacement
+    e.target.select();
+  };
+
   const handlePaste = (e: React.ClipboardEvent) => {
     e.preventDefault();
-    const pasted = e.clipboardData.getData('text').slice(0, 6);
+    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+    if (!pasted) return;
+
     const digits = pasted.split('');
-    const newOtp = [...otp];
+    const newOtp = ['', '', '', '', '', ''];
+
     digits.forEach((digit, i) => {
-      if (i < 6 && /^\d$/.test(digit)) {
-        newOtp[i] = digit;
-      }
+      if (i < 6) newOtp[i] = digit;
     });
+
     setOtp(newOtp);
+
+    // Focus next empty input or last input
+    const nextIndex = Math.min(digits.length, 5);
+    setTimeout(() => {
+      inputRefs.current[nextIndex]?.focus();
+    }, 10);
+
     if (newOtp.every((d) => d !== '')) {
       onVerify(newOtp.join(''));
     }
+  };
+
+  const handleResend = () => {
+    setTimer(resendCooldown);
+    setOtp(['', '', '', '', '', '']);
+    onResend();
+    setTimeout(() => {
+      inputRefs.current[0]?.focus();
+    }, 10);
   };
 
   const formattedPhone = phone.replace(/(\d{5})(\d{5})/, '$1 $2');
@@ -115,18 +153,22 @@ export function OtpStep({
             {otp.map((digit, index) => (
               <input
                 key={index}
+                ref={(el) => {
+                  inputRefs.current[index] = el;
+                }}
                 type="text"
                 inputMode="numeric"
+                pattern="\d*"
                 maxLength={1}
                 value={digit}
-                onChange={(e) => handleChange(index, e.target.value)}
+                onChange={(e) => handleChange(index, e)}
                 onKeyDown={(e) => handleKeyDown(index, e)}
-                className={`w-12 h-14 text-center text-xl font-semibold border-2 rounded-xl outline-none transition-all bg-slate-50 ${
-                  digit
+                onFocus={handleFocus}
+                className={`w-12 h-14 text-center text-xl font-semibold border-2 rounded-xl outline-none transition-all bg-slate-50 ${digit
                     ? 'border-purple-500 bg-white'
                     : 'border-slate-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20'
-                }`}
-                autoComplete="off"
+                  }`}
+                autoComplete={index === 0 ? 'one-time-code' : 'off'}
               />
             ))}
           </div>
@@ -141,8 +183,8 @@ export function OtpStep({
               <span className="text-slate-400">Resend in {timer}s</span>
             ) : (
               <button
-                onClick={onResend}
-                className="text-purple-600 font-medium hover:text-purple-700 transition-colors"
+                onClick={handleResend}
+                className="text-purple-600 font-medium hover:text-purple-700 transition-colors cursor-pointer"
               >
                 Resend OTP
               </button>
@@ -159,7 +201,7 @@ export function OtpStep({
           <button
             onClick={() => onVerify(otp.join(''))}
             disabled={otp.some((d) => d === '') || loading}
-            className="w-full py-3.5 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-purple-600/30"
+            className="w-full py-3.5 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-purple-600/30 cursor-pointer"
           >
             {loading ? (
               <>
@@ -174,7 +216,7 @@ export function OtpStep({
             )}
           </button>
 
-          {/* Secure */}
+          {/* Secure Badge */}
           <div className="flex items-center justify-center gap-2 text-xs text-slate-400 mt-4">
             <Shield className="w-3.5 h-3.5" />
             <span>Your code is secure with Aurora</span>
