@@ -1,7 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Menu, Sparkles, User, LogOut, ChevronDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useClickOutside } from '../../hooks/useClickOutside';
 
 interface HeaderProps {
   setMobileOpen: React.Dispatch<React.SetStateAction<boolean>>;
@@ -9,7 +10,7 @@ interface HeaderProps {
 
 export function Header({ setMobileOpen }: HeaderProps) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useClickOutside<HTMLDivElement>(() => setDropdownOpen(false));
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const initials = user?.fullName
@@ -28,16 +29,6 @@ export function Header({ setMobileOpen }: HeaderProps) {
       console.error(error);
     }
   }
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setDropdownOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   return (
     <header className="h-16 px-4 md:px-8 bg-slate-50/50 backdrop-blur-md border-b border-slate-200/60 flex items-center justify-between sticky top-0 z-20">

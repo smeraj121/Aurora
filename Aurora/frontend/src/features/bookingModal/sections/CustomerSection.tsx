@@ -1,7 +1,10 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { User, CheckCircle2 } from 'lucide-react';
 import type { CustomerSearchResult } from '../../../types/booking.types';
 import { api } from '../../../services/api';
+import { useClickOutside } from '../../../hooks/useClickOutside';
+import { SEARCH_DEBOUNCE_MS } from '../../../shared/constants/common';
+import { useDebouncedCallback } from '../../../hooks/useDebouncedCallback';
 
 interface CustomerSectionProps {
   customerName: string;
@@ -27,48 +30,36 @@ export function CustomerSection({
   const [searchResults, setSearchResults] = useState<CustomerSearchResult[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setShowDropdown(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
+  const dropdownRef = useClickOutside<HTMLDivElement>(() => setShowDropdown(false));
+  
+  const runSearch = useDebouncedCallback(async (value: string) => {
+  try {
+    const res = await api.getCustomers(value);
+    if (res.success) setSearchResults(res.data || []);
+  } catch (err) {
+    setSearchResults([]);
+  } finally {
+    setIsSearching(false);
+  }
+}, SEARCH_DEBOUNCE_MS);
+  
   const handleNameChange = (value: string) => {
-    if (isDisabled) return; // Prevent search / edits if customer role
+  if (isDisabled) return;
 
-    onCustomerNameChange(value);
-    onClearCustomer();
+  onCustomerNameChange(value);
+  onClearCustomer();
 
-    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+  if (value.trim().length <= 1) {
+    setSearchResults([]);
+    setShowDropdown(false);
+    setIsSearching(false);
+    return;
+  }
 
-    if (value.trim().length <= 1) {
-      setSearchResults([]);
-      setShowDropdown(false);
-      setIsSearching(false);
-      return;
-    }
-
-    setIsSearching(true);
-    setShowDropdown(true);
-
-    debounceTimerRef.current = setTimeout(async () => {
-      try {
-        const res = await api.getCustomers(value);
-        if (res.success) setSearchResults(res.data || []);
-      } catch (err) {
-        setSearchResults([]);
-      } finally {
-        setIsSearching(false);
-      }
-    }, 250);
-  };
+  setIsSearching(true);
+  setShowDropdown(true);
+  runSearch(value);
+};
 
   return (
     <div className="relative" ref={dropdownRef}>

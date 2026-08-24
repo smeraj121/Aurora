@@ -1,5 +1,5 @@
 // src/controllers/auth.controller.js
-const MockSmsProvider = require('../utils/mockSmsProvider');
+const createSmsProvider = require('../utils/smsProviderFactory');
 const OtpService = require('../services/otp.service');
 const AuthService = require('../services/auth.service');
 const {
@@ -13,8 +13,7 @@ const {
   superAdminLoginSchema
 } = require('../validators/auth.validator');
 const { ValidationError } = require('../errors');
-
-const smsProvider = new MockSmsProvider();
+const smsProvider = createSmsProvider();
 const otpService = new OtpService(smsProvider);
 const authService = new AuthService(otpService);
 

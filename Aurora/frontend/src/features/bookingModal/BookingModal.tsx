@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { UserCheck, Edit2, Check, Clock, CheckCircle2, IndianRupee } from 'lucide-react';
 import { api } from '../../services/api';
 import type { BookingFormState } from './types/types';
@@ -15,8 +15,11 @@ import { StaffSection } from './sections/StaffSection';
 import { CancelAppointmentModal } from '../cancelModal/CancelAppointmentModal';
 import type { CustomerPackage, CustomerPackageServiceItem } from '../../types/customerpackage.types';
 import { BaseModal } from '../modal/BaseModal';
-import { getStatusConfig } from '../../helper/status.helper';
+import { computePaymentStatus, getStatusConfig } from '../../helper/status.helper';
 import { useAuth } from '../../context/AuthContext';
+import { PaymentSection } from './sections/PaymentSection';
+import { StatusSection } from './sections/StatusSection';
+import { CustomerSummaryCard } from './components/CustomerSummaryCard';
 
 interface BookingModalProps {
   isOpen: boolean;
@@ -74,18 +77,12 @@ export function BookingModal({
 
   const { user } = useAuth();
   const isCustomerActive = user?.systemRole.toLocaleLowerCase()==='customer';
-  const currentStatusConfig = getStatusConfig(formState.status || 'scheduled');
-  const StatusIcon = currentStatusConfig.icon;
+  const canEditFields = !isCustomerActive;
+  //const currentStatusConfig = getStatusConfig(formState.status || 'scheduled');
+  //const StatusIcon = currentStatusConfig.icon;
 
   // Derived Payment Status
-  const computedPaymentStatus = useMemo(() => {
-    if (formState.isPackageAppointment) return 'paid';
-    const total = formState.amount || 0;
-    const paid = formState.paidAmount || 0;
-    if (paid <= 0) return total == 0 ? 'paid':'pending';
-    if (paid < total) return 'partial';
-    return 'paid';
-  }, [formState.amount, formState.paidAmount, formState.isPackageAppointment]);
+  const computedPaymentStatus = computePaymentStatus(formState.amount,formState.paidAmount, formState.isPackageAppointment);
 
   // Keep formState.paymentStatus updated automatically
   useEffect(() => {
@@ -517,140 +514,87 @@ export function BookingModal({
             />
 
 
-            <div className="grid grid-cols-3 gap-2 text-xs">
-              {/* Duration */}
-              <div>
-                <label className="block text-[11px] font-bold text-slate-600 mb-1 flex items-center gap-1">
-                  <Clock className="w-3 h-3 text-purple-600" /> Duration
-                </label>
-                {isEditingDuration ? (
-                  <input
-                    type="text"
-                    value={formState.durationMinutes}
-                    onChange={(e) => {
-                      const val = parseInt(e.target.value, 10) || 0;
-                      setFormState((prev) => ({ ...prev, durationMinutes: val }));
-                      setIsDurationOverridden(true);
-                    }}
-                    onBlur={() => setIsEditingDuration(false)}
-                    autoFocus
-                    className="bg-slate-50 border border-purple-300 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-900 focus:outline-none focus:border-purple-600"
-                  />
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if(isCustomerActive) return;
-                      setIsEditingDuration(true);
-                    }}
-                    className="px-2.5 py-1.5 text-xs font-bold text-slate-900 flex gap-1 items-center group hover:border-purple-300 transition-colors"
-                  >
-                    <span>{displayDuration} min</span>
-                    <Edit2 className="w-3 h-3 text-slate-400 group-hover:text-purple-600 transition-colors" />
-                  </button>
-                )}
-              </div>
+            {isCustomerActive ? (
+  <div className="flex gap-1">
+    <CustomerSummaryCard
+      icon={Clock}
+      iconColor="text-purple-600"
+      iconBg="bg-purple-50"
+      label="Duration"
+      value={`${displayDuration} min`}
+    />
+    <CustomerSummaryCard
+      icon={IndianRupee}
+      iconColor="text-purple-600"
+      iconBg="bg-purple-50"
+      label="Total Amount"
+      value={`₹${formState.amount}`}
+    />
+    <CustomerSummaryCard
+      icon={getStatusConfig(formState.status || 'scheduled').icon}
+      iconColor={getStatusConfig(formState.status || 'scheduled').text}
+      iconBg={getStatusConfig(formState.status || 'scheduled').bg}
+      label="Status"
+      value={getStatusConfig(formState.status || 'scheduled').label}
+    />
+  </div>
+) : (
+  <div className="grid grid-cols-3 gap-2 text-xs">
+    <div>
+      <label className="block text-[11px] font-bold text-slate-600 mb-1 flex items-center gap-1">
+        <Clock className="w-3 h-3 text-purple-600" /> Duration
+      </label>
+      {isEditingDuration ? (
+        <input
+          type="text"
+          value={formState.durationMinutes}
+          onChange={(e) => {
+            const val = parseInt(e.target.value, 10) || 0;
+            setFormState((prev) => ({ ...prev, durationMinutes: val }));
+            setIsDurationOverridden(true);
+          }}
+          onBlur={() => setIsEditingDuration(false)}
+          autoFocus
+          className="bg-slate-50 border border-purple-300 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-900 focus:outline-none focus:border-purple-600"
+        />
+      ) : (
+        <button
+          type="button"
+          onClick={() => canEditFields && setIsEditingDuration(true)}
+          disabled={!canEditFields}
+          className="px-2.5 py-1.5 text-xs font-bold text-slate-900 flex gap-1 items-center group hover:border-purple-300 transition-colors disabled:cursor-default"
+        >
+          <span>{displayDuration} min</span>
+          {canEditFields && (
+            <Edit2 className="w-3 h-3 text-slate-400 group-hover:text-purple-600 transition-colors" />
+          )}
+        </button>
+      )}
+    </div>
 
-              {/* Status */}
-              <div>
-                <label className="block text-[11px] font-bold text-slate-600 mb-1 flex items-center gap-1">
-                  <CheckCircle2 className="w-3 h-3 text-purple-600" /> Status
-                </label>
-                {isEditingStatus ? (
-                  <select
-                    value={formState.status || 'scheduled'}
-                    onChange={(e) => {
-                      setFormState((prev) => ({ ...prev, status: e.target.value as BookingFormState['status'] }));
-                      setIsEditingStatus(false);
-                    }}
-                    onBlur={() => setIsEditingStatus(false)}
-                    autoFocus
-                    className="bg-slate-50 border border-purple-300 rounded-xl px-2 py-1.5 text-xs font-semibold text-slate-900 focus:outline-none focus:border-purple-600"
-                  >
-                    <option value="scheduled">Scheduled</option>
-                    <option value="confirmed">Confirmed</option>
-                    <option value="completed">Completed</option>
-                    <option value="cancelled">Cancelled</option>
-                  </select>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => !isCustomerActive && setIsEditingStatus(true)}
-                    className={`border rounded-xl px-2.5 py-1.5 text-xs font-semibold flex gap-1 items-center transition-all ${currentStatusConfig.text} ${currentStatusConfig.border}`}
-                  >
-                    <span className="flex items-center gap-1">
-                      <StatusIcon className="w-3 h-3" />
-                      {currentStatusConfig.label}
-                    </span>
-                    <Edit2 className="w-3 h-3 opacity-50 hover:opacity-100 transition-opacity" />
-                  </button>
-                )}
-              </div>
+    <StatusSection
+      status={formState.status || 'scheduled'}
+      onStatusChange={(status) => setFormState((prev) => ({ ...prev, status }))}
+      isEditable={canEditFields}
+    />
 
-              {/* 2 Rows x 2 Cols Grid Layout: Total & Received */}
-              <div className="grid grid-cols-[auto_1fr] items-center gap-x-2 gap-y-1">
-                {/* ROW 1, COL 1: Total Label */}
-                <label className="text-[11px] font-bold text-slate-600 flex items-center gap-1 whitespace-nowrap">
-                  <IndianRupee className="w-3 h-3 text-purple-600" /> Total
-                </label>
+    <PaymentSection
+      amount={formState.amount}
+      onAmountChange={(amount) => {
+        setFormState((prev) => ({ ...prev, amount }));
+        setIsTotalOverridden(true);
+      }}
+      paidAmount={formState.paidAmount}
+      onPaidAmountChange={(paidAmount) => setFormState((prev) => ({ ...prev, paidAmount }))}
+      isPackageAppointment={formState.isPackageAppointment}
+      isEditable={canEditFields}
+    />
+  </div>
+)}
 
-                {/* ROW 1, COL 2: Total Input / Button */}
-                <div>
-                  {isEditingTotal && !formState.isPackageAppointment ? (
-                    <input
-                      type="text"
-                      value={formState.amount}
-                      onChange={(e) => {
-                        const val = parseFloat(e.target.value) || 0;
-                        setFormState((prev) => ({ ...prev, amount: val }));
-                        setIsTotalOverridden(true);
-                      }}
-                      onBlur={() => setIsEditingTotal(false)}
-                      autoFocus
-                      className="w-full bg-slate-50 border border-purple-300 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-900 focus:outline-none focus:border-purple-600"
-                    />
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => !isCustomerActive && !formState.isPackageAppointment && setIsEditingTotal(true)}
-                      disabled={formState.isPackageAppointment}
-                      className="w-full rounded-xl px-1.5 py-0.5 text-xs font-bold text-slate-900 flex items-center justify-between group disabled:opacity-60 disabled:cursor-not-allowed hover:border-purple-300 transition-colors"
-                    >
-                      <span>₹{formState.amount}</span>
-                      {!formState.isPackageAppointment && (
-                        <Edit2 className="w-3 h-3 text-slate-400 group-hover:text-purple-600 transition-colors" />
-                      )}
-                    </button>
-                  )}
-                </div>
-
-                {/* ROW 2: Received (Label + Input) */}
-                {!isCustomerActive && !formState.isPackageAppointment && (
-                  <>
-                    {/* ROW 2, COL 1: Received Label */}
-                    <label className="text-[11px] font-bold text-slate-600 flex items-center gap-1 whitespace-nowrap">
-                      <IndianRupee className="w-3 h-3 text-purple-600" /> Received
-                    </label>
-
-                    {/* ROW 2, COL 2: Received Input */}
-                    <div>
-                      <input
-                        type="text"
-                        value={formState.paidAmount || ''}
-                        onChange={(e) =>
-                          setFormState((prev) => ({
-                            ...prev,
-                            paidAmount: parseFloat(e.target.value) || 0,
-                          }))
-                        }
-                        placeholder="0"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-purple-600 [appearance:textfield]"
-                      />
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
+<p className="text-[10px] text-slate-400">
+  Final confirmation is subject to staff availability.
+</p>
           </form>
         )}
       </BaseModal>

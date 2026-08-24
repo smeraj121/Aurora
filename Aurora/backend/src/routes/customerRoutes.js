@@ -30,11 +30,6 @@ router.post('/packages/use/:id', asyncHandler(customerController.usePackageSessi
 router.post('/packages/assign', asyncHandler(customerController.assignPackageToCustomer));
 
 // ============================================================
-// BULK OPERATIONS
-// ============================================================
-router.post('/bulk-optin', asyncHandler(customerController.bulkUpdateOptIn));
-
-// ============================================================
 // INDIVIDUAL CUSTOMER ROUTES (with :id)
 // ============================================================
 // GET /customers/:id - Get customer details
@@ -48,9 +43,6 @@ router.get('/:id/packages', asyncHandler(customerController.getCustomerPackages)
 
 // GET /customers/:id/stats - Customer statistics
 router.get('/:id/stats', asyncHandler(customerController.getCustomerStats));
-
-// PUT /customers/:id/loyalty - Update loyalty points
-router.put('/:id/loyalty', asyncHandler(customerController.updateLoyaltyPoints));
 
 // PUT /customers/:id - Update customer
 router.put('/:id', asyncHandler(customerController.updateCustomer));

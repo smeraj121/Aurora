@@ -8,12 +8,11 @@ import {
   X,
   User,
   Phone,
-  CreditCard,
   Package,
 } from 'lucide-react';
 import type { ExtendedAppointment } from '../types';
 import { formatCurrency } from '../../../lib/utils';
-import { getPaymentConfig } from '../../../helper/status.helper';
+import { computePaymentStatus, getPaymentConfig } from '../../../helper/status.helper';
 
 interface AppointmentCardProps {
   appointment: ExtendedAppointment;
@@ -52,23 +51,14 @@ export function AppointmentCard({
     localStatus || appointment.status || 'scheduled';
 
   const isCancelled = currentStatus === 'cancelled';
-  const isCompleted = currentStatus === 'completed';
-  const isScheduled = currentStatus === 'scheduled' || currentStatus === 'in_progress';
+  //const isCompleted = currentStatus === 'completed';
+  //const isScheduled = currentStatus === 'scheduled' || currentStatus === 'in_progress';
 
   const totalAmount = Number(appointment.amount || 0);
   const paidAmount = Number(appointment.paidAmount || 0);
   const dueAmount = Math.max(totalAmount - paidAmount, 0);
 
-  const paymentStatus = (
-    appointment.paymentStatus ||
-    (
-      paidAmount >= totalAmount
-        ? 'paid'
-        : paidAmount > 0
-          ? 'partial'
-          : 'pending'
-    )
-  ).toLowerCase();
+  const paymentStatus = computePaymentStatus(totalAmount,paidAmount,false).toLowerCase();
 
   // ============================================================
   // STATUS CONFIG
@@ -132,7 +122,6 @@ export function AppointmentCard({
   // ============================================================
 
   const handleMouseEnter = () => {
-    console.log(isCustomerActive);
     if(isCustomerActive) return;
 
     if (hideTimeoutRef.current) {

@@ -18,6 +18,9 @@ export interface ApiResponse<T = any> {
   message?: string;
 }
 
+const AUTH_TOKEN_KEY = 'accessToken';
+const REFRESH_TOKEN_KEY = 'refreshToken';
+
 export class ApiError extends Error {
   public readonly statusCode: number;
   public readonly data?: any;
@@ -45,20 +48,20 @@ export class ApiService {
   setAuthToken(token: string | null) {
     this.authToken = token;
     if (token) {
-      localStorage.setItem('accessToken', token);
+      localStorage.setItem(AUTH_TOKEN_KEY, token);
     } else {
-      localStorage.removeItem('accessToken');
+      localStorage.removeItem(AUTH_TOKEN_KEY);
     }
   }
 
   getAuthToken(): string | null {
-    return this.authToken || localStorage.getItem('accessToken');
+    return this.authToken || localStorage.getItem(AUTH_TOKEN_KEY);
   }
 
   clearAuthToken() {
     this.authToken = null;
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
   }
 
   // ============================================================
@@ -114,7 +117,7 @@ export class ApiService {
     if (!response.ok) {
       // Handle 401 - token expired
       if (response.status === 401 && endpoint !== '/auth/refresh-token') {
-        const refreshToken = localStorage.getItem('refreshToken');
+        const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
         if (refreshToken) {
           try {
             const refreshed = await this.refreshToken(refreshToken);
@@ -220,7 +223,7 @@ export class ApiService {
 
     if (!data.requiresTenantSelection && data.accessToken) {
       this.setAuthToken(data.accessToken);
-      localStorage.setItem('refreshToken', data.refreshToken);
+      localStorage.setItem(REFRESH_TOKEN_KEY, data.refreshToken);
     }
 
     return data;
@@ -234,7 +237,7 @@ export class ApiService {
 
       const data = response.data;
       this.setAuthToken(data.accessToken);
-      localStorage.setItem('refreshToken', data.refreshToken);
+      localStorage.setItem(REFRESH_TOKEN_KEY, data.refreshToken);
       return data;
     } catch {
       this.clearAuthToken();
@@ -243,7 +246,7 @@ export class ApiService {
   }
 
   async logout(): Promise<void> {
-    const refreshToken = localStorage.getItem('refreshToken');
+    const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
     if (refreshToken) {
       try {
         await this.post('/auth/logout', { refreshToken });
@@ -292,11 +295,11 @@ export class ApiService {
   }
 
   async finishAppointment(id: number, data: Record<string, unknown>): Promise<ApiResponse<any>> {
-    return this.post(`/appointments/${id}/finish`, data );
+    return this.post(`/appointments/${id}/finish`, data);
   }
 
   async cancelAppointment(id: number, reason: string | undefined): Promise<ApiResponse<any>> {
-    return this.post(`/appointments/${id}/cancel`, {reason});
+    return this.post(`/appointments/${id}/cancel`, { reason });
   }
 
   // ============================================================
@@ -507,32 +510,32 @@ export class ApiService {
   }
 
   // ============================================================
-// DESIGNATION ENDPOINTS
-// ============================================================
+  // DESIGNATION ENDPOINTS
+  // ============================================================
 
-async getDesignations(includeInactive = false): Promise<ApiResponse<Designation[]>> {
-  return this.get<Designation[]>('/designations', { includeInactive });
-}
+  async getDesignations(includeInactive = false): Promise<ApiResponse<Designation[]>> {
+    return this.get<Designation[]>('/designations', { includeInactive });
+  }
 
-async getDesignation(id: number): Promise<ApiResponse<Designation>> {
-  return this.get<Designation>(`/designations/${id}`);
-}
+  async getDesignation(id: number): Promise<ApiResponse<Designation>> {
+    return this.get<Designation>(`/designations/${id}`);
+  }
 
-async createDesignation(data: any): Promise<ApiResponse<Designation>> {
-  return this.post<Designation>('/designations', data);
-}
+  async createDesignation(data: any): Promise<ApiResponse<Designation>> {
+    return this.post<Designation>('/designations', data);
+  }
 
-async updateDesignation(id: number, data: any): Promise<ApiResponse<Designation>> {
-  return this.put<Designation>(`/designations/${id}`, data);
-}
+  async updateDesignation(id: number, data: any): Promise<ApiResponse<Designation>> {
+    return this.put<Designation>(`/designations/${id}`, data);
+  }
 
-async toggleDesignationStatus(id: number, isActive: boolean): Promise<ApiResponse<Designation>> {
-  return this.patch<Designation>(`/designations/${id}/status`, { isActive });
-}
+  async toggleDesignationStatus(id: number, isActive: boolean): Promise<ApiResponse<Designation>> {
+    return this.patch<Designation>(`/designations/${id}/status`, { isActive });
+  }
 
-async deleteDesignation(id: number): Promise<ApiResponse<void>> {
-  return this.delete(`/designations/${id}`);
-}
+  async deleteDesignation(id: number): Promise<ApiResponse<void>> {
+    return this.delete(`/designations/${id}`);
+  }
 
   // ============================================================
   // DASHBOARD ENDPOINTS
@@ -567,7 +570,7 @@ async deleteDesignation(id: number): Promise<ApiResponse<void>> {
     return this.patch<Tenant>(`/tenants/${id}/status`, { isActive });
   }
 
-  async superAdminLogin(phone: string , pin: string): Promise<ApiResponse<any>> {
+  async superAdminLogin(phone: string, pin: string): Promise<ApiResponse<any>> {
     return this.post('/auth/super-admin-login', { phone, pin });
   }
 }

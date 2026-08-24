@@ -149,7 +149,6 @@ class AuthService {
     }
 
     return updatedUser;
-    //return await authRepository.updateProfile(userId, profileData);
   }
 
   async changeLanguage(userId, preferredLanguage) {
@@ -164,7 +163,6 @@ class AuthService {
   }
 
   async superAdminLogin(phone, pin) {
-    const client = await pool.connect();
     try {
       const configuredPin = process.env.SUPER_ADMIN_PIN;
 
@@ -172,7 +170,7 @@ class AuthService {
         throw new Error('Super admin authentication is not configured.');
       }
 
-      const systemUser = await authRepository.findSuperAdminByPhone(phone, client);
+      const systemUser = await authRepository.findSuperAdminByPhone(phone);
 
       if (!systemUser) {
         throw new UnauthorizedError('Invalid credentials.');
@@ -204,8 +202,6 @@ class AuthService {
       };
     } catch (error) {
       throw error;
-    } finally {
-      client.release();
     }
   }
 }

@@ -18,7 +18,6 @@ export interface Customer {
   lastVisitAt: string;
   birthDate?: string;
   notes?: string;
-  preferredStaffId?: string;
 }
 
 export interface Staff {

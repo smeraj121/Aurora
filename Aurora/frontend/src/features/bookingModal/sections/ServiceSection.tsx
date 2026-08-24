@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { Scissors, Check, X } from 'lucide-react';
 import type { BookingServiceItem } from '../../../types/booking.types';
 import type { CustomerPackageServiceItem } from '../../../types/customerpackage.types';
+import { useClickOutside } from '../../../hooks/useClickOutside';
 
 interface ServiceSectionProps {
   staffId: number | null;
@@ -21,29 +22,13 @@ export function ServiceSection({
 }: ServiceSectionProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useClickOutside<HTMLDivElement>(() => setIsOpen(false));
   // Instant 1-click select filtering
   const filteredServices = serviceList.filter(
     (s) =>
       s.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
       !services.some((added) => added.serviceId === s.id)
   );
-useEffect(() => {
-  const handleClickOutside = (event: MouseEvent) => {
-    if (
-      dropdownRef.current &&
-      !dropdownRef.current.contains(event.target as Node)
-    ) {
-      setIsOpen(false);
-    }
-  };
-
-  document.addEventListener('mousedown', handleClickOutside);
-
-  return () => {
-    document.removeEventListener('mousedown', handleClickOutside);
-  };
-}, []);
   return (
     <div ref={dropdownRef} className="space-y-2">
       <label className="block text-xs font-bold text-slate-700 flex items-center gap-1.5">

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import {
   Calendar as CalendarIcon,
   ChevronLeft,
@@ -18,6 +18,7 @@ import {
   isSameDay,
   isToday,
 } from 'date-fns';
+import { useClickOutside } from '../../hooks/useClickOutside';
 
 interface DatePickerDropdownProps {
   selectedDate?: Date;
@@ -33,21 +34,7 @@ export function DatePickerDropdown({
   const [isOpen, setIsOpen] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(selectedDate);
   const [date, setDate] = useState(selectedDate);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  // Close dropdown on click outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  const dropdownRef = useClickOutside<HTMLDivElement>(() => setIsOpen(false));
 
   const handleSelectDate = (day: Date) => {
     setDate(day);

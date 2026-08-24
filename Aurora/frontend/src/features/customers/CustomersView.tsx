@@ -26,6 +26,8 @@ import { BookingModal } from '../bookingModal/BookingModal';
 import type { CustomerPackage } from '../../types/customerpackage.types';
 import { CustomerModal } from './components/CustomerModal';
 import type { CustomerListItem, CustomerDetails, CustomerVisit } from '../../types/customer.types';
+import { SEARCH_DEBOUNCE_MS } from '../../shared/constants/common';
+import { useDebouncedCallback } from '../../hooks/useDebouncedCallback';
 
 export function CustomersView() {
   const [customers, setCustomers] = useState<CustomerListItem[]>([]);
@@ -39,7 +41,6 @@ export function CustomersView() {
   const [editingCustomerPackage, setEditingCustomerPackage] = useState<CustomerPackage | null>(null);
   const [appointmentId, setAppointmentId] = useState<number | null>(null);
   const [pageLoading, setLoading] = useState(true);
-  const [searchTimeout, setSearchTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
   // Load initial customers
   useEffect(() => {
     loadCustomers();
@@ -70,19 +71,14 @@ export function CustomersView() {
     }
   };
 
-  const handleSearch = (value: string) => {
-    setSearchTerm(value);
+  const runSearch = useDebouncedCallback((value: string) => {
+  loadCustomers(value);
+}, SEARCH_DEBOUNCE_MS);
 
-    if (searchTimeout) {
-      clearTimeout(searchTimeout);
-    }
-
-    const timeout = setTimeout(() => {
-      loadCustomers(value);
-    }, 300);
-
-    setSearchTimeout(timeout);
-  };
+const handleSearch = (value: string) => {
+  setSearchTerm(value);
+  runSearch(value);
+};
 
   // Open modal for adding a new customer
   const openAddCustomer = () => {

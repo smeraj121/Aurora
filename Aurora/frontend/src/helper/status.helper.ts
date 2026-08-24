@@ -1,4 +1,5 @@
 import { Check, X, Clock, CreditCard } from "lucide-react";
+import type { PaymentStatus } from "../shared/types/domain";
 
 {/* Helper function for Status styling */ }
   export const getStatusConfig = (status: string) => {
@@ -19,7 +20,7 @@ import { Check, X, Clock, CreditCard } from "lucide-react";
           border: 'border-rose-200',
           icon: X,
         };
-      case 'inprogress':
+      case 'in_progress':
         return {
           label: 'In Progress',
           bg: 'bg-amber-50',
@@ -76,3 +77,15 @@ export const getPaymentConfig = (paymentStatus: string) => {
         };
     }
   };
+// status.helper.ts — single source of truth
+export function computePaymentStatus(
+  total: number,
+  paid: number,
+  isPackageAppointment: boolean
+): PaymentStatus {
+  if (isPackageAppointment) return 'paid';
+  if (total <= 0) return 'paid';
+  if (paid <= 0) return 'pending';
+  if (paid < total) return 'partial';
+  return 'paid';
+}

@@ -1,57 +1,73 @@
-import { DollarSign, CreditCard, ChevronDown } from 'lucide-react';
-import { PAYMENT_STATUS_OPTIONS } from '../types/constants';
-import type { PaymentStatus } from '../../../shared/types/domain';
+import { useState } from 'react';
+import { IndianRupee, Edit2 } from 'lucide-react';
 
 interface PaymentSectionProps {
   amount: number;
   onAmountChange: (amount: number) => void;
-  paymentStatus: PaymentStatus;
-  onPaymentStatusChange: (status: PaymentStatus) => void;
   paidAmount: number;
   onPaidAmountChange: (amount: number) => void;
   isPackageAppointment: boolean;
+  isEditable: boolean;
 }
 
 export function PaymentSection({
   amount,
   onAmountChange,
-  paymentStatus,
-  onPaymentStatusChange,
   paidAmount,
   onPaidAmountChange,
   isPackageAppointment,
+  isEditable,
 }: PaymentSectionProps) {
+  const [isEditingTotal, setIsEditingTotal] = useState(false);
+  const canEditTotal = isEditable && !isPackageAppointment;
+
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+    <div className="grid grid-cols-[auto_1fr] items-center gap-x-2 gap-y-1">
+      <label className="text-[11px] font-bold text-slate-600 flex items-center gap-1 whitespace-nowrap">
+        <IndianRupee className="w-3 h-3 text-purple-600" /> Total
+      </label>
       <div>
-        <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
-          <DollarSign className="w-3.5 h-3.5 text-purple-600" /> Total (₹)
-        </label>
-        <input type="number" step="0.01" value={amount} onChange={(e) => onAmountChange(parseFloat(e.target.value) || 0)} placeholder="0.00" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-purple-600" disabled={isPackageAppointment} />
-        {isPackageAppointment && <p className="text-[10px] text-emerald-600 mt-1">Covered by package</p>}
+        {isEditingTotal && canEditTotal ? (
+          <input
+            type="text"
+            value={amount}
+            onChange={(e) => onAmountChange(parseFloat(e.target.value) || 0)}
+            onBlur={() => setIsEditingTotal(false)}
+            autoFocus
+            className="w-full bg-slate-50 border border-purple-300 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-900 focus:outline-none focus:border-purple-600"
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => canEditTotal && setIsEditingTotal(true)}
+            disabled={!canEditTotal}
+            className="w-full rounded-xl px-1.5 py-0.5 text-xs font-bold text-slate-900 flex items-center justify-between group disabled:cursor-default hover:border-purple-300 transition-colors"
+          >
+            <span>₹{amount}</span>
+            {canEditTotal && (
+              <Edit2 className="w-3 h-3 text-slate-400 group-hover:text-purple-600 transition-colors" />
+            )}
+          </button>
+        )}
       </div>
 
-      <div>
-        <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
-          <CreditCard className="w-3.5 h-3.5 text-purple-600" /> Payment Status
-        </label>
-        <div className="relative">
-          <select value={paymentStatus} onChange={(e) => onPaymentStatusChange(e.target.value as PaymentStatus)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-purple-600 appearance-none cursor-pointer">
-            {PAYMENT_STATUS_OPTIONS.map((status) => (
-              <option key={status.id} value={status.id}>{status.label}</option>
-            ))}
-          </select>
-          <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-3 pointer-events-none" />
-        </div>
-      </div>
-
-      <div>
-        <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
-          <CreditCard className="w-3.5 h-3.5 text-purple-600" /> Received (₹)
-        </label>
-        <input type="number" step="0.01" value={paidAmount} onChange={(e) => onPaidAmountChange(parseFloat(e.target.value) || 0)} placeholder="0.00" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-purple-600" disabled={isPackageAppointment} />
-        {isPackageAppointment && <p className="text-[10px] text-emerald-600 mt-1">Already paid via package</p>}
-      </div>
+      {/* Received: staff-only, non-package only — never rendered for customers */}
+      {isEditable && !isPackageAppointment && (
+        <>
+          <label className="text-[11px] font-bold text-slate-600 flex items-center gap-1 whitespace-nowrap">
+            <IndianRupee className="w-3 h-3 text-purple-600" /> Received
+          </label>
+          <div>
+            <input
+              type="text"
+              value={paidAmount || ''}
+              onChange={(e) => onPaidAmountChange(parseFloat(e.target.value) || 0)}
+              placeholder="0"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-purple-600 [appearance:textfield]"
+            />
+          </div>
+        </>
+      )}
     </div>
   );
 }

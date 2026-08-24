@@ -1,4 +1,3 @@
-const { ca } = require('zod/v4/locales');
 const db = require('../config/db');
 
 class CustomerRepository {
@@ -26,7 +25,7 @@ class CustomerRepository {
         s.full_name AS "preferredStaffName"
       FROM customers c
       INNER JOIN users u ON c.user_id = u.id
-      LEFT JOIN staff st ON c.preferred_staff_id = st.id
+      LEFT JOIN staff st ON c.preferred_staff_id = st.id AND st.tenant_id = c.tenant_id
       LEFT JOIN users s ON st.user_id = s.id
       WHERE c.tenant_id = $1
     `;
@@ -76,7 +75,7 @@ class CustomerRepository {
         c.created_at AS "createdAt"
       FROM customers c
       INNER JOIN users u ON c.user_id = u.id
-      LEFT JOIN staff st ON c.preferred_staff_id = st.id
+      LEFT JOIN staff st ON c.preferred_staff_id = st.id AND st.tenant_id = c.tenant_id
       LEFT JOIN users s ON st.user_id = s.id
       WHERE c.id = $1 AND c.tenant_id = $2
     `;
@@ -191,7 +190,6 @@ class CustomerRepository {
         INSERT INTO customers (
           tenant_id,
           user_id,
-          preferred_staff_id,
           notes,
           total_visits,
           total_spent,
@@ -205,12 +203,11 @@ class CustomerRepository {
           created_at,
           updated_at
         )
-        VALUES ($1, $2, $3, $4, 0, 0, 0, 0, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        VALUES ($1, $2, $3, 0, 0, 0, 0, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         RETURNING 
           id,
           tenant_id AS "tenantId",
           user_id AS "userId",
-          preferred_staff_id AS "preferredStaffId",
           notes,
           total_visits AS "totalVisits",
           total_spent AS "totalSpent",
@@ -228,7 +225,6 @@ class CustomerRepository {
       const customerValues = [
         tenantId,
         userId,
-        data.preferredStaffId || null,
         data.notes || null,
         data.marketingOptIn || false,
         data.whatsappOptIn || false,
@@ -302,7 +298,8 @@ class CustomerRepository {
     try {
       await client.query('BEGIN');
 
-      const customer = await this.getCustomerDetails(tenantId, id);
+      // Read customer using transaction client
+      const customer = await this.getCustomerDetails(tenantId, id, client);
       if (!customer) {
         throw new Error('Customer not found');
       }
@@ -362,10 +359,6 @@ class CustomerRepository {
       const customerValues = [];
       let customerParamCount = 1;
 
-      if (data.preferredStaffId !== undefined) {
-        customerUpdates.push(`preferred_staff_id = $${customerParamCount++}`);
-        customerValues.push(data.preferredStaffId);
-      }
       if (data.notes !== undefined) {
         customerUpdates.push(`notes = $${customerParamCount++}`);
         customerValues.push(data.notes);

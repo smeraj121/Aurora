@@ -1,6 +1,7 @@
 const customerRepository = require('../repositories/customerRepository');
 const customerPackageRepository = require('../repositories/customerPackageRepository');
 const { ConflictError, NotFoundError, ValidationError } = require('../errors');
+const { parseNumericId } = require('../validators/customer.validator');
 
 // ============================================================
 // GET CUSTOMERS (with search)
@@ -140,21 +141,20 @@ async function getCustomerStats(tenantId, id) {
 // RESOLVE CUSTOMER (for appointment workflow)
 // ============================================================
 async function resolveCustomer(tenantId, data, userId, client) {
-  const parseNumericId = (val) => {
-    if (!val) return null;
-    const digits = String(val).replace(/\D/g, '');
-    return digits ? parseInt(digits, 10) : null;
-  };
-
   let cleanCustomerId = parseNumericId(data.customerId);
   const cleanPhone = data.phone ? data.phone.trim() : null;
   const customerName = data.customerName ? data.customerName.trim() : null;
 
+  // If customerId is provided, look up by ID using tenantId
   if (cleanCustomerId) {
     const existingCust = await customerRepository.getCustomerDetails(tenantId, cleanCustomerId, client);
     if (existingCust) {
-      if (existingCust.status && existingCust.status !== 'active') {
+      if (existingCust.isActive === false) {
         throw new ValidationError('Customer account is inactive.');
+      }
+      // Verify the customer actually belongs to this tenant
+      if (existingCust.tenantId !== tenantId) {
+        throw new ValidationError('Customer not found');
       }
       return existingCust.id;
     }
@@ -168,11 +168,12 @@ async function resolveCustomer(tenantId, data, userId, client) {
     throw new ValidationError('Phone number is required for new customers.');
   }
 
+  // Search by phone within tenant scope
   const phoneMatch = await customerRepository.findCustomerByPhone(tenantId, cleanPhone, client);
   if (phoneMatch) {
-    if (phoneMatch.full_name.toLowerCase() !== customerName.toLowerCase()) {
+    if (phoneMatch.fullName.toLowerCase() !== customerName.toLowerCase()) {
       throw new ConflictError(
-        `A customer (${phoneMatch.full_name}) with phone "${cleanPhone}" is already registered.`
+        `A customer (${phoneMatch.fullName}) with phone "${cleanPhone}" is already registered.`
       );
     }
     return phoneMatch.id;
@@ -190,37 +191,6 @@ async function updateStatistics(tenantId, customerId, client) {
   await customerRepository.recalculateCustomerStats(tenantId, customerId, client);
 }
 
-// ============================================================
-// UPDATE LOYALTY POINTS
-// ============================================================
-async function updateLoyaltyPoints(tenantId, customerId, points, userId) {
-  const customer = await customerRepository.getCustomerDetails(tenantId, customerId);
-  if (!customer) {
-    throw new NotFoundError('Customer not found');
-  }
-  if (typeof points !== 'number' || points === 0) {
-    throw new ValidationError('Points must be a non-zero number');
-  }
-  return customerRepository.updateLoyaltyPoints(tenantId, customerId, points, userId);
-}
-
-// ============================================================
-// BULK UPDATE OPT-IN
-// ============================================================
-async function bulkUpdateOptIn(tenantId, customerIds, optInType, value, userId) {
-  if (!customerIds || !Array.isArray(customerIds) || customerIds.length === 0) {
-    throw new ValidationError('Customer IDs array is required');
-  }
-  const validTypes = ['marketing_opt_in', 'whatsapp_opt_in', 'email_opt_in'];
-  if (!validTypes.includes(optInType)) {
-    throw new ValidationError(`Invalid opt-in type. Allowed: ${validTypes.join(', ')}`);
-  }
-  if (typeof value !== 'boolean') {
-    throw new ValidationError('Value must be boolean');
-  }
-  return customerRepository.bulkUpdateOptIn(tenantId, customerIds, optInType, value, userId);
-}
-
 module.exports = {
   getCustomers,
   getCustomer,
@@ -233,6 +203,4 @@ module.exports = {
   getCustomerStats,
   resolveCustomer,
   updateStatistics,
-  updateLoyaltyPoints,
-  bulkUpdateOptIn,
 };
