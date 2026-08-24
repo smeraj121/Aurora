@@ -1,21 +1,23 @@
 // services/calendarService.js
 const calendarRepository = require('../repositories/calendarRepository');
-const customerRepository = require('../repositories/customerRepository');
+const customerService = require('./customerService');
 const { NotFoundError, ValidationError, ConflictError } = require('../errors');
 
 
 // ============================================================
 // GET SCHEDULE BY DATE
 // ============================================================
-async function getScheduleByDate(tenantId, userId, date, systemRole) {
+async function getScheduleByDate(tenantId, userId, date, systemRole, includeCancelled = false) {
   if (!date) {
     throw new ValidationError('Date parameter is required');
   }
-  const schedule = await calendarRepository.findScheduleByDate(tenantId, date);
+  const schedule = await calendarRepository.findScheduleByDate(tenantId, date, includeCancelled);
+  const customerId = systemRole?.trim().toLowerCase() === 'customer'
+    ? await customerService.getCustomerIdForUser(tenantId, userId)
+    : null;
   schedule.forEach((appointment) => {
-    if(!appointment) return;
-    if(systemRole.trim().toLowerCase() === 'customer' && appointment.customerId !== userId) {
-      // Hide sensitive customer information for non-admin/staff users
+    if (!appointment) return;
+    if (customerId !== null && appointment.customerId !== customerId) {
       appointment.customerId = null;
       appointment.customerName = 'Booked Customer';
       appointment.customerPhone = null;
@@ -28,7 +30,6 @@ async function getScheduleByDate(tenantId, userId, date, systemRole) {
   });
   return schedule;
 }
-
 
 module.exports = {
   getScheduleByDate

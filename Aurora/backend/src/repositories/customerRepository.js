@@ -84,6 +84,21 @@ class CustomerRepository {
     return rows[0] || null;
   }
 
+  // Resolve the customer profile associated with an authenticated user. Customer
+  // IDs and user IDs are separate sequences, so they must not be compared
+  // directly in customer-facing appointment flows.
+  async getCustomerByUserId(tenantId, userId, client = db) {
+    const query = `
+      SELECT c.id
+      FROM customers c
+      JOIN users u ON u.id = c.user_id
+      WHERE c.tenant_id = $1 AND c.user_id = $2 AND u.is_active = true
+      LIMIT 1
+    `;
+    const { rows } = await client.query(query, [tenantId, userId]);
+    return rows[0] || null;
+  }
+
   // ============================================================
   // GET CUSTOMER HISTORY (appointments)
   // ============================================================

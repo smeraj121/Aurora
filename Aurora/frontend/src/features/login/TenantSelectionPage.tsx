@@ -1,5 +1,5 @@
 // src/pages/TenantSelection/TenantSelectionPage.tsx
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Building2, Check, ArrowRight } from 'lucide-react';

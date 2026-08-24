@@ -19,6 +19,7 @@ export function CalendarView() {
   const [selectedStaffId, setSelectedStaffId] = useState<number | null>(null);
   const [selectedStartTime, setSelectedStartTime] = useState('');
   const [modalBackendError, setModalBackendError] = useState<string | null>(null);
+  
   const {
     appointments,
     loading,
@@ -27,7 +28,6 @@ export function CalendarView() {
     cancelAppointment,
   } = useAppointmentSchedule(currentDate);
 
-  // Partial Payment Confirmation Dialog State
   const [pendingPaymentWarning, setPendingPaymentWarning] = useState<{ id: number; due: number } | null>(null);
   const { user } = useAuth();
   const isCustomerActive = user?.systemRole.toLocaleLowerCase() === 'customer';
@@ -41,7 +41,6 @@ export function CalendarView() {
   const fetchStaff = async () => {
     try {
       const staffRes = await api.getStaff();
-
       if (staffRes.success) {
         setStaffList(staffRes.data);
       }
@@ -63,7 +62,6 @@ export function CalendarView() {
   }, [selectedStaffFilter, staffList]);
 
   const handleOpenModal = (apt: ExtendedAppointment | null = null, staffId?: number, startTime?: string) => {
-    //if(apt && isCustomerActive && apt?.customerId !== user.id) return;
     setModalBackendError(null);
     if (apt?.status === 'cancelled') {
       setEditingAppointmentId(null);
@@ -78,57 +76,55 @@ export function CalendarView() {
   const handleFinishAppointment = async (
     id: number,
     e?: React.MouseEvent
-  ) => {
+  ): Promise<boolean> => {
     e?.stopPropagation();
-
     const apt = appointments.find((a) => a.id === id);
-
-    if (!apt) return;
+    if (!apt?.id) return false;
 
     const total = Number(apt.amount || 0);
     const paid = Number(apt.paidAmount || 0);
     const due = total - paid;
 
     if (due > 0) {
-      setPendingPaymentWarning({
-        id,
-        due,
-      });
-
-      return;
+      setPendingPaymentWarning({ id, due });
+      return false;
     }
 
     try {
       await finishAppointment(id);
+      return true;
     } catch (err: any) {
       console.error(err);
       handleOpenModal(apt);
-      setModalBackendError(
-        err.message || 'Failed to finish appointment.'
-      );
+      setModalBackendError(err.message || 'Failed to finish appointment.');
+      throw err;
     }
   };
 
-  const handleCancelAppointment = (
+  const handleCancelAppointment = async (
     apt: ExtendedAppointment,
     e: React.MouseEvent
-  ) => {
+  ): Promise<void> => {
     e.stopPropagation();
-    if (apt.durationMinutes < 0)
+    try {
+      if (!apt.id) return;
+      await cancelAppointment(apt.id);
+    } catch (err: any) {
       handleOpenModal(apt);
+      setModalBackendError(err.message || 'Failed to cancel appointment.');
+      throw err;
+    }
   };
 
   const handleSaveAppointment = async (savedApt: any) => {
     try {
       await saveAppointment(savedApt, editingAppointmentId);
-
       setIsModalOpen(false);
       setEditingAppointmentId(null);
       setModalBackendError(null);
     } catch (err: any) {
-      setModalBackendError(
-        err.message || 'Failed to save appointment.'
-      );
+      setModalBackendError(err.message || 'Failed to save appointment.');
+      throw err;
     }
   };
 
@@ -212,57 +208,74 @@ export function CalendarView() {
         </div>
       ) : (
         <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-          <div className="grid grid-cols-12 border-b border-slate-200 bg-slate-50/90 sticky top-0 z-20 backdrop-blur-xs">
-            <div className="col-span-2 p-3 text-[11px] font-extrabold text-slate-400 uppercase tracking-wider border-r border-slate-200">
-              Time
-            </div>
-            <div className="col-span-10 grid" style={{ gridTemplateColumns: `repeat(${Math.max(filteredStaff.length, 1)}, 1fr)` }}>
-              {filteredStaff.map((staff) => (
-                <div key={staff.id} className="p-2.5 flex items-center gap-2.5 border-r border-slate-200 last:border-r-0">
-                  <div className="w-7 h-7 rounded-full bg-purple-100 text-purple-700 font-bold flex items-center justify-center text-xs">
-                    {staff.name?.charAt(0)}
-                  </div>
-                  <div className="min-w-0">
-                    <h5 className="text-xs font-bold text-slate-900 truncate">{staff.name}</h5>
-                    <p className="text-[10px] text-slate-400 truncate font-medium">{staff.role || 'Stylist'}</p>
-                  </div>
+          {/* Dual Scroll Container (Vertical + Horizontal) */}
+          <div className="overflow-auto max-h-[calc(100vh-220px)] sm:max-h-[750px]">
+            <div className="min-w-full w-max flex flex-col">
+              
+              {/* Sticky Staff Header Row */}
+              <div className="flex border-b border-slate-200 bg-slate-50 sticky top-0 z-30 shadow-xs">
+                {/* Fixed Top-Left Intersection Box (Time Label) */}
+                <div className="w-20 sm:w-24 shrink-0 p-3 text-[11px] font-extrabold text-slate-400 uppercase tracking-wider border-r border-slate-200 sticky left-0 bg-slate-50 z-40">
+                  Time
                 </div>
-              ))}
-            </div>
-          </div>
+                
+                {/* Flexible Staff Headers */}
+                <div className="flex flex-1">
+                  {filteredStaff.map((staff) => (
+                    <div
+                      key={staff.id}
+                      className="flex-1 min-w-[160px] p-2.5 flex items-center gap-2.5 border-r border-slate-200 last:border-r-0 bg-slate-50"
+                    >
+                      <div className="w-7 h-7 rounded-full bg-purple-100 text-purple-700 font-bold flex items-center justify-center text-xs shrink-0">
+                        {staff.name?.charAt(0)}
+                      </div>
+                      <div className="min-w-0">
+                        <h5 className="text-xs font-bold text-slate-900 truncate">{staff.name}</h5>
+                        <p className="text-[10px] text-slate-400 truncate font-medium">{staff.role || 'Stylist'}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
 
-          <div className="grid grid-cols-12">
-            {/* Timeline Column (Darkened Hour Separators, Slot Counts Removed) */}
-            <div className="col-span-2 border-r border-slate-200 bg-slate-50/40 select-none">
-              {TIME_SLOTS.map((slot) => {
-                const isHour = slot.endsWith(':00 AM') || slot.endsWith(':00 PM');
-                return (
-                  <div
-                    key={slot}
-                    style={{ height: '36px' }}
-                    className={`flex items-center px-3 ${isHour ? 'border-t border-slate-300 text-xs font-bold text-slate-700' : 'border-t border-slate-100 text-[10px] text-slate-300'
-                      }`}
-                  >
-                    {isHour ? slot : ''}
-                  </div>
-                );
-              })}
-            </div>
+              {/* Schedule Body */}
+              <div className="flex flex-1">
+                {/* Sticky Horizontal Timeline Column */}
+                <div className="w-20 sm:w-24 shrink-0 border-r border-slate-200 bg-slate-50/90 select-none sticky left-0 z-20 backdrop-blur-xs">
+                  {TIME_SLOTS.map((slot) => {
+                    const isHour = slot.endsWith(':00 AM') || slot.endsWith(':00 PM');
+                    return (
+                      <div
+                        key={slot}
+                        style={{ height: '36px' }}
+                        className={`flex items-center px-2 sm:px-3 ${
+                          isHour ? 'border-t border-slate-300 text-xs font-bold text-slate-700' : 'border-t border-slate-100 text-[10px] text-slate-300'
+                        }`}
+                      >
+                        {isHour ? slot : ''}
+                      </div>
+                    );
+                  })}
+                </div>
 
-            {/* Staff Schedule Columns */}
-            <div className="col-span-10 grid" style={{ gridTemplateColumns: `repeat(${Math.max(filteredStaff.length, 1)}, 1fr)` }}>
-              {filteredStaff.map((staff) => (
-                <StaffColumn
-                  key={staff.id}
-                  staff={staff}
-                  appointments={appointments}
-                  onAppointmentClick={(apt) => handleOpenModal(apt)}
-                  onNewBooking={(staffId, slot) => handleOpenModal(null, staffId, slot)}
-                  onFinish={handleFinishAppointment}
-                  onCancel={handleCancelAppointment}
-                  isCustomerActive={isCustomerActive}
-                />
-              ))}
+                {/* Staff Schedule Columns */}
+                <div className="flex flex-1">
+                  {filteredStaff.map((staff) => (
+                    <div key={staff.id} className="flex-1 min-w-[160px]">
+                      <StaffColumn
+                        staff={staff}
+                        appointments={appointments}
+                        onAppointmentClick={(apt) => handleOpenModal(apt)}
+                        onNewBooking={(staffId, slot) => handleOpenModal(null, staffId, slot)}
+                        onFinish={handleFinishAppointment}
+                        onCancel={handleCancelAppointment}
+                        isCustomerActive={isCustomerActive}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
             </div>
           </div>
         </div>
@@ -293,9 +306,7 @@ export function CalendarView() {
               <button
                 onClick={async () => {
                   const id = pendingPaymentWarning.id;
-
                   setPendingPaymentWarning(null);
-
                   try {
                     await finishAppointment(id);
                   } catch (err: any) {
@@ -323,8 +334,8 @@ export function CalendarView() {
           setModalBackendError(null);
         }}
         onSave={handleSaveAppointment}
-        onFinishAppointment={async (id) => {
-          await finishAppointment(id);
+        onFinishAppointment={async (id, data) => {
+          await finishAppointment(id, data);
         }}
         onCancelAppointment={async (id, reason) => {
           await cancelAppointment(id, reason);

@@ -4,10 +4,9 @@ import type {
   PaymentStatusOption,
   BookingFormState,
 } from './types';
-import { CalendarIcon, CheckCircle2, Clock3, XCircle } from 'lucide-react';
+import { CalendarIcon, CheckCircle2, XCircle } from 'lucide-react';
 
 export const STATUS_OPTIONS: StatusOption[] = [
-  { id: 'scheduled', label: 'Scheduled', icon: CalendarIcon },
   {
     id: 'confirmed',
     label: 'Confirmed',
@@ -15,11 +14,18 @@ export const STATUS_OPTIONS: StatusOption[] = [
     color: 'text-blue-500',
   },
   {
-    id: 'in_progress',
-    label: 'In Progress',
-    icon: Clock3,
-    color: 'text-purple-500',
-  },
+    id: 'scheduled',
+    label: 'Scheduled',
+    icon: CalendarIcon,
+    color: 'text-yellow-500',
+  }
+  ,
+  //{
+  //  id: 'in_progress',
+  //  label: 'In Progress',
+  //  icon: Clock3,
+  //  color: 'text-purple-500',
+  //},
   {
     id: 'completed',
     label: 'Completed',

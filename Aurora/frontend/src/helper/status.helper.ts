@@ -20,9 +20,17 @@ import type { PaymentStatus } from "../shared/types/domain";
           border: 'border-rose-200',
           icon: X,
         };
-      case 'in_progress':
+      //case 'in_progress':
+        //return {
+          //label: 'In Progress',
+          //bg: 'bg-amber-50',
+          //text: 'text-amber-700',
+          //border: 'border-amber-200',
+          //icon: Clock,
+        //};
+      case 'confirmed':
         return {
-          label: 'In Progress',
+          label: 'Confirmed',
           bg: 'bg-amber-50',
           text: 'text-amber-700',
           border: 'border-amber-200',

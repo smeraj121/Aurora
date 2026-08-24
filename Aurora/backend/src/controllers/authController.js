@@ -99,6 +99,7 @@ class AuthController {
       data: {
         id: user.id,
         tenantId: user.tenant_id,
+        customerId: user.customerId,
         fullName: user.fullName,
         phone: user.phone,
         email: user.email,

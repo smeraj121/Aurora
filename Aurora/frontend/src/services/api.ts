@@ -277,9 +277,8 @@ export class ApiService {
   // ============================================================
   // CALENDAR ENDPOINTS
   // ============================================================
-
-  async getSchedule(date: string): Promise<ApiResponse<Appointment[]>> {
-    return this.get<Appointment[]>('/calendar', { date });
+  async getSchedule(date: string, includeCancelled = false): Promise<ApiResponse<Appointment[]>> {
+  return this.get<Appointment[]>('/calendar', { date, includeCancelled });
   }
 
   async getAppointment(id: number): Promise<ApiResponse<any>> {

@@ -71,8 +71,8 @@ export function ScheduleTimeline({ date }: ScheduleTimelineProps) {
         onSave={handleSave}
         appointmentId={editingAppointment?.id}
         currentDate={getLocalDateString(date)}
-        onFinishAppointment={async (id) => {
-          await finishAppointment(id);
+        onFinishAppointment={async (id, data) => {
+          await finishAppointment(id, data);
           refresh();
         }}
         onCancelAppointment={async (id, reason) => {

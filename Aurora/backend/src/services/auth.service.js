@@ -80,11 +80,13 @@ class AuthService {
 
       return {
         requiresTenantSelection: false, ...tokens, user: {
-          userId: singleUser.user_id,
+          id: singleUser.user_id,
           fullName: singleUser.full_name,
           email: singleUser.email,
+          phone,
           systemRole: singleUser.system_role,
-          tenantId: singleUser.tenantId
+          tenantId: singleUser.tenant_id,
+          customerId: singleUser.customer_id,
         }
       };
     }
@@ -116,7 +118,19 @@ class AuthService {
       phone,
     });
 
-    return { requiresTenantSelection: false, ...tokens };
+    return {
+      requiresTenantSelection: false,
+      ...tokens,
+      user: {
+        id: targetAccount.user_id,
+        fullName: targetAccount.full_name,
+        email: targetAccount.email,
+        phone,
+        systemRole: targetAccount.system_role,
+        tenantId: targetAccount.tenant_id,
+        customerId: targetAccount.customer_id,
+      },
+    };
   }
 
   async refreshToken(rawRefreshToken) {

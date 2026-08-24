@@ -112,11 +112,12 @@ export function PackageSection({
             {activePackage.services.map((svc) => {
               const isSelected = selectedServices.includes(svc.serviceId);
               const isExhausted = svc.usedQuantity >= (svc.totalQuantity||0);
+              const isServiceInactive = svc.isActive === false;
               const wasOriginallySelectedByThisAppointment =
                 isEditing &&
                 selectedPackageId === originalPackageId &&
                 originalPackageServiceIds.includes(svc.serviceId);
-              const isDisabled = isExhausted && !wasOriginallySelectedByThisAppointment;
+              const isDisabled = isServiceInactive || (isExhausted && !wasOriginallySelectedByThisAppointment);
 
               return (
                 <button
@@ -152,7 +153,7 @@ export function PackageSection({
                         : 'bg-slate-100 text-slate-600'
                     }`}
                   >
-                    {svc.usedQuantity}/{svc.totalQuantity} Used
+                    {isServiceInactive ? 'Unavailable' : `${svc.usedQuantity}/${svc.totalQuantity} Used`}
                   </span>
                 </button>
               );

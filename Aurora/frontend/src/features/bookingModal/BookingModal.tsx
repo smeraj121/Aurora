@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { UserCheck, Edit2, Check, Clock, CheckCircle2, IndianRupee } from 'lucide-react';
+import { UserCheck, Edit2, Check, Clock, IndianRupee } from 'lucide-react';
 import { api } from '../../services/api';
 import type { BookingFormState } from './types/types';
 import type { BookingServiceItem } from '../../types/booking.types';
@@ -25,7 +25,7 @@ interface BookingModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (bookingData: any) => Promise<void>;
-  onFinishAppointment?: (appointmentId: number) => Promise<void>;
+  onFinishAppointment?: (appointmentId: number, data: Record<string, unknown>) => Promise<void>;
   onCancelAppointment?: (appointmentId: number, reason?: string) => Promise<void>;
   appointmentId?: number | null;
   currentDate?: string;
@@ -65,8 +65,6 @@ export function BookingModal({
   // Overrides toggles
   const [isEditingDuration, setIsEditingDuration] = useState(false);
   const [isDurationOverridden, setIsDurationOverridden] = useState(false);
-  const [isEditingTotal, setIsEditingTotal] = useState(false);
-  const [isEditingStatus, setIsEditingStatus] = useState(false);
   const [isTotalOverridden, setIsTotalOverridden] = useState(false);
 
   // Modal state
@@ -103,24 +101,23 @@ export function BookingModal({
       setShowPackageSelector(false);
       setIsEditingDuration(false);
       setIsDurationOverridden(false);
-      setIsEditingTotal(false);
       setIsTotalOverridden(false);
       setFormError(null);
       return;
     }
 
-    if (initialError) setFormError(initialError);
-
     let isSubscribed = true;
 
     const initializeModal = async () => {
       setIsLoading(true);
-      setFormError(null);
+      // Keep an error supplied by the caller visible when reopening the modal
+      // after a failed calendar action.
+      setFormError(initialError ?? null);
 
       try {
         const [staffRes, serviceRes] = await Promise.all([
           api.getStaff(true),
-          api.getBookingServices(true),
+          api.getBookingServices(),
         ]);
 
         if (!isSubscribed) return;
@@ -145,12 +142,11 @@ export function BookingModal({
             setIsDurationOverridden(false);
           }
         } else {
-          const defaultStaff =
-            staffId || (staffRes.success && staffRes.data.length > 0 ? staffRes.data[0].id : null);
+          const defaultStaff = staffId || (staffRes.success && staffRes.data.length > 0 ? staffRes.data[0].id : null);
 
           setFormState((prev) => ({
             ...prev,
-            customerId: initialCustomer?.id ?? (isCustomerActive?user.id:0),
+            customerId: initialCustomer?.id ?? (isCustomerActive ? user?.customerId ?? 0 : 0),
             customerName: initialCustomer?.fullName ?? (isCustomerActive?user.fullName:''),
             phone: initialCustomer?.phone ?? (isCustomerActive?user.phone:''),
             staffId: defaultStaff,
@@ -159,7 +155,7 @@ export function BookingModal({
             status: isCustomerActive ? 'scheduled' : 'confirmed',
           }));
 
-          setIsExistingCustomer(!!initialCustomer);
+          setIsExistingCustomer(!!initialCustomer || (isCustomerActive && Boolean(user?.customerId)));
         }
       } catch (err) {
         if (isSubscribed) {
@@ -225,10 +221,20 @@ export function BookingModal({
   const handleFinish = async () => {
     if (!appointmentId || !onFinishAppointment) return;
 
+    const validationError = validateBooking(formState);
+    if (validationError) {
+      setFormError(validationError);
+      return;
+    }
+
     try {
       setIsSubmitting(true);
       setFormError(null);
-      await onFinishAppointment(appointmentId);
+      await onFinishAppointment(appointmentId, {
+        ...buildBookingPayload(formState),
+        durationMinutes: formState.durationMinutes,
+        paymentStatus: computedPaymentStatus,
+      });
       onClose();
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'Failed to finish appointment');
@@ -251,6 +257,11 @@ export function BookingModal({
   const handleAddService = (serviceId: number) => {
     const serviceToAdd = serviceList.find((s) => s.id === serviceId);
     if (!serviceToAdd) return;
+
+    if (serviceToAdd.isActive === false) {
+      setFormError('This service is no longer available for booking.');
+      return;
+    }
 
     if (formState.services.some((s) => s.serviceId === serviceToAdd.id)) {
       setFormError('Service already added.');
@@ -342,7 +353,7 @@ export function BookingModal({
   };
 
   const displayDuration = formState.durationMinutes;
-
+console.log(formState.status);
   const footerActions = (
     <>
       {/* Left Action: Cancel / Close */}
@@ -368,7 +379,7 @@ export function BookingModal({
       {/* Right Actions: Update / Save and Finish */}
       {(() => {
         const hasFinishButton =
-          !!appointmentId &&
+          !!appointmentId && !isCustomerActive &&
           formState.status !== 'completed' &&
           formState.status !== 'cancelled' && !!onFinishAppointment;
 
@@ -426,6 +437,7 @@ export function BookingModal({
         ) : (
           <form id="booking-form" onSubmit={handleSubmit} className="space-y-4">
             {/* 1. Customer Section */}
+
             <CustomerSection
               customerName={ formState.customerName }
               phone={ formState.phone}
@@ -573,9 +585,10 @@ export function BookingModal({
     </div>
 
     <StatusSection
-      status={formState.status || 'scheduled'}
+      status={formState.status}
       onStatusChange={(status) => setFormState((prev) => ({ ...prev, status }))}
       isEditable={canEditFields}
+      disableCancelled={!appointmentId}
     />
 
     <PaymentSection
@@ -589,16 +602,18 @@ export function BookingModal({
       isPackageAppointment={formState.isPackageAppointment}
       isEditable={canEditFields}
     />
+    
   </div>
+  
 )}
 
-<p className="text-[10px] text-slate-400">
+{isCustomerActive && (
+<p className="text-[10px] text-slate-400 mb-0">
   Final confirmation is subject to staff availability.
-</p>
+</p>)}
           </form>
         )}
       </BaseModal>
-
 
       {showCancelModal && (
         <CancelAppointmentModal

@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import {
-    X,
     User,
     Mail,
     Phone,
@@ -8,7 +7,6 @@ import {
     Calendar,
     Clock,
     CheckCircle2,
-    Upload,
     Tag,
     CalendarDays,
     Scissors,

@@ -147,7 +147,10 @@ async function getAppointmentById(tenantId, id, role, userId) {
   if (!appointment) {
     throw new NotFoundError('Appointment not found.');
   }
-  if (role?.trim().toLowerCase() === 'customer' && userId !== appointment.customerId) {
+  const customerId = role?.trim().toLowerCase() === 'customer'
+    ? await customerService.getCustomerIdForUser(tenantId, userId)
+    : null;
+  if (customerId !== null && customerId !== appointment.customerId) {
     throw new ValidationError('You are not the owner of this appointment.');
   }
   return appointment;
@@ -171,15 +174,19 @@ async function createAppointment(tenantId, role, data, userId) {
     }
 
     const initialStatus = data.status || 'scheduled';
+    if (initialStatus === 'cancelled') {
+      throw new ValidationError('New appointments cannot be created with a "cancelled" status.');
+    }
     if (role?.toLowerCase() === 'customer' && initialStatus !== 'scheduled') {
       throw new ValidationError('Customers can only create appointments with a "scheduled" status.');
     }
 
-    const customerId = await customerService.resolveCustomer(tenantId, data, userId, client);
-
-    if (role?.toLowerCase() === 'customer' && customerId !== userId) {
-      throw new ValidationError('You can only create your own appointments.');
-    }
+    const isCustomer = role?.trim().toLowerCase() === 'customer';
+    // A customer books against their linked customer profile, not their users.id.
+    // Ignore the UI's customerId for this normal customer booking path.
+    const customerId = isCustomer
+      ? await customerService.getCustomerIdForUser(tenantId, userId, client)
+      : await customerService.resolveCustomer(tenantId, data, userId, client);
 
     const packageId = parseNumericId(data.customerPackageId);
     const isPackageAppointment = data.isPackageAppointment === true || data.isPackageAppointment === 'true';
@@ -253,7 +260,10 @@ async function updateAppointment(tenantId, role, id, data, userId) {
     }
 
     // Customer-specific restrictions
-    validateCustomerUpdate(role, userId, existing, data);
+    const customerId = role?.trim().toLowerCase() === 'customer'
+      ? await customerService.getCustomerIdForUser(tenantId, userId, client)
+      : userId;
+    validateCustomerUpdate(role, customerId, existing, data);
     validateCompleteEdit(role, existing);
 
     // allow everthing for now restricting later on
@@ -265,7 +275,7 @@ async function updateAppointment(tenantId, role, id, data, userId) {
     // Build sanitized update data for customers (only allowed fields)
     let updateData = data;
     if (role?.toLowerCase() === 'customer') {
-      const CUSTOMER_EDITABLE_FIELDS = ['date', 'startTime', 'notes', 'services'];
+      const CUSTOMER_EDITABLE_FIELDS = ['date', 'startTime', 'durationMinutes', 'notes', 'services'];
       updateData = {};
       CUSTOMER_EDITABLE_FIELDS.forEach(field => {
         if (data[field] !== undefined) {
@@ -458,7 +468,10 @@ async function cancelAppointment(tenantId, role, id, reason, userId) {
       throw new NotFoundError('Appointment not found.');
     }
 
-    validateCustomerAction(role, userId, appointment, 'cancel');
+    const customerId = role?.trim().toLowerCase() === 'customer'
+      ? await customerService.getCustomerIdForUser(tenantId, userId, client)
+      : userId;
+    validateCustomerAction(role, customerId, appointment, 'cancel');
     validateStatusTransition(appointment.status, 'cancelled', role);
 
     // Restore package services if this appointment consumed a package

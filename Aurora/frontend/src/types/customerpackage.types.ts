@@ -7,6 +7,7 @@ export interface CustomerPackageServiceItem {
   totalQuantity: number;
   usedQuantity: number;
   isPackage: boolean;
+  isActive?: boolean;
   discount?: number;
 }
 

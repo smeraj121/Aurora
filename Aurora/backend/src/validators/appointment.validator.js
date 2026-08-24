@@ -17,6 +17,7 @@ function validateStatusTransition(currentStatus, newStatus, role) {
   const transitions = {
     scheduled: ['confirmed', 'cancelled', 'completed'],
     confirmed: ['cancelled', 'completed'],
+    in_progress: ['completed'],
     cancelled: [],
     completed: []
   };
@@ -156,6 +157,9 @@ function validateCustomerUpdate(role, userId, existing, data) {
   const CUSTOMER_EDITABLE_FIELDS = [
     'date',
     'startTime',
+    // The UI derives this from the selected services; it is not a customer
+    // editable control, but must accompany a normal customer reschedule.
+    'durationMinutes',
     'notes',
     'services'
   ];

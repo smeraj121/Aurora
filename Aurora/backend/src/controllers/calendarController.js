@@ -6,9 +6,15 @@ const calendarService = require('../services/calendarService');
 // ============================================================
 async function getScheduleByDate(req, res, next) {
   try {
-    const { tenantId,userId, systemRole } = req.user;
-    const { date } = req.query;
-    const schedule = await calendarService.getScheduleByDate(tenantId, userId, date, systemRole);
+    const { tenantId, userId, systemRole } = req.user;
+    const { date, includeCancelled } = req.query;
+    const schedule = await calendarService.getScheduleByDate(
+      tenantId,
+      userId,
+      date,
+      systemRole,
+      includeCancelled === 'true'
+    );
     res.json({ success: true, data: schedule });
   } catch (error) {
     if (error.message === 'Date parameter is required') {
@@ -17,7 +23,6 @@ async function getScheduleByDate(req, res, next) {
     next(error);
   }
 }
-
 
 module.exports = {
   getScheduleByDate,

@@ -18,9 +18,9 @@ export const fetchDashboardRevenue = async (date: any) => {
   return response.data;
 };
 
-export const fetchSchedule = async (date: any) => {
+export const fetchSchedule = async (date: any, includeCancelled : boolean) => {
   const formattedDate = format(date, 'yyyy-MM-dd');
-  const response = await api.getSchedule(formattedDate);
+  const response = await api.getSchedule(formattedDate, includeCancelled);
   
   return response.data;
 };

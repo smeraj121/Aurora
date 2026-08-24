@@ -31,7 +31,7 @@ export function PackageModal({ isOpen, onClose, onSave, initialData }: PackageMo
   const [services, setServices] = useState<any[]>([]);
   const [availableServices, setAvailableServices] = useState<any[]>([]);
   const [selectedServiceId, setSelectedServiceId] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 

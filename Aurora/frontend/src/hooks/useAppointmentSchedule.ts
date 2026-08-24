@@ -3,7 +3,7 @@ import type { Appointment } from '../shared/types';
 import { api } from '../services/api';
 import { fetchSchedule } from '../features/dashboard/data/dashboardService';
 
-export function useAppointmentSchedule(date: Date) {
+export function useAppointmentSchedule(date: Date, includeCancelled = false) {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -11,14 +11,14 @@ export function useAppointmentSchedule(date: Date) {
     try {
       setLoading(true);
 
-      const response = await fetchSchedule(date);
+      const response = await fetchSchedule(date, includeCancelled);
       setAppointments(response);
     } catch (err) {
       console.error('Failed to load schedule:', err);
     } finally {
       setLoading(false);
     }
-  }, [date]);
+  }, [date, includeCancelled]);
 
   useEffect(() => {
     refresh();

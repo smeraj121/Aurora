@@ -1,10 +1,18 @@
 export type AppointmentStatus = 
   | 'scheduled' 
   | 'confirmed' 
-  | 'in_progress' 
+  //| 'in_progress' 
   | 'completed' 
   | 'cancelled' 
-  | 'no_show';
+  //| 'no_show'
+  ;
+
+export const STATUS_TRANSITIONS: Record<AppointmentStatus, AppointmentStatus[]> = {
+  scheduled: ['confirmed', 'completed', 'cancelled'],
+  confirmed: ['completed', 'cancelled'],
+  completed: [],
+  cancelled: [],
+};
 
 export interface Customer {
   id: number;

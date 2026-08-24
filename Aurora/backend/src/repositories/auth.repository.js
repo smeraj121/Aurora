@@ -29,10 +29,12 @@ class AuthRepository {
 
   async findUserById(id, client = pool) {
     const query = `
-      SELECT id, tenant_id, full_name as "fullName", phone, email, birthday, gender, 
+      SELECT u.id, u.tenant_id, u.full_name as "fullName", u.phone, u.email, u.birthday, u.gender,
              profile_image_url, preferred_language, system_role, is_active, last_login_at
-      FROM users
-      WHERE id = $1;
+             , c.id AS "customerId"
+      FROM users u
+      LEFT JOIN customers c ON c.user_id = u.id AND c.tenant_id = u.tenant_id
+      WHERE u.id = $1;
     `;
     const { rows } = await client.query(query, [id]);
     return rows[0] || null;
@@ -40,9 +42,11 @@ class AuthRepository {
 
   async findUserTenants(phone, client = pool) {
     const query = `
-      SELECT u.id as user_id,u.full_name, u.email,  u.tenant_id, u.system_role, t.name as tenant_name, t.logo_url
+      SELECT u.id as user_id, u.full_name, u.email, u.tenant_id, u.system_role,
+             c.id AS customer_id, t.name as tenant_name, t.logo_url
       FROM users u
       INNER JOIN tenants t ON u.tenant_id = t.id
+      LEFT JOIN customers c ON c.user_id = u.id AND c.tenant_id = u.tenant_id
       WHERE u.phone = $1 AND u.is_active = true AND t.is_active = true;
     `;
     const { rows } = await client.query(query, [phone]);

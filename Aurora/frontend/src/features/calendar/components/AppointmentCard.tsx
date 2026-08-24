@@ -20,8 +20,8 @@ interface AppointmentCardProps {
   topOffset: number;
   height: number;
   onClick: (apt: ExtendedAppointment) => void;
-  onFinish: (id: number, e: React.MouseEvent) => Promise<void>;
-  onCancel: (apt: ExtendedAppointment, e: React.MouseEvent) => void;
+  onFinish: (id: number, e: React.MouseEvent) => Promise<boolean>;
+  onCancel: (apt: ExtendedAppointment, e: React.MouseEvent) => Promise<void>;
   isCustomerActive: boolean;
 }
 
@@ -36,6 +36,7 @@ export function AppointmentCard({
   isCustomerActive,
 }: AppointmentCardProps) {
   const [isFinishing, setIsFinishing] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
   const [localStatus, setLocalStatus] = useState<string | null>(null);
   const [showDetails, setShowDetails] = useState(false);
 
@@ -203,18 +204,29 @@ export function AppointmentCard({
     setIsFinishing(true);
 
     try {
-      await onFinish(appointment.id || 0, e);
-      setLocalStatus('completed');
-      setShowDetails(false);
+      const completed = await onFinish(appointment.id || 0, e);
+      if (completed) {
+        setLocalStatus('completed');
+        setShowDetails(false);
+      }
     } finally {
       setIsFinishing(false);
     }
   };
 
-  const handleCancelClick = (e: React.MouseEvent) => {
+  const handleCancelClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    onCancel(appointment, e);
-    setShowDetails(false);
+    if (isCancelling) return;
+
+    setIsCancelling(true);
+    try {
+      await onCancel(appointment, e);
+      setShowDetails(false);
+    } catch {
+      // The parent presents the backend error in the appointment modal.
+    } finally {
+      setIsCancelling(false);
+    }
   };
 
   // ============================================================
@@ -329,6 +341,7 @@ export function AppointmentCard({
               dueAmount={dueAmount}
               isOverlapped={isOverlapped}
               isFinishing={isFinishing}
+              isCancelling={isCancelling}
               onFinish={handleFinishClick}
               onCancel={handleCancelClick}
             />
@@ -354,6 +367,7 @@ interface AppointmentHoverCardProps {
   dueAmount: number;
   isOverlapped: boolean;
   isFinishing: boolean;
+  isCancelling: boolean;
   onFinish: (e: React.MouseEvent) => void;
   onCancel: (e: React.MouseEvent) => void;
 }
@@ -369,6 +383,7 @@ function AppointmentHoverCard({
   dueAmount,
   isOverlapped,
   isFinishing,
+  isCancelling,
   onFinish,
   onCancel,
 }: AppointmentHoverCardProps) {
@@ -544,6 +559,7 @@ function AppointmentHoverCard({
           <button
             type="button"
             onClick={onCancel}
+            disabled={isCancelling || isFinishing}
             className="
         flex-1
         h-9
@@ -559,7 +575,7 @@ function AppointmentHoverCard({
       "
           >
             <X className="w-3.5 h-3.5" />
-            Cancel
+            {isCancelling ? 'Cancelling...' : 'Cancel'}
           </button>
 
           {/* Finish */}

@@ -22,6 +22,7 @@ export interface BookingServiceItem {
   name: string;
   price: number;
   durationMinutes: number;
+  isActive?: boolean;
 }
 
 export interface BookingFormData {

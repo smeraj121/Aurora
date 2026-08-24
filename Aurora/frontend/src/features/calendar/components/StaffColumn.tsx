@@ -8,8 +8,8 @@ interface StaffColumnProps {
   appointments: ExtendedAppointment[];
   onAppointmentClick: (apt: ExtendedAppointment) => void;
   onNewBooking: (staffId: number, slot: string) => void;
-  onFinish: (id: number, e: React.MouseEvent) => Promise<void>;
-  onCancel: (apt: ExtendedAppointment, e: React.MouseEvent) => void;
+  onFinish: (id: number, e: React.MouseEvent) => Promise<boolean>;
+  onCancel: (apt: ExtendedAppointment, e: React.MouseEvent) => Promise<void>;
   isCustomerActive: boolean;
 }
 

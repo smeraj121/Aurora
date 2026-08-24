@@ -108,7 +108,7 @@ export function TenantManagement() {
     }
   };
 
-  const handleToggleStatus = async (tenantId: number, isActive: boolean) => {
+  const handleToggleStatus = async (tenantId: number) => {
     try {
       setError(null);
 
@@ -400,7 +400,7 @@ function Stat({
 
                     <button
                       onClick={() =>
-                        handleToggleStatus(tenant.id, tenant.isActive)
+                        handleToggleStatus(tenant.id)
                       }
                       className={`px-2.5 py-1.5 rounded-lg text-[10px] font-semibold ${
                         tenant.isActive

@@ -1,6 +1,6 @@
 // src/pages/Login/PhoneStep.tsx
 import React, { useState } from 'react';
-import { Phone, ArrowRight, Shield } from 'lucide-react';
+import { ArrowRight, Shield } from 'lucide-react';
 
 interface PhoneStepProps {
   onSubmit: (phone: string) => void;

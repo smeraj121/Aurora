@@ -25,6 +25,7 @@ class CustomerPackageRepository {
             'serviceId', s.id,
             'serviceName', s.name,
             'servicePrice', s.price,
+            'isActive', s.is_active,
             'totalQuantity', cps.total_quantity,
             'usedQuantity', cps.used_quantity
           )) FILTER (WHERE s.id IS NOT NULL),
@@ -182,6 +183,7 @@ class CustomerPackageRepository {
             'serviceId', cps.service_id,
             'serviceName', s.name,
             'servicePrice', s.price,
+            'isActive', s.is_active,
             'totalQuantity', cps.total_quantity,
             'usedQuantity', cps.used_quantity
           )) FILTER (WHERE cps.service_id IS NOT NULL),

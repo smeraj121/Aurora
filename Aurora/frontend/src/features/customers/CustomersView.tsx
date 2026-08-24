@@ -153,6 +153,7 @@ const handleSearch = (value: string) => {
   } catch (error: any) {
     console.error('Failed to save appointment', error);
     alert(error.message || 'Failed to save appointment.');
+    throw error;
   }
 };
   // ============================================================

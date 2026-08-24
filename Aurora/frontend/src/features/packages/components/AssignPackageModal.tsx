@@ -43,7 +43,7 @@ export function AssignPackageModal({
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
+  const [, setSuccess] = useState(false);
 
   useEffect(() => {
     if (isOpen) {

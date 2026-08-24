@@ -184,6 +184,14 @@ async function resolveCustomer(tenantId, data, userId, client) {
   return newCustomerId;
 }
 
+async function getCustomerIdForUser(tenantId, userId, client) {
+  const customer = await customerRepository.getCustomerByUserId(tenantId, userId, client);
+  if (!customer) {
+    throw new NotFoundError('Customer profile not found.');
+  }
+  return customer.id;
+}
+
 // ============================================================
 // UPDATE STATISTICS (used by appointment finish)
 // ============================================================
@@ -202,5 +210,6 @@ module.exports = {
   getRecentCustomers,
   getCustomerStats,
   resolveCustomer,
+  getCustomerIdForUser,
   updateStatistics,
 };

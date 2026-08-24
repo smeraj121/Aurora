@@ -19,4 +19,5 @@ export interface User {
   email?: string;
   systemRole: string;
   tenantId?: number;
+  customerId?: number;
 }

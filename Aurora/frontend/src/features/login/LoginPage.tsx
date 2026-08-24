@@ -1,5 +1,5 @@
 // src/pages/Login/LoginPage.tsx
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { OtpStep } from './OtpStep';
@@ -15,7 +15,6 @@ export function LoginPage() {
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [verificationToken, setVerificationToken] = useState<string | null>(null);
 
   // ============================================================
   // Step 1: Request OTP
@@ -44,8 +43,6 @@ export function LoginPage() {
     setError(null);
     try {
       const result = await apiService.verifyOtp(phone, otp, 'login');
-      setVerificationToken(result.verificationToken);
-
       // Complete login
       const loginResult = await login(result.verificationToken);
 
