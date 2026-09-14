@@ -20,6 +20,7 @@ const dashboardRoutes = require('./src/routes/dashboardRoutes');
 const authRoutes = require('./src/routes/authRoutes');
 const tenantRoutes = require('./src/routes/tenantRoutes');
 const designationRoutes = require('./src/routes/designationRoutes');
+const customerEngagementRoutes = require('./src/routes/customerEngagementRoutes');
 
 app.get('/', (req, res) => {
   res.json({ message: 'Aurora Salon API is running!' });
@@ -35,6 +36,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/tenants', tenantRoutes);
 app.use('/api/designations', designationRoutes);
+app.use('/api/customer-engagement', customerEngagementRoutes);
 
 app.use(errorHandler);
 

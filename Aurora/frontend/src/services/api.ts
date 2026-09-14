@@ -11,6 +11,7 @@ import type { CustomerPackage } from '../types/customerpackage.types';
 import type { CustomerDetails, CustomerListItem, CustomerVisit } from '../types/customer.types';
 import type { Tenant } from '../types/tenant.types';
 import type { Service } from '../types/service.types';
+import type { CustomerEngagementItem, EngagementType } from '../types/customerEngagement.types';
 
 export interface ApiResponse<T = any> {
   success: boolean;
@@ -36,6 +37,7 @@ export class ApiError extends Error {
 export class ApiService {
   private baseUrl: string;
   private authToken: string | null = null;
+  private refreshPromise: Promise<boolean> | null = null;
 
   constructor(baseUrl: string = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api') {
     this.baseUrl = baseUrl;
@@ -120,7 +122,7 @@ export class ApiService {
         const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
         if (refreshToken) {
           try {
-            const refreshed = await this.refreshToken(refreshToken);
+            const refreshed = await this.refreshAccessTokenOnce();
             if (refreshed) {
               return this.request<T>(endpoint, options, query);
             }
@@ -229,21 +231,39 @@ export class ApiService {
     return data;
   }
 
-  async refreshToken(refreshToken: string): Promise<{ accessToken: string; refreshToken: string } | null> {
+  private async refreshAccessTokenOnce(): Promise<boolean> {
+  if (this.refreshPromise) {
+    return this.refreshPromise;
+  }
+
+  this.refreshPromise = (async () => {
+    const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+
+    if (!refreshToken) {
+      return false;
+    }
+
     try {
-      const response = await this.post<{ accessToken: string; refreshToken: string }>('/auth/refresh-token', {
-        refreshToken,
-      });
+      const response = await this.post<{
+        accessToken: string;
+        refreshToken: string;
+      }>('/auth/refresh-token', { refreshToken });
 
       const data = response.data;
+
       this.setAuthToken(data.accessToken);
       localStorage.setItem(REFRESH_TOKEN_KEY, data.refreshToken);
-      return data;
+
+      return true;
     } catch {
-      this.clearAuthToken();
-      return null;
+      return false;
+    } finally {
+      this.refreshPromise = null;
     }
-  }
+  })();
+
+  return this.refreshPromise;
+}
 
   async logout(): Promise<void> {
     const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
@@ -384,6 +404,20 @@ export class ApiService {
     }
   ): Promise<ApiResponse<CustomerPackage>> {
     return this.put<CustomerPackage>(`/customers/packages/${id}`, data);
+  }
+
+  // ============================================================
+  // CUSTOMER ENGAGEMENT ENDPOINTS
+  // ============================================================
+
+  async getCustomerEngagement(
+    type: EngagementType,
+    withinDays?: number
+  ): Promise<ApiResponse<CustomerEngagementItem[]>> {
+    return this.get<CustomerEngagementItem[]>('/customer-engagement', {
+      type,
+      withinDays,
+    });
   }
 
   // ============================================================

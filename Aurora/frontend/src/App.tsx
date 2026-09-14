@@ -1,7 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-
 import { AppLayout } from './components/layout/AppLayout';
-
 import { DashboardView } from './features/dashboard/DashboardView';
 import { CalendarView } from './features/calendar/CalendarView';
 import { CustomersView } from './features/customers/CustomersView';
@@ -11,13 +9,13 @@ import { StaffView } from './features/staff/StaffView';
 import { PackagesView } from './features/packages/PackagesView';
 import { ProfileView } from './features/profile/ProfileView';
 import { SettingsView } from './features/settings/SettingsView';
-
 import { LoginPage } from './features/login/LoginPage';
 import { TenantSelectionPage } from './features/login/TenantSelectionPage';
 import { SuperAdminLoginPage } from './features/login/SuperAdminLoginPage';
 import { TenantManagement } from './features/tenant/TenantManagement';
 
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { CustomerEngagementView } from './features/customerEngagement/CustomerEngagementView';
 
 function PlaceholderView({ title }: { title: string }) {
   return (
@@ -192,6 +190,15 @@ function AppRoutes() {
             element={
               <StaffRoute>
                 <CustomersView />
+              </StaffRoute>
+            }
+          />
+
+          <Route
+            path="customer-engagement"
+            element={
+              <StaffRoute>
+                <CustomerEngagementView />
               </StaffRoute>
             }
           />

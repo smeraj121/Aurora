@@ -4,7 +4,8 @@ import {
   Users, 
   UserCheck, 
   Settings, 
-  CalendarRange
+  CalendarRange,
+  Send
 } from 'lucide-react';
 
 export interface NavItem {
@@ -28,6 +29,11 @@ const STAFF_NAV_ITEMS: NavItem[] = [
     label: 'Customers',
     path: '/customers',
     icon: Users,
+  },
+  {
+    label: 'Customer Engagement',
+    path: '/customer-engagement',
+    icon: Send,
   },
   {
     label: 'Staff',

@@ -31,7 +31,7 @@ export function Header({ setMobileOpen }: HeaderProps) {
   }
 
   return (
-    <header className="h-16 px-4 md:px-8 bg-slate-50/50 backdrop-blur-md border-b border-slate-200/60 flex items-center justify-between sticky top-0 z-20">
+    <header className="h-16 px-4 md:px-8 bg-slate-50/50 backdrop-blur-md border-b border-slate-200/60 flex items-center justify-between sticky top-0 z-100">
       {/* Mobile Hamburger Menu */}
       <button
         className="md:hidden p-2 text-slate-600 hover:text-slate-900"
