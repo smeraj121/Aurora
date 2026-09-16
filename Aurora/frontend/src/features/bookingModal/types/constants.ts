@@ -63,6 +63,8 @@ export const DEFAULT_FORM_STATE: BookingFormState = {
   services: [],
   customerPackageId: null,
   isPackageAppointment: false,
+  updatedByName: null,
+  updatedAt: null,
 };
 
 export const TIME_SLOTS = [
