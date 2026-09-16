@@ -467,7 +467,7 @@ function AppointmentSettings({
     onChange,
 }: AppointmentSettingsProps) {
     const [allowFinishWithPendingBalance, setAllowFinishWithPendingBalance] = useState(true);
-const [savingSetting, setSavingSetting] = useState(false);
+    //const [savingSetting, setSavingSetting] = useState(false);
 
 useEffect(() => {
   api.getTenantSettings().then(res => {
@@ -477,13 +477,13 @@ useEffect(() => {
 
 const handleToggleFinishSetting = async (checked: boolean) => {
   setAllowFinishWithPendingBalance(checked); // optimistic
-  setSavingSetting(true);
+  //setSavingSetting(true);
   try {
     await api.updateTenantSettings({ allowFinishWithPendingBalance: checked });
   } catch {
     setAllowFinishWithPendingBalance(!checked); // revert on failure
   } finally {
-    setSavingSetting(false);
+    //setSavingSetting(false);
   }
 };
     return (

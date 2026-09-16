@@ -350,7 +350,7 @@ export function AppointmentsView() {
 /*                        ListSection — new row layout                        */
 /* -------------------------------------------------------------------------- */
 
-function ListSection({ items, onOpen, rowMeta }: { items: StaffAppointmentItem[]; onOpen: (id: number) => void; rowMeta: (a: StaffAppointmentItem) => React.ReactNode }) {
+function ListSection({ items, onOpen }: { items: StaffAppointmentItem[]; onOpen: (id: number) => void; rowMeta: (a: StaffAppointmentItem) => React.ReactNode }) {
     if (items.length === 0) {
         return <div className="p-10 rounded-2xl bg-white border border-slate-200/80 border-dashed text-center text-xs text-slate-500">No appointments.</div>;
     }
