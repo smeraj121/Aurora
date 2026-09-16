@@ -12,6 +12,11 @@ import type { CustomerDetails, CustomerListItem, CustomerVisit } from '../types/
 import type { Tenant } from '../types/tenant.types';
 import type { Service } from '../types/service.types';
 import type { CustomerEngagementItem, EngagementType } from '../types/customerEngagement.types';
+import type { ReportData } from '../types/report.types';
+import type { TenantSettings } from '../types/tenantSettings.types';
+import type { MyAppointmentItem } from '../types/myAppointments.types';
+import type { PendingActionsResponse, StaffAppointmentItem } from '../types/staffAppointments.types';
+import type { ReviewSubmitResult } from '../types/review.types';
 
 export interface ApiResponse<T = any> {
   success: boolean;
@@ -322,6 +327,46 @@ export class ApiService {
   }
 
   // ============================================================
+  // MY APPOINTMENTS (customer-facing)
+  // ============================================================
+  async getMyAppointments(status: 'upcoming' | 'past'): Promise<ApiResponse<MyAppointmentItem[]>> {
+    return this.get<MyAppointmentItem[]>('/appointments/mine', { status });
+  }
+
+  // ============================================================
+  // REVIEWS
+  // ============================================================
+  async createReview(appointmentId: number, rating: number): Promise<ApiResponse<ReviewSubmitResult>> {
+    return this.post<ReviewSubmitResult>('/reviews', { appointmentId, rating });
+  }
+
+  // ============================================================
+  // STAFF APPOINTMENTS WORKSPACE
+  // ============================================================
+  async getTodayAppointments(): Promise<ApiResponse<StaffAppointmentItem[]>> {
+    return this.get<StaffAppointmentItem[]>('/appointments/today');
+  }
+
+  async getUpcomingStaffAppointments(): Promise<ApiResponse<StaffAppointmentItem[]>> {
+    return this.get<StaffAppointmentItem[]>('/appointments/upcoming');
+  }
+
+  async getPendingActions(): Promise<ApiResponse<PendingActionsResponse>> {
+    return this.get<PendingActionsResponse>('/appointments/pending-actions');
+  }
+
+  // ============================================================
+  // TENANT SETTINGS
+  // ============================================================
+  async getTenantSettings(): Promise<ApiResponse<TenantSettings>> {
+    return this.get<TenantSettings>('/settings');
+  }
+
+  async updateTenantSettings(data: Partial<TenantSettings>): Promise<ApiResponse<TenantSettings>> {
+    return this.put<TenantSettings>('/settings', data);
+  }
+
+  // ============================================================
   // CUSTOMER ENDPOINTS
   // ============================================================
 
@@ -450,6 +495,42 @@ export class ApiService {
 
   async getPopularPackages(limit = 5): Promise<ApiResponse<PopularPackage[]>> {
     return this.get<PopularPackage[]>('/packages/popular', { limit });
+  }
+
+  // ============================================================
+  // REPORTS ENDPOINTS
+  // ============================================================
+
+  async getReport(startDate: string, endDate: string): Promise<ApiResponse<ReportData>> {
+    return this.get<ReportData>('/reports', { startDate, endDate });
+  }
+
+  // ============================================================
+  // INVOICE (binary PDF response — separate from JSON request())
+  // ============================================================
+  async downloadInvoice(appointmentId: number): Promise<Blob> {
+    const url = this.buildUrl(`/appointments/${appointmentId}/invoice`);
+    const headers: Record<string, string> = {};
+    const token = this.getAuthToken();
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const response = await fetch(url, { headers });
+    if (!response.ok) {
+      let message = `Request failed with status ${response.status}`;
+      try {
+        const data = await response.json();
+        message = data?.message || message;
+      } catch { /* non-JSON error body */ }
+      throw new ApiError(message, response.status);
+    }
+    return response.blob();
+  }
+
+  // ============================================================
+  // BUSINESS INFO (for staff-side WhatsApp message text)
+  // ============================================================
+  async getBusinessInfo(): Promise<ApiResponse<{ name: string }>> {
+    return this.get<{ name: string }>('/settings/business-info');
   }
 
   // ============================================================

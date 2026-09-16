@@ -1,3 +1,5 @@
+import type { UserTypes } from "./domain";
+
 // Shared across all modules
 export type EntityId = string;
 export type IsoDateString = string;
@@ -17,7 +19,7 @@ export interface User {
   fullName: string;
   phone: string;
   email?: string;
-  systemRole: string;
+  systemRole: UserTypes;
   tenantId?: number;
   customerId?: number;
 }

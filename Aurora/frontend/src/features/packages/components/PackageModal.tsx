@@ -311,7 +311,7 @@ export function PackageModal({ isOpen, onClose, onSave, initialData }: PackageMo
       footer={footerActions}
       maxWidth="max-w-3xl"
     >
-      <form id="package-form" onSubmit={handleSubmit} className="space-y-5">
+      <form id="package-form" onSubmit={handleSubmit} className="space-y-2">
         {/* Basic Info */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
@@ -414,7 +414,7 @@ export function PackageModal({ isOpen, onClose, onSave, initialData }: PackageMo
               {services.map((service) => (
                 <div
                   key={service.serviceId}
-                  className="bg-slate-50 rounded-xl p-3 border border-slate-200 hover:border-purple-200 transition-all group"
+                  className="bg-slate-50 rounded-xl p-2 border border-slate-200 hover:border-purple-200 transition-all group"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
@@ -509,7 +509,7 @@ export function PackageModal({ isOpen, onClose, onSave, initialData }: PackageMo
         </div>
 
         {/* Price Summary */}
-        <div className="bg-gradient-to-r from-purple-50 to-purple-100/50 rounded-xl p-4 border border-purple-200">
+        <div className="bg-gradient-to-r from-purple-50 to-purple-100/50 rounded-xl p-2 border border-purple-200">
           <div className="flex items-center justify-between">
             <div>
               <span className="text-xs font-bold text-purple-900">Package Total</span>

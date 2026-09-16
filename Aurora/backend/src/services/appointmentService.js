@@ -2,9 +2,9 @@ const db = require('../config/db');
 const appointmentRepository = require('../repositories/appointmentRepository');
 const appointmentPackageService = require('./appointmentPackageService');
 const customerService = require('./customerService');
-const { ValidationError, NotFoundError } = require('../errors');
+const settingsService = require('./settingsService');
+const { ValidationError, NotFoundError, ForbiddenError } = require('../errors');
 const TimeHelper = require('../utils/timeHelper');
-
 
 const {
   parseNumericId,
@@ -25,7 +25,7 @@ const {
 // ============================================================
 function buildBookingPayload(data, existing, customerId, cleanDate, payment, cleanStaffId, cleanServices, forcedStatus) {
   // Use data values or fallback to existing appointment
-  const startTime = data.startTime !== undefined ? TimeHelper.toDb(data.startTime) : existing.startTime;
+  const startTime = data.startTime !== undefined ? TimeHelper.toDb(data.startTime) : TimeHelper.toDb(existing.startTime);
   // Optional: compute duration from services if not explicitly provided
   // (Here we rely on durationMinutes from data or existing; you may extend this)
   const duration = data.durationMinutes !== undefined ? parseInt(data.durationMinutes, 10) : existing.durationMinutes;
@@ -393,6 +393,20 @@ async function finishAppointment(tenantId, role, id, data = {}, userId) {
       data.paidAmount !== undefined ? data.paidAmount : appointment.paidAmount
     );
     const paymentCalc = calculatePaymentStatus(payment.parsedAmount, payment.parsedPaidAmount, data.paymentStatus);
+
+    const normalizedRole = role?.trim().toLowerCase();
+    const isElevatedRole = ['owner', 'admin'].includes(normalizedRole);
+    const balanceDue = payment.parsedAmount - payment.parsedPaidAmount;
+
+    if (balanceDue > 0 && !isElevatedRole) {
+      const settings = await settingsService.getSettings(tenantId);
+      if (!settings.allowFinishWithPendingBalance) {
+        throw new ForbiddenError(
+          `This appointment has a pending balance of ₹${balanceDue.toFixed(2)}. Please collect full payment before completing, or ask an Owner/Admin to override.`
+        );
+      }
+    }
+
     const cleanStaffId = await validateStaff(
       tenantId,
       parseNumericId(data.staffId !== undefined ? data.staffId : appointment.staffId),
@@ -507,10 +521,47 @@ async function cancelAppointment(tenantId, role, id, reason, userId) {
   }
 }
 
+async function getMyAppointments(tenantId, userId, statusGroup) {
+  const validGroups = ['upcoming', 'past'];
+  if (!validGroups.includes(statusGroup)) {
+    throw new ValidationError("status must be 'upcoming' or 'past'");
+  }
+  const customerId = await customerService.getCustomerIdForUser(tenantId, userId);
+  const rows = await appointmentRepository.getCustomerAppointments(tenantId, customerId, statusGroup);
+
+  return rows.map(row => ({
+    ...row,
+    review: row.reviewId ? { id: row.reviewId, rating: row.reviewRating } : null,
+    reviewId: undefined,
+    reviewRating: undefined,
+  }));
+}
+
+async function getTodayAppointments(tenantId) {
+  return appointmentRepository.getTodayAppointments(tenantId);
+}
+
+async function getUpcomingAppointments(tenantId) {
+  return appointmentRepository.getUpcomingAppointments(tenantId);
+}
+
+async function getPendingActions(tenantId) {
+  const [confirmationRequired, pendingPayments, stuckInProgress] = await Promise.all([
+    appointmentRepository.getConfirmationRequired(tenantId),
+    appointmentRepository.getPendingPayments(tenantId),
+    appointmentRepository.getNeedsReview(tenantId),
+  ]);
+  return { confirmationRequired, pendingPayments, stuckInProgress };
+}
+
 module.exports = {
   getAppointmentById,
   createAppointment,
   updateAppointment,
   finishAppointment,
-  cancelAppointment
+  cancelAppointment,
+  getMyAppointments,
+  getTodayAppointments,
+  getUpcomingAppointments,
+  getPendingActions
 };

@@ -5,7 +5,10 @@ import {
   UserCheck, 
   Settings, 
   CalendarRange,
-  Send
+  History,
+  Send,
+  BarChart3,
+  CalendarDays
 } from 'lucide-react';
 
 export interface NavItem {
@@ -31,6 +34,11 @@ const STAFF_NAV_ITEMS: NavItem[] = [
     icon: Users,
   },
   {
+    label: 'Appointments',
+    path: '/appointments',
+    icon: CalendarDays,
+  },
+  {
     label: 'Customer Engagement',
     path: '/customer-engagement',
     icon: Send,
@@ -39,6 +47,11 @@ const STAFF_NAV_ITEMS: NavItem[] = [
     label: 'Staff',
     path: '/staff',
     icon: UserCheck,
+  },
+  {
+    label: 'Reports',
+    path: '/reports',
+    icon: BarChart3,
   },
   {
     label: 'Packages',
@@ -70,6 +83,10 @@ const CUSTOMER_NAV_ITEMS: NavItem[] = [
     label: 'Calendar',
     path: '/calendar',
     icon: CalendarRange,
+  },
+  { label: 'My Appointments', 
+    path: '/my-appointments',
+    icon: History 
   },
 ];
 

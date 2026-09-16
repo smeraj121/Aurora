@@ -466,6 +466,26 @@ function AppointmentSettings({
     settings,
     onChange,
 }: AppointmentSettingsProps) {
+    const [allowFinishWithPendingBalance, setAllowFinishWithPendingBalance] = useState(true);
+const [savingSetting, setSavingSetting] = useState(false);
+
+useEffect(() => {
+  api.getTenantSettings().then(res => {
+    if (res.success) setAllowFinishWithPendingBalance(res.data.allowFinishWithPendingBalance);
+  });
+}, []);
+
+const handleToggleFinishSetting = async (checked: boolean) => {
+  setAllowFinishWithPendingBalance(checked); // optimistic
+  setSavingSetting(true);
+  try {
+    await api.updateTenantSettings({ allowFinishWithPendingBalance: checked });
+  } catch {
+    setAllowFinishWithPendingBalance(!checked); // revert on failure
+  } finally {
+    setSavingSetting(false);
+  }
+};
     return (
         <SettingsCard
             title="Appointment Settings"
@@ -510,6 +530,13 @@ function AppointmentSettings({
                         }))
                     }
                 />
+
+                <SettingToggle
+  title="Allow finishing appointments with pending balance"
+  description="When off, staff must collect full payment before completing an appointment. Owners and Admins can always override."
+  checked={allowFinishWithPendingBalance}
+  onChange={handleToggleFinishSetting}
+/>
 
             </div>
         </SettingsCard>

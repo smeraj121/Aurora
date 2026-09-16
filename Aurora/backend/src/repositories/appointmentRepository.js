@@ -2,10 +2,7 @@ const db = require('../config/db');
 
 class AppointmentRepository {
 
-  // ============================================================
-  // GET APPOINTMENT BY ID (with tenant)
-  // ============================================================
-  async getAppointmentById(tenantId, id, client = db) {
+    async getAppointmentById(tenantId, id, client = db) {
     const query = `
         SELECT 
           a.id,
@@ -27,6 +24,8 @@ class AppointmentRepository {
           a.is_package_appointment AS "isPackageAppointment",
           a.customer_package_id AS "customerPackageId",
           a.customer_notes AS "notes",
+          a.updated_at AS "updatedAt",
+          ub.full_name AS "updatedByName",
           COALESCE(
             json_agg(DISTINCT jsonb_build_object(
               'serviceId', srv.id,
@@ -41,15 +40,156 @@ class AppointmentRepository {
         JOIN users u ON c.user_id = u.id
         LEFT JOIN staff st ON a.staff_id = st.id
         LEFT JOIN users su ON st.user_id = su.id
+        LEFT JOIN users ub ON a.updated_by = ub.id
         LEFT JOIN appointment_services aps
           ON aps.appointment_id = a.id AND aps.tenant_id = a.tenant_id
         LEFT JOIN services srv
           ON aps.service_id = srv.id AND srv.tenant_id = a.tenant_id
         WHERE a.id = $1 AND a.tenant_id = $2
-        GROUP BY a.id, c.id, u.id, st.id, su.id
+        GROUP BY a.id, c.id, u.id, st.id, su.id, ub.id
       `;
     const { rows } = await client.query(query, [id, tenantId]);
     return rows[0] || null;
+  }
+
+  // ============================================================
+  // GET CUSTOMER'S OWN APPOINTMENTS — "My Appointments" page
+  // upcoming: status IN (scheduled, confirmed, in_progress)
+  // past: status IN (completed, cancelled)
+  // ============================================================
+  async getCustomerAppointments(tenantId, customerId, statusGroup, client = db) {
+    const isUpcoming = statusGroup === 'upcoming';
+
+    // Customer-facing classification:
+    //
+    // Upcoming:
+    // - scheduled / confirmed / in_progress
+    // - AND scheduled end has not passed
+    //
+    // Past:
+    // - completed / cancelled
+    // - OR any scheduled / confirmed / in_progress appointment
+    //   whose scheduled end has already passed
+    //
+    // Important:
+    // We do NOT change the appointment's actual DB status.
+    // This is only how it is classified for the customer-facing view.
+
+    const statusFilter = isUpcoming
+      ? `
+      a.status IN ('scheduled', 'confirmed', 'in_progress')
+      AND (
+        (a.appointment_date + a.end_time)
+          AT TIME ZONE COALESCE(t.timezone, 'Asia/Kolkata')
+      ) >= CURRENT_TIMESTAMP
+    `
+      : `
+      (
+        a.status IN ('completed', 'cancelled')
+        OR (
+          a.status IN ('scheduled', 'confirmed', 'in_progress')
+          AND (
+            (a.appointment_date + a.end_time)
+              AT TIME ZONE COALESCE(t.timezone, 'Asia/Kolkata')
+          ) < CURRENT_TIMESTAMP
+        )
+      )
+    `;
+
+    const orderClause = isUpcoming
+      ? 'ORDER BY a.appointment_date ASC, a.start_time ASC'
+      : 'ORDER BY a.appointment_date DESC, a.start_time DESC';
+
+    const reviewSelect = !isUpcoming
+      ? `, r.id AS "reviewId", r.rating AS "reviewRating"`
+      : '';
+
+    const reviewJoin = !isUpcoming
+      ? `
+      LEFT JOIN reviews r
+        ON r.appointment_id = a.id
+       AND r.tenant_id = a.tenant_id
+    `
+      : '';
+
+    const groupBy = !isUpcoming ? ', r.id' : '';
+
+    const query = `
+    SELECT
+      a.id,
+      a.staff_id AS "staffId",
+      su.full_name AS "staffName",
+
+      TO_CHAR(a.appointment_date, 'YYYY-MM-DD') AS "date",
+      TO_CHAR(a.start_time, 'HH12:MI AM') AS "startTime",
+      TO_CHAR(a.end_time, 'HH12:MI AM') AS "endTime",
+
+      a.status,
+      a.total_price AS "amount",
+      a.paid_amount AS "paidAmount",
+      a.payment_status AS "paymentStatus",
+
+      a.updated_at AS "updatedAt",
+      ub.full_name AS "updatedByName"
+
+      ${reviewSelect},
+
+      COALESCE(
+        json_agg(
+          DISTINCT jsonb_build_object(
+            'serviceId', srv.id,
+            'serviceName', srv.name
+          )
+        ) FILTER (WHERE srv.id IS NOT NULL),
+        '[]'::json
+      ) AS services
+
+    FROM appointments a
+
+    LEFT JOIN staff st
+      ON a.staff_id = st.id
+
+    LEFT JOIN users su
+      ON st.user_id = su.id
+
+    LEFT JOIN users ub
+      ON a.updated_by = ub.id
+
+    LEFT JOIN appointment_services aps
+      ON aps.appointment_id = a.id
+     AND aps.tenant_id = a.tenant_id
+
+    LEFT JOIN services srv
+      ON aps.service_id = srv.id
+     AND srv.tenant_id = a.tenant_id
+
+    LEFT JOIN tenants t
+      ON t.id = a.tenant_id
+
+    ${reviewJoin}
+
+    WHERE a.tenant_id = $1
+      AND a.customer_id = $2
+      AND ${statusFilter}
+
+    GROUP BY
+      a.id,
+      su.id,
+      ub.id,
+      t.timezone
+      ${groupBy}
+
+    ${orderClause}
+
+    LIMIT 50
+  `;
+
+    const { rows } = await client.query(query, [
+      tenantId,
+      customerId
+    ]);
+
+    return rows;
   }
 
   async lockAppointmentById(tenantId, id, client = db) {
@@ -267,6 +407,246 @@ class AppointmentRepository {
       ) VALUES ${valueStrings.join(', ')}
     `;
     await client.query(query, values);
+  }
+    // Shared select shape for staff-facing list/workspace views
+  _staffAppointmentSelect() {
+    return `
+      a.id,
+      u.full_name AS "customerName",
+      u.phone AS "customerPhone",
+      a.staff_id AS "staffId",
+      su.full_name AS "staffName",
+      TO_CHAR(a.appointment_date, 'YYYY-MM-DD') AS "date",
+      TO_CHAR(a.start_time, 'HH12:MI AM') AS "startTime",
+      TO_CHAR(a.end_time, 'HH12:MI AM') AS "endTime",
+      a.status,
+      a.total_price AS "amount",
+      a.paid_amount AS "paidAmount",
+      a.payment_status AS "paymentStatus",
+      COALESCE(
+        json_agg(DISTINCT jsonb_build_object(
+          'serviceId', srv.id, 'serviceName', srv.name
+        )) FILTER (WHERE srv.id IS NOT NULL), '[]'::json
+      ) AS services
+    `;
+  }
+
+  _staffAppointmentJoins() {
+    return `
+      FROM appointments a
+      JOIN customers c ON a.customer_id = c.id
+      JOIN users u ON c.user_id = u.id
+      LEFT JOIN staff st ON a.staff_id = st.id
+      LEFT JOIN users su ON st.user_id = su.id
+      LEFT JOIN appointment_services aps ON aps.appointment_id = a.id AND aps.tenant_id = a.tenant_id
+      LEFT JOIN services srv ON aps.service_id = srv.id AND srv.tenant_id = a.tenant_id
+    `;
+  }
+
+  // Includes every status (incl. cancelled) — matches how Calendar already
+  // displays a full day, not just active appointments.
+  async getTodayAppointments(tenantId, client = db) {
+    const query = `
+      SELECT ${this._staffAppointmentSelect()}
+      ${this._staffAppointmentJoins()}
+      WHERE a.tenant_id = $1 AND a.appointment_date = CURRENT_DATE
+      GROUP BY a.id, u.id, st.id, su.id
+      ORDER BY a.start_time ASC
+    `;
+    const { rows } = await client.query(query, [tenantId]);
+    return rows;
+  }
+
+  async getUpcomingAppointments(tenantId, client = db) {
+    const query = `
+      SELECT ${this._staffAppointmentSelect()}
+      ${this._staffAppointmentJoins()}
+      WHERE a.tenant_id = $1 AND a.appointment_date > CURRENT_DATE
+      GROUP BY a.id, u.id, st.id, su.id
+      ORDER BY a.appointment_date ASC, a.start_time ASC
+      LIMIT 100
+    `;
+    const { rows } = await client.query(query, [tenantId]);
+    return rows;
+  }
+
+  async getConfirmationRequired(tenantId, client = db) {
+    const query = `
+    SELECT
+      ${this._staffAppointmentSelect()}
+
+    ${this._staffAppointmentJoins()}
+
+    LEFT JOIN tenants t
+      ON t.id = a.tenant_id
+
+    WHERE a.tenant_id = $1
+      AND a.status = 'scheduled'
+      AND (
+        (a.appointment_date + a.end_time)
+          AT TIME ZONE COALESCE(t.timezone, 'Asia/Kolkata')
+      ) >= CURRENT_TIMESTAMP
+
+    GROUP BY
+      a.id,
+      u.id,
+      st.id,
+      su.id,
+      t.timezone
+
+    ORDER BY
+      a.appointment_date ASC,
+      a.start_time ASC
+
+    LIMIT 100
+  `;
+
+    const { rows } = await client.query(query, [tenantId]);
+
+    return rows;
+  }
+
+  async getNeedsReview(tenantId, client = db) {
+    const query = `
+    SELECT
+      ${this._staffAppointmentSelect()},
+
+      CASE
+        WHEN a.status = 'in_progress' THEN 'in_progress'
+        WHEN a.status = 'scheduled' THEN 'scheduled'
+        WHEN a.status = 'confirmed' THEN 'confirmed'
+        ELSE 'unknown'
+      END AS "reviewReason",
+
+      CASE
+        WHEN a.status = 'in_progress'
+          THEN 'Appointment is still in progress after its scheduled end time'
+
+        WHEN a.status = 'scheduled'
+          THEN 'Scheduled appointment has passed without being completed or cancelled'
+
+        WHEN a.status = 'confirmed'
+          THEN 'Confirmed appointment has passed without being completed or cancelled'
+
+        ELSE 'Appointment needs review'
+      END AS "reviewReasonLabel"
+
+    ${this._staffAppointmentJoins()}
+
+    LEFT JOIN tenants t
+      ON t.id = a.tenant_id
+
+    WHERE a.tenant_id = $1
+
+      AND a.status IN (
+        'scheduled',
+        'confirmed',
+        'in_progress'
+      )
+
+      AND (
+        (a.appointment_date + a.end_time)
+          AT TIME ZONE COALESCE(t.timezone, 'Asia/Kolkata')
+      ) < CURRENT_TIMESTAMP
+
+    GROUP BY
+      a.id,
+      u.id,
+      st.id,
+      su.id,
+      t.timezone
+
+    ORDER BY
+      a.appointment_date ASC,
+      a.start_time ASC
+
+    LIMIT 100
+  `;
+
+    const { rows } = await client.query(query, [tenantId]);
+
+    return rows;
+  }
+
+  async getPendingPayments(tenantId, client = db) {
+    const query = `
+      SELECT ${this._staffAppointmentSelect()},
+        (a.total_price - a.paid_amount) AS "dueAmount"
+      ${this._staffAppointmentJoins()}
+      WHERE a.tenant_id = $1
+        AND a.status = 'completed'
+        AND (a.total_price - a.paid_amount) > 0
+      GROUP BY a.id, u.id, st.id, su.id
+      ORDER BY a.appointment_date DESC, a.start_time DESC
+      LIMIT 100
+    `;
+    const { rows } = await client.query(query, [tenantId]);
+    return rows;
+  }
+
+  // Heuristic only: actual_start_time/actual_end_time are unpopulated
+  // (dead columns), so "elapsed" is measured against the *scheduled*
+  // start_time, not real service timing. An appointment is "stuck" if
+  // it's still in_progress after its scheduled end time has passed.
+  async getStuckInProgress(tenantId, client = db) {
+    const query = `
+      SELECT ${this._staffAppointmentSelect()},
+        (EXTRACT(EPOCH FROM (NOW() - (a.appointment_date + a.start_time))) / 60)::INT AS "elapsedMinutes"
+      ${this._staffAppointmentJoins()}
+      WHERE a.tenant_id = $1
+        AND a.status = 'in_progress'
+        AND (a.appointment_date + a.end_time) < NOW()
+      GROUP BY a.id, u.id, st.id, su.id
+      ORDER BY a.appointment_date ASC, a.start_time ASC
+      LIMIT 100
+    `;
+    const { rows } = await client.query(query, [tenantId]);
+    return rows;
+  }
+
+    // ============================================================
+  // GET APPOINTMENT FOR INVOICE — includes package name join
+  // (not needed by the general-purpose getAppointmentById)
+  // ============================================================
+  async getAppointmentForInvoice(tenantId, id, client = db) {
+    const query = `
+      SELECT
+        a.id,
+        a.customer_id AS "customerId",
+        u.full_name AS "customerName",
+        u.phone AS "customerPhone",
+        su.full_name AS "staffName",
+        TO_CHAR(a.appointment_date, 'YYYY-MM-DD') AS "date",
+        TO_CHAR(a.start_time, 'HH12:MI AM') AS "startTime",
+        TO_CHAR(a.end_time, 'HH12:MI AM') AS "endTime",
+        a.status,
+        a.total_price AS "amount",
+        a.paid_amount AS "paidAmount",
+        a.payment_status AS "paymentStatus",
+        a.is_package_appointment AS "isPackageAppointment",
+        p.name AS "packageName",
+        COALESCE(
+          json_agg(DISTINCT jsonb_build_object(
+            'serviceId', srv.id,
+            'serviceName', srv.name,
+            'price', aps.service_price
+          )) FILTER (WHERE srv.id IS NOT NULL),
+          '[]'::json
+        ) AS services
+      FROM appointments a
+      JOIN customers c ON a.customer_id = c.id
+      JOIN users u ON c.user_id = u.id
+      LEFT JOIN staff st ON a.staff_id = st.id
+      LEFT JOIN users su ON st.user_id = su.id
+      LEFT JOIN appointment_services aps ON aps.appointment_id = a.id AND aps.tenant_id = a.tenant_id
+      LEFT JOIN services srv ON aps.service_id = srv.id AND srv.tenant_id = a.tenant_id
+      LEFT JOIN customer_packages cp ON cp.id = a.customer_package_id AND cp.tenant_id = a.tenant_id
+      LEFT JOIN packages p ON p.id = cp.package_id
+      WHERE a.id = $1 AND a.tenant_id = $2
+      GROUP BY a.id, u.id, su.id, p.name
+    `;
+    const { rows } = await client.query(query, [id, tenantId]);
+    return rows[0] || null;
   }
 }
 

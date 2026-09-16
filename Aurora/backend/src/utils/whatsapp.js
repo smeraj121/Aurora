@@ -6,7 +6,7 @@
 // Strips everything except digits — wa.me expects international
 // format with no spaces, +, or dashes.
 function formatPhoneForWhatsApp(phone) {
-  return (phone || '').replace(/\D/g, '');
+  return "+91"+(phone || '').replace(/\D/g, '');
 }
 
 function buildWhatsAppUrl(phone, message) {

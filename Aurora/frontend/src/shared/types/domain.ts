@@ -13,6 +13,8 @@ export type PaymentStatus =
   | 'paid' 
   | 'refunded';
 
+export type UserTypes = 'SuperAdmin' | 'Admin' | 'Staff' | 'Customer';
+
 export type CalendarViewMode = 'day' | 'week' | 'month';
 
 

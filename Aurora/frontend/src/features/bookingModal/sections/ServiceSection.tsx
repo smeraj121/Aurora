@@ -50,7 +50,7 @@ export function ServiceSection({
           />
 
           {isOpen && filteredServices.length > 0 && (
-            <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-40 max-h-40 overflow-y-auto divide-y divide-slate-100">
+            <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-40 max-h-40 overflow-y-auto divide-y divide-slate-100 hide-scrollbar">
               {filteredServices.map((srv) => (
                 <div
                   key={srv.id}

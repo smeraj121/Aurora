@@ -25,23 +25,7 @@ class UserRepository {
     const query = `
       SELECT 
         id, tenant_id, full_name, email, phone, profile_image_url, 
-        system_role, is_active, created_at, updated_at
-      FROM users
-      WHERE id = $1 AND tenant_id = $2;
-    `;
-    const res = await conn.query(query, [id, tenantId]);
-    return res.rows[0] || null;
-  }
-
-  /**
-   * Find user by ID including password hash (for internal authentication checks)
-   */
-  async findByIdWithPassword(client, tenantId, id) {
-    const conn = this._getClient(client);
-    const query = `
-      SELECT 
-        id, tenant_id, full_name, email, phone, password_hash, 
-        profile_image_url, system_role, is_active, created_at, updated_at
+        system_role as "systemRole", is_active, created_at, updated_at
       FROM users
       WHERE id = $1 AND tenant_id = $2;
     `;
@@ -57,7 +41,7 @@ class UserRepository {
     const query = `
       SELECT 
         id, tenant_id, full_name, email, phone, password_hash, 
-        profile_image_url, system_role, is_active, created_at, updated_at
+        profile_image_url, system_role as "systemRole", is_active, created_at, updated_at
       FROM users
       WHERE LOWER(email) = LOWER($1) AND tenant_id = $2;
     `;
@@ -73,7 +57,7 @@ class UserRepository {
     const query = `
       SELECT 
         id, tenant_id, full_name, email, phone, password_hash, 
-        profile_image_url, system_role, is_active, created_at, updated_at
+        profile_image_url, system_role as "systemRole", is_active, created_at, updated_at
       FROM users
       WHERE phone = $1 AND tenant_id = $2;
     `;
@@ -111,7 +95,7 @@ class UserRepository {
         tenant_id, full_name, phone, email, password_hash, 
         profile_image_url, system_role, is_active
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-      RETURNING id, tenant_id, full_name, phone, email, profile_image_url, system_role, is_active, created_at;
+      RETURNING id, tenant_id, full_name, phone, email, profile_image_url, system_role as "systemRole", is_active, created_at;
     `;
     const values = [
       tenantId,
@@ -142,7 +126,7 @@ class UserRepository {
           is_active = COALESCE($6, is_active),
           updated_at = NOW()
       WHERE id = $7 AND tenant_id = $8
-      RETURNING id, full_name, phone, email, profile_image_url, system_role, is_active, updated_at;
+      RETURNING id, full_name, phone, email, profile_image_url, system_role as "systemRole", is_active, updated_at;
     `;
     const values = [
       userData.fullName || null,
@@ -227,7 +211,7 @@ class UserRepository {
     const total = countRes.rows[0].total;
 
     const dataQuery = `
-      SELECT id, full_name, phone, email, profile_image_url, system_role, is_active, created_at
+      SELECT id, full_name, phone, email, profile_image_url, system_role as "systemRole", is_active, created_at
       FROM users
       ${whereClause}
       ORDER BY created_at DESC

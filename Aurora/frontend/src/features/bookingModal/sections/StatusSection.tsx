@@ -16,7 +16,8 @@ export function StatusSection({ status, onStatusChange, isEditable, disableCance
   const [isEditing, setIsEditing] = useState(false);
   const config = getStatusConfig(status || 'scheduled');
   const Icon = config.icon;
-console.log(status);
+  console.log('StatusSection render: status=', status, 'isEditing=', isEditing, 'isEditable=', isEditable);
+  console.log('StatusSection render: config=', config);
   return (
     <div>
       <label className="block text-[11px] font-bold text-slate-600 mb-1 flex items-center gap-1">
@@ -38,8 +39,7 @@ console.log(status);
   .filter(
     (opt) =>
       opt.id === status ||
-      STATUS_TRANSITIONS[status]?.includes(opt.id as AppointmentStatus)
-  ).map((opt) => (
+      STATUS_TRANSITIONS[status]?.includes(opt.id as AppointmentStatus)).map((opt) => (
             <option
               key={opt.id}
               value={opt.id}

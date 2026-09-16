@@ -98,7 +98,9 @@ async function updateCustomer(tenantId, id, data, userId) {
     }
   }
 
-  return customerRepository.updateCustomer(tenantId, id, data, userId);
+  var cleanCustomerName = data.fullName ? data.fullName.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') : null;
+
+  return customerRepository.updateCustomer(tenantId, id, { ...data, fullName: cleanCustomerName }, userId);
 }
 
 // ============================================================
@@ -144,7 +146,7 @@ async function resolveCustomer(tenantId, data, userId, client) {
   let cleanCustomerId = parseNumericId(data.customerId);
   const cleanPhone = data.phone ? data.phone.trim() : null;
   const customerName = data.customerName ? data.customerName.trim() : null;
-
+  
   // If customerId is provided, look up by ID using tenantId
   if (cleanCustomerId) {
     const existingCust = await customerRepository.getCustomerDetails(tenantId, cleanCustomerId, client);
@@ -179,8 +181,9 @@ async function resolveCustomer(tenantId, data, userId, client) {
     return phoneMatch.id;
   }
 
+  var cleanCustomerName = customerName.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
   // Create new customer if not found
-  const newCustomerId = await customerRepository.createBasicCustomer(tenantId, customerName, cleanPhone, userId, client);
+  const newCustomerId = await customerRepository.createBasicCustomer(tenantId, cleanCustomerName, cleanPhone, userId, client);
   return newCustomerId;
 }
 

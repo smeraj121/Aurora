@@ -261,6 +261,48 @@ class TenantRepository {
     const { rows } = await db.query(query, [isActive, id]);
     return rows[0] || null;
   }
+
+  // ============================================================
+  // TENANT SETTINGS (jsonb column, merged with defaults at read time)
+  // ============================================================
+  async getSettingsRaw(tenantId) {
+    const query = `SELECT settings FROM tenants WHERE id = $1`;
+    const { rows } = await db.query(query, [tenantId]);
+    return rows[0]?.settings || {};
+  }
+
+  async updateSettings(tenantId, partialSettings) {
+    const query = `
+      UPDATE tenants
+      SET settings = settings || $1::jsonb,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = $2
+      RETURNING settings
+    `;
+    const { rows } = await db.query(query, [JSON.stringify(partialSettings), tenantId]);
+    return rows[0]?.settings || {};
+  }
+
+    // ============================================================
+  // BILLING INFO (invoice header) — full address/contact fields
+  // ============================================================
+  async getBillingInfo(tenantId) {
+    const query = `
+      SELECT
+        name,
+        address,
+        city,
+        state,
+        country,
+        postal_code AS "postalCode",
+        phone,
+        email
+      FROM tenants
+      WHERE id = $1
+    `;
+    const { rows } = await db.query(query, [tenantId]);
+    return rows[0] || null;
+  }
 }
 
 module.exports = new TenantRepository();

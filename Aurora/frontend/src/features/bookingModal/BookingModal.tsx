@@ -74,13 +74,13 @@ export function BookingModal({
   const [formError, setFormError] = useState<string | null>(null);
 
   const { user } = useAuth();
-  const isCustomerActive = user?.systemRole.toLocaleLowerCase()==='customer';
+  const isCustomerActive = user?.customerId ? true : false;
   const canEditFields = !isCustomerActive;
   //const currentStatusConfig = getStatusConfig(formState.status || 'scheduled');
   //const StatusIcon = currentStatusConfig.icon;
 
   // Derived Payment Status
-  const computedPaymentStatus = computePaymentStatus(formState.amount,formState.paidAmount, formState.isPackageAppointment);
+  const computedPaymentStatus = computePaymentStatus(formState.amount, formState.paidAmount, formState.isPackageAppointment);
 
   // Keep formState.paymentStatus updated automatically
   useEffect(() => {
@@ -147,8 +147,8 @@ export function BookingModal({
           setFormState((prev) => ({
             ...prev,
             customerId: initialCustomer?.id ?? (isCustomerActive ? user?.customerId ?? 0 : 0),
-            customerName: initialCustomer?.fullName ?? (isCustomerActive?user.fullName:''),
-            phone: initialCustomer?.phone ?? (isCustomerActive?user.phone:''),
+            customerName: initialCustomer?.fullName ?? (isCustomerActive ? user?.fullName || '' : ''),
+            phone: initialCustomer?.phone ?? (isCustomerActive ? user?.phone || '' : ''),
             staffId: defaultStaff,
             date: currentDate || DEFAULT_FORM_STATE.date,
             startTime: slot || DEFAULT_FORM_STATE.startTime,
@@ -218,30 +218,35 @@ export function BookingModal({
     []
   );
 
-  const handleFinish = async () => {
-    if (!appointmentId || !onFinishAppointment) return;
+  const [pendingBalanceWarning, setPendingBalanceWarning] = useState<number | null>(null);
 
-    const validationError = validateBooking(formState);
-    if (validationError) {
-      setFormError(validationError);
-      return;
-    }
+const handleFinish = async () => {
+  if (!appointmentId || !onFinishAppointment) return;
+  const validationError = validateBooking(formState);
+  if (validationError) { setFormError(validationError); return; }
 
-    try {
-      setIsSubmitting(true);
-      setFormError(null);
-      await onFinishAppointment(appointmentId, {
-        ...buildBookingPayload(formState),
-        durationMinutes: formState.durationMinutes,
-        paymentStatus: computedPaymentStatus,
-      });
-      onClose();
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Failed to finish appointment');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  const due = Number(formState.amount || 0) - Number(formState.paidAmount || 0);
+  if (due > 0 && !pendingBalanceWarning) {
+    setPendingBalanceWarning(due);
+    return;
+  }
+  setPendingBalanceWarning(null);
+
+  try {
+    setIsSubmitting(true);
+    setFormError(null);
+    await onFinishAppointment(appointmentId, {
+      ...buildBookingPayload(formState),
+      durationMinutes: formState.durationMinutes,
+      paymentStatus: computedPaymentStatus,
+    });
+    onClose();
+  } catch (err) {
+    setFormError(err instanceof Error ? err.message : 'Failed to finish appointment');
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   const handleClearCustomer = useCallback(() => {
     setFormState((prev) => ({
@@ -353,12 +358,11 @@ export function BookingModal({
   };
 
   const displayDuration = formState.durationMinutes;
-console.log(formState.status);
   const footerActions = (
     <>
       {/* Left Action: Cancel / Close */}
       {appointmentId ? (
-        !!onCancelAppointment &&
+        !!onCancelAppointment && !isCustomerActive || formState.status === 'scheduled' &&
         <button
           type="button"
           onClick={() => setShowCancelModal(true)}
@@ -382,25 +386,28 @@ console.log(formState.status);
           !!appointmentId && !isCustomerActive &&
           formState.status !== 'completed' &&
           formState.status !== 'cancelled' && !!onFinishAppointment;
+        const hasUpdateButton = !isCustomerActive || formState.status === 'scheduled';
 
         return (
-          <div className="flex items-center gap-2">
-            <button
-              type="submit"
-              form="booking-form"
-              disabled={isSubmitting}
-              className={
-                hasFinishButton
-                  ? "px-2 py-1.5 rounded-xl border border-purple-600 text-purple-600 hover:bg-purple-50 text-xs font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  : "btn-modal-primary"
-              }
-            >
-              {isSubmitting
-                ? 'Saving...'
-                : appointmentId
-                  ? 'Update Booking'
-                  : 'Book Appointment'}
-            </button>
+            <div className="flex items-center gap-2">
+            {hasUpdateButton && 
+              <button
+                type="submit"
+                form="booking-form"
+                disabled={isSubmitting}
+                className={
+                  hasFinishButton
+                    ? "px-2 py-1.5 rounded-xl border border-purple-600 text-purple-600 hover:bg-purple-50 text-xs font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    : "btn-modal-primary"
+                }
+              >
+                {isSubmitting
+                  ? 'Saving...'
+                  : appointmentId
+                    ? 'Update Booking'
+                    : 'Book Appointment'}
+              </button>
+            }
 
             {hasFinishButton && (
               <button
@@ -413,7 +420,7 @@ console.log(formState.status);
                 {isSubmitting ? 'Finishing...' : 'Finish'}
               </button>
             )}
-          </div>
+            </div>
         );
       })()}
     </>
@@ -439,8 +446,8 @@ console.log(formState.status);
             {/* 1. Customer Section */}
 
             <CustomerSection
-              customerName={ formState.customerName }
-              phone={ formState.phone}
+              customerName={formState.customerName}
+              phone={formState.phone}
               isExistingCustomer={isExistingCustomer}
               onCustomerNameChange={(customerName) =>
                 setFormState((prev) => ({ ...prev, customerName }))
@@ -527,90 +534,90 @@ console.log(formState.status);
 
 
             {isCustomerActive ? (
-  <div className="flex gap-1">
-    <CustomerSummaryCard
-      icon={Clock}
-      iconColor="text-purple-600"
-      iconBg="bg-purple-50"
-      label="Duration"
-      value={`${displayDuration} min`}
-    />
-    <CustomerSummaryCard
-      icon={IndianRupee}
-      iconColor="text-purple-600"
-      iconBg="bg-purple-50"
-      label="Total Amount"
-      value={`₹${formState.amount}`}
-    />
-    <CustomerSummaryCard
-      icon={getStatusConfig(formState.status || 'scheduled').icon}
-      iconColor={getStatusConfig(formState.status || 'scheduled').text}
-      iconBg={getStatusConfig(formState.status || 'scheduled').bg}
-      label="Status"
-      value={getStatusConfig(formState.status || 'scheduled').label}
-    />
-  </div>
-) : (
-  <div className="grid grid-cols-3 gap-2 text-xs">
-    <div>
-      <label className="block text-[11px] font-bold text-slate-600 mb-1 flex items-center gap-1">
-        <Clock className="w-3 h-3 text-purple-600" /> Duration
-      </label>
-      {isEditingDuration ? (
-        <input
-          type="text"
-          value={formState.durationMinutes}
-          onChange={(e) => {
-            const val = parseInt(e.target.value, 10) || 0;
-            setFormState((prev) => ({ ...prev, durationMinutes: val }));
-            setIsDurationOverridden(true);
-          }}
-          onBlur={() => setIsEditingDuration(false)}
-          autoFocus
-          className="bg-slate-50 border border-purple-300 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-900 focus:outline-none focus:border-purple-600"
-        />
-      ) : (
-        <button
-          type="button"
-          onClick={() => canEditFields && setIsEditingDuration(true)}
-          disabled={!canEditFields}
-          className="px-2.5 py-1.5 text-xs font-bold text-slate-900 flex gap-1 items-center group hover:border-purple-300 transition-colors disabled:cursor-default"
-        >
-          <span>{displayDuration} min</span>
-          {canEditFields && (
-            <Edit2 className="w-3 h-3 text-slate-400 group-hover:text-purple-600 transition-colors" />
-          )}
-        </button>
-      )}
-    </div>
+              <div className="flex gap-1">
+                <CustomerSummaryCard
+                  icon={Clock}
+                  iconColor="text-purple-600"
+                  iconBg="bg-purple-50"
+                  label="Duration"
+                  value={`${displayDuration} min`}
+                />
+                <CustomerSummaryCard
+                  icon={IndianRupee}
+                  iconColor="text-purple-600"
+                  iconBg="bg-purple-50"
+                  label="Total Amount"
+                  value={`₹${formState.amount}`}
+                />
+                <CustomerSummaryCard
+                  icon={getStatusConfig(formState.status || 'scheduled').icon}
+                  iconColor={getStatusConfig(formState.status || 'scheduled').text}
+                  iconBg={getStatusConfig(formState.status || 'scheduled').bg}
+                  label="Status"
+                  value={getStatusConfig(formState.status || 'scheduled').label}
+                />
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 gap-2 text-xs">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 mb-1 flex items-center gap-1">
+                    <Clock className="w-3 h-3 text-purple-600" /> Duration
+                  </label>
+                  {isEditingDuration ? (
+                    <input
+                      type="text"
+                      value={formState.durationMinutes}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value, 10) || 0;
+                        setFormState((prev) => ({ ...prev, durationMinutes: val }));
+                        setIsDurationOverridden(true);
+                      }}
+                      onBlur={() => setIsEditingDuration(false)}
+                      autoFocus
+                      className="bg-slate-50 border border-purple-300 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-900 focus:outline-none focus:border-purple-600"
+                    />
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => canEditFields && setIsEditingDuration(true)}
+                      disabled={!canEditFields}
+                      className="px-2.5 py-1.5 text-xs font-bold text-slate-900 flex gap-1 items-center group hover:border-purple-300 transition-colors disabled:cursor-default"
+                    >
+                      <span>{displayDuration} min</span>
+                      {canEditFields && (
+                        <Edit2 className="w-3 h-3 text-slate-400 group-hover:text-purple-600 transition-colors" />
+                      )}
+                    </button>
+                  )}
+                </div>
 
-    <StatusSection
-      status={formState.status}
-      onStatusChange={(status) => setFormState((prev) => ({ ...prev, status }))}
-      isEditable={canEditFields}
-      disableCancelled={!appointmentId}
-    />
+                <StatusSection
+                  status={formState.status}
+                  onStatusChange={(status) => setFormState((prev) => ({ ...prev, status }))}
+                  isEditable={canEditFields}
+                  disableCancelled={!appointmentId}
+                />
 
-    <PaymentSection
-      amount={formState.amount}
-      onAmountChange={(amount) => {
-        setFormState((prev) => ({ ...prev, amount }));
-        setIsTotalOverridden(true);
-      }}
-      paidAmount={formState.paidAmount}
-      onPaidAmountChange={(paidAmount) => setFormState((prev) => ({ ...prev, paidAmount }))}
-      isPackageAppointment={formState.isPackageAppointment}
-      isEditable={canEditFields}
-    />
-    
-  </div>
-  
-)}
+                <PaymentSection
+                  amount={formState.amount}
+                  onAmountChange={(amount) => {
+                    setFormState((prev) => ({ ...prev, amount }));
+                    setIsTotalOverridden(true);
+                  }}
+                  paidAmount={formState.paidAmount}
+                  onPaidAmountChange={(paidAmount) => setFormState((prev) => ({ ...prev, paidAmount }))}
+                  isPackageAppointment={formState.isPackageAppointment}
+                  isEditable={canEditFields}
+                />
 
-{isCustomerActive && (
-<p className="text-[10px] text-slate-400 mb-0">
-  Final confirmation is subject to staff availability.
-</p>)}
+              </div>
+
+            )}
+
+            {isCustomerActive && (
+              <p className="text-[10px] text-slate-400 mb-0">
+                Final confirmation is subject to staff availability.
+              </p>)}
           </form>
         )}
       </BaseModal>

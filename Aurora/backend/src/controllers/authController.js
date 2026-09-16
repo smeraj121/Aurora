@@ -103,7 +103,7 @@ class AuthController {
         fullName: user.fullName,
         phone: user.phone,
         email: user.email,
-        systemRole: user.system_role,
+        systemRole: user.systemRole,
       }
     });
   } catch (error) {

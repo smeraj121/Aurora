@@ -19,17 +19,7 @@ export function PhoneStep({ onSubmit, loading, error }: PhoneStepProps) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4">
       <div className="w-full max-w-md">
-        {/* Brand */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 mb-2">
-            <span className="text-3xl">✨</span>
-            <span className="text-xl font-bold text-slate-800">Aurora</span>
-          </div>
-          <p className="text-sm text-slate-500">Salon & Clinic Platform</p>
-        </div>
-
         {/* Card */}
         <div className="bg-white rounded-2xl shadow-xl p-8">
           <div className="text-center mb-6">
@@ -100,6 +90,5 @@ export function PhoneStep({ onSubmit, loading, error }: PhoneStepProps) {
           </form>
         </div>
       </div>
-    </div>
   );
 }

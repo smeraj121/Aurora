@@ -1,3 +1,4 @@
+//bookingmapper.ts
 import { formatDateForInput } from '../../lib/dateUtils';
 import type { BookingFormState } from './types/types';
 

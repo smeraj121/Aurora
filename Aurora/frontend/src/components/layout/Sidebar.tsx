@@ -29,7 +29,7 @@ export function Sidebar({
         />
       )}
       <aside className={cn(
-        "fixed md:sticky top-0 left-0 z-40 h-screen bg-[#0F0B1E] border-r border-slate-800/80 transition-all duration-300",
+        "fixed md:sticky top-0 left-0 z-101 h-screen bg-[#0F0B1E] border-r border-slate-800/80 transition-all duration-300",
         collapsed ? "w-20" : "w-64",
         mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
       )} >

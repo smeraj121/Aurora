@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AppLayout } from './components/layout/AppLayout';
 import { DashboardView } from './features/dashboard/DashboardView';
 import { CalendarView } from './features/calendar/CalendarView';
@@ -16,6 +16,9 @@ import { TenantManagement } from './features/tenant/TenantManagement';
 
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { CustomerEngagementView } from './features/customerEngagement/CustomerEngagementView';
+import { MyAppointmentsView } from './features/myAppointments/MyAppointmentsView';
+import { AppointmentsView } from './features/appointments/AppointmentsView';
+import { InvoiceRedirectView } from './features/invoice/InvoiceRedirectView';
 
 function PlaceholderView({ title }: { title: string }) {
   return (
@@ -29,6 +32,10 @@ function PlaceholderView({ title }: { title: string }) {
       </p>
     </div>
   );
+}
+function UnauthenticatedRedirect() {
+  const location = useLocation();
+  return <Navigate to="/login" state={{ from: `${location.pathname}${location.search}` }} replace />;
 }
 
 // ============================================================
@@ -46,8 +53,7 @@ function StaffRoute({
   const { user } = useAuth();
 
   if (
-    !user ||
-    user.systemRole === 'Customer' ||
+    !user || user.systemRole === 'Customer' || 
     user.systemRole === 'SuperAdmin'
   ) {
     return <Navigate to="/" replace />;
@@ -171,6 +177,8 @@ function AppRoutes() {
             element={<CalendarView />}
           />
 
+          <Route path="my-appointments" element={<MyAppointmentsView />} />
+
           <Route
             path="profile"
             element={
@@ -179,6 +187,8 @@ function AppRoutes() {
               </ProfileRoute>
             }
           />
+
+          <Route path="invoice/:appointmentId" element={<InvoiceRedirectView />} />
 
 
           {/* ========================================================
@@ -248,14 +258,7 @@ function AppRoutes() {
             }
           />
 
-          <Route
-            path="appointments"
-            element={
-              <StaffRoute>
-                <PlaceholderView title="Appointments" />
-              </StaffRoute>
-            }
-          />
+          <Route path="appointments" element={<StaffRoute><AppointmentsView /></StaffRoute>} />
 
           <Route
             path="billing"
@@ -326,10 +329,11 @@ function AppRoutes() {
            NOT AUTHENTICATED
            ============================================================ */
 
-        <Route
+        /*<Route
           path="*"
           element={<Navigate to="/login" replace />}
-        />
+        />*/
+        <Route path="*" element={<UnauthenticatedRedirect />} />
       )}
 
     </Routes>

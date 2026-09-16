@@ -29,22 +29,22 @@ class AuthService {
       const tokenPayload = {
         userId: newUser.id,
         tenantId: newUser.tenant_id,
-        systemRole: newUser.system_role,
+        systemRole: newUser.systemRole,
         phone: newUser.phone,
       };
 
       const tokens = await tokenService.issueTokens(tokenPayload, client);
 
       await client.query('COMMIT');
-
+      var camelCaseFullName  = newUser.full_name.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
       return {
         user: {
           id: newUser.id,
           tenantId: newUser.tenant_id,
-          fullName: newUser.full_name,
+          fullName: camelCaseFullName,
           phone: newUser.phone,
           email: newUser.email,
-          systemRole: newUser.system_role,
+          systemRole: newUser.systemRole,
         },
         ...tokens,
       };
@@ -74,17 +74,18 @@ class AuthService {
       const tokens = await tokenService.issueTokens({
         userId: singleUser.user_id,
         tenantId: singleUser.tenant_id,
-        systemRole: singleUser.system_role,
+        systemRole: singleUser.systemRole,
         phone,
       });
 
+      var camelCaseFullName  = singleUser.full_name.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
       return {
         requiresTenantSelection: false, ...tokens, user: {
           id: singleUser.user_id,
-          fullName: singleUser.full_name,
+          fullName: camelCaseFullName,
           email: singleUser.email,
           phone,
-          systemRole: singleUser.system_role,
+          systemRole: singleUser.systemRole,
           tenantId: singleUser.tenant_id,
           customerId: singleUser.customer_id,
         }
@@ -98,7 +99,7 @@ class AuthService {
         tenants: userTenants.map((t) => ({
           tenantId: t.tenant_id,
           tenantName: t.tenant_name,
-          role: t.system_role,
+          systemRole: t.systemRole,
           logoUrl: t.logo_url,
         })),
       };
@@ -114,7 +115,7 @@ class AuthService {
     const tokens = await tokenService.issueTokens({
       userId: targetAccount.user_id,
       tenantId: targetAccount.tenant_id,
-      systemRole: targetAccount.system_role,
+      systemRole: targetAccount.systemRole,
       phone,
     });
 
@@ -126,7 +127,7 @@ class AuthService {
         fullName: targetAccount.full_name,
         email: targetAccount.email,
         phone,
-        systemRole: targetAccount.system_role,
+        systemRole: targetAccount.systemRole,
         tenantId: targetAccount.tenant_id,
         customerId: targetAccount.customer_id,
       },
@@ -203,11 +204,12 @@ class AuthService {
         phone: systemUser.phone,
       });
 
+      var camelCaseFullName  = systemUser.full_name.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
       return {
         user: {
           id: systemUser.id,
           tenantId: null,
-          fullName: systemUser.full_name,
+          fullName: camelCaseFullName,
           phone: systemUser.phone,
           email: systemUser.email,
           systemRole: 'SuperAdmin',

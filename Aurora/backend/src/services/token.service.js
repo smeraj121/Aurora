@@ -57,7 +57,7 @@ class TokenService {
     const tokenPayload = {
       userId: user.id,
       tenantId: user.tenant_id,
-      systemRole: user.system_role,
+      systemRole: user.systemRole,
       phone: user.phone,
     };
 

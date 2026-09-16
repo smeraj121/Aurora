@@ -9,6 +9,7 @@ import {
   User,
   Phone,
   Package,
+  Share2,
 } from 'lucide-react';
 import type { ExtendedAppointment } from '../types';
 import { formatCurrency } from '../../../lib/utils';
@@ -19,10 +20,13 @@ interface AppointmentCardProps {
   isOverlapped?: boolean;
   topOffset: number;
   height: number;
+  colIdx?: number;
+  totalCols?: number;
   onClick: (apt: ExtendedAppointment) => void;
   onFinish: (id: number, e: React.MouseEvent) => Promise<boolean>;
   onCancel: (apt: ExtendedAppointment, e: React.MouseEvent) => Promise<void>;
   isCustomerActive: boolean;
+  onShareInvoice: (apt: ExtendedAppointment) => void;
 }
 
 export function AppointmentCard({
@@ -30,10 +34,13 @@ export function AppointmentCard({
   isOverlapped = false,
   topOffset,
   height,
+  colIdx = 0,
+  totalCols = 1,
   onClick,
   onFinish,
   onCancel,
   isCustomerActive,
+  onShareInvoice
 }: AppointmentCardProps) {
   const [isFinishing, setIsFinishing] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
@@ -52,14 +59,13 @@ export function AppointmentCard({
     localStatus || appointment.status || 'scheduled';
 
   const isCancelled = currentStatus === 'cancelled';
-  //const isCompleted = currentStatus === 'completed';
-  //const isScheduled = currentStatus === 'scheduled' || currentStatus === 'in_progress';
 
   const totalAmount = Number(appointment.amount || 0);
   const paidAmount = Number(appointment.paidAmount || 0);
   const dueAmount = Math.max(totalAmount - paidAmount, 0);
+  const isPendingOverdue = currentStatus === 'completed' && dueAmount > 0;
 
-  const paymentStatus = computePaymentStatus(totalAmount,paidAmount,false).toLowerCase();
+  const paymentStatus = computePaymentStatus(totalAmount, paidAmount, false).toLowerCase();
 
   // ============================================================
   // STATUS CONFIG
@@ -123,7 +129,7 @@ export function AppointmentCard({
   // ============================================================
 
   const handleMouseEnter = () => {
-    if(isCustomerActive) return;
+    if (isCustomerActive) return;
 
     if (hideTimeoutRef.current) {
       clearTimeout(hideTimeoutRef.current);
@@ -156,7 +162,7 @@ export function AppointmentCard({
     );
 
     let top = rect.top;
-    const popoverHeight = 350;
+    const popoverHeight = 450;
 
     if (top + popoverHeight > window.innerHeight - padding) {
       top = window.innerHeight - popoverHeight - padding;
@@ -233,6 +239,11 @@ export function AppointmentCard({
   // RENDER
   // ============================================================
 
+  // Column-aware horizontal placement (side-by-side for overlaps)
+  const columnLeftPct = (colIdx / totalCols) * 100;
+  const columnWidthPct = 100 / totalCols;
+  const isNarrow = totalCols > 1;
+
   return (
     <>
       <div
@@ -243,9 +254,12 @@ export function AppointmentCard({
         style={{
           top: `${topOffset}px`,
           height: `${Math.max(height, 48)}px`,
+          left: `calc(${columnLeftPct}% + 3px)`,
+          width: `calc(${columnWidthPct}% - 6px)`,
+          right: 'auto',
         }}
         className={`
-          group absolute left-1 right-1
+          group absolute
           rounded-xl
           bg-white
           border border-slate-200
@@ -256,6 +270,7 @@ export function AppointmentCard({
           hover:z-40
           hover:shadow-md
           ${isCancelled ? 'opacity-65' : ''}
+          ${isPendingOverdue ? 'border-rose-300 ring-1 ring-rose-200/70 bg-rose-50/30' : ''}
         `}
       >
         <div
@@ -266,7 +281,11 @@ export function AppointmentCard({
           `}
         />
 
-        <div className="h-full pl-3.5 pr-2.5 flex flex-col justify-center min-w-0">
+        <div
+          className={`h-full flex flex-col justify-center min-w-0 ${
+            isNarrow ? 'pl-2.5 pr-1.5' : 'pl-3.5 pr-2.5'
+          }`}
+        >
           <div className="flex items-center gap-2 min-w-0">
             <h4
               className={`
@@ -294,11 +313,13 @@ export function AppointmentCard({
             />
           </div>
 
-          <p className="text-[10px] text-slate-500 truncate mt-0.5">
-            {serviceName}
-          </p>
+          {!isNarrow && (
+            <p className="text-[10px] text-slate-500 truncate mt-0.5">
+              {serviceName}
+            </p>
+          )}
 
-          {height >= 80 && (
+          {height >= 80 && !isNarrow && (
             <div className="flex items-center gap-2 mt-1 text-[9px] text-slate-400">
               <span className="flex items-center gap-1">
                 <Clock className="w-2.5 h-2.5" />
@@ -344,6 +365,7 @@ export function AppointmentCard({
               isCancelling={isCancelling}
               onFinish={handleFinishClick}
               onCancel={handleCancelClick}
+              onShareInvoice={() => onShareInvoice(appointment)}
             />
           </div>,
           document.body
@@ -370,6 +392,7 @@ interface AppointmentHoverCardProps {
   isCancelling: boolean;
   onFinish: (e: React.MouseEvent) => void;
   onCancel: (e: React.MouseEvent) => void;
+  onShareInvoice: (appointment: ExtendedAppointment) => void;
 }
 
 function AppointmentHoverCard({
@@ -386,12 +409,13 @@ function AppointmentHoverCard({
   isCancelling,
   onFinish,
   onCancel,
+  onShareInvoice,
 }: AppointmentHoverCardProps) {
   const StatusIcon = statusConfig.icon;
   const PaymentIcon = paymentConfig.icon;
 
   const canFinish = currentStatus === 'scheduled' || currentStatus === 'in_progress' || currentStatus === 'confirmed';
-  
+
   return (
     <div
       className="
@@ -612,6 +636,18 @@ function AppointmentHoverCard({
           </button>
         </div>
       )}
+      {currentStatus === 'completed' && (
+  <div className="px-3 py-2.5 border-t border-slate-100 bg-slate-50">
+    <button
+      type="button"
+      onClick={(e) => { e.stopPropagation(); onShareInvoice(appointment); }}
+      className="w-full h-9 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"
+    >
+      <Share2 className="w-3.5 h-3.5" />
+      Share Invoice via WhatsApp
+    </button>
+  </div>
+)}
     </div>
   );
 }

@@ -111,13 +111,13 @@ code {
 }
 @layer components {
   .modal-backdrop {
-    @apply fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-3 sm:p-4;
+    @apply fixed inset-0 z-102 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-3 sm:p-4;
   }
   .modal-container {
-    @apply bg-white rounded-2xl shadow-2xl w-full border border-slate-100 overflow-hidden flex flex-col max-h-[90vh];
+    @apply bg-white rounded-2xl shadow-2xl w-full border border-slate-100 flex flex-col max-h-[90vh];
   }
   .modal-header {
-    @apply px-5 py-3.5 bg-slate-900 text-white flex items-center justify-between shrink-0;
+    @apply px-5 py-3.5 rounded-t-2xl bg-slate-900 text-white flex items-center justify-between shrink-0;
   }
   .modal-title-wrapper {
     @apply flex items-center gap-2;
@@ -132,7 +132,7 @@ code {
     @apply bg-rose-50 border-b border-rose-100 p-3 px-5 flex items-center gap-2 text-xs text-rose-600 shrink-0;
   }
   .modal-body {
-    @apply p-5 space-y-4 overflow-y-auto flex-1;
+    @apply p-5 space-y-4 flex-1;
   }
   .modal-label {
     @apply flex items-center gap-1.5 font-bold text-xs text-slate-700 mb-1.5;
@@ -141,7 +141,7 @@ code {
     @apply w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600;
   }
   .modal-footer {
-    @apply pt-3 border-t border-slate-100 flex items-center justify-between shrink-0;
+    @apply pt-3 rounded-b-2xl border-t border-slate-100 flex items-center justify-between shrink-0;
   }
   .btn-modal-primary {
     @apply px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-md shadow-purple-600/20 transition-all disabled:opacity-50;
@@ -155,10 +155,18 @@ code {
 }
 .modal-container {
   position: relative;
-  overflow: hidden;
+  /*overflow: visible;*/
 }
 
 .modal-body {
   position: relative;
-  overflow: visible;
+  /*overflow: visible;*/
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;  /* IE / Edge */
+  scrollbar-width: none;     /* Firefox */
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;             /* Chrome / Safari */
 }

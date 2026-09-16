@@ -175,90 +175,140 @@ export function CustomerEngagementView() {
             <div className="grid grid-cols-1 gap-3">
               {results.map((item, index) => (
                 <div
-                  key={`${item.customer.id}-${index}`}
-                  className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs flex flex-col md:flex-row md:items-start gap-4"
-                >
-                  <div className="flex items-start gap-3 md:w-64 shrink-0">
-                    <div className="w-9 h-9 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-xs font-semibold flex-shrink-0">
-                      {item.customer.name?.split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase()}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-bold text-slate-900 truncate">{item.customer.name}</p>
-                      <p className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
-                        <Phone className="w-3 h-3 text-slate-400" />
-                        {item.customer.phone}
-                      </p>
-                      <span className="inline-block mt-1.5 text-[10px] font-semibold text-purple-700 bg-purple-50 border border-purple-200/60 px-2 py-0.5 rounded-full">
-                        {item.reason.label}
-                      </span>
-                    </div>
-                  </div>
+  key={`${item.customer.id}-${index}`}
+  className="
+    bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs
+    grid grid-cols-1 md:grid-cols-2
+    lg:grid-cols-[minmax(190px,1.1fr)_minmax(140px,.8fr)_minmax(240px,1.4fr)_minmax(150px,.85fr)]
+    gap-x-6 gap-y-4
+    items-start
+  "
+>
+  {/* Customer */}
+  <div className="flex items-start gap-3 min-w-0">
+    <div className="w-9 h-9 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-xs font-semibold flex-shrink-0">
+      {item.customer.name
+        ?.split(' ')
+        .map((n) => n[0])
+        .slice(0, 2)
+        .join('')
+        .toUpperCase()}
+    </div>
 
-                  <div className="md:w-40 shrink-0 text-[11px] text-slate-500 space-y-1">
-                    {item.context.lastVisitDate && (
-                      <p>
-                        Last visit
-                        <br />
-                        <span className="text-slate-700 font-medium">{formatDate(item.context.lastVisitDate)}</span>
-                      </p>
-                    )}
-                    {item.context.lastService && (
-                      <p>
-                        Last service
-                        <br />
-                        <span className="text-slate-700 font-medium">
-                          {item.context.lastService.name}
-                          {item.context.lastService.category ? ` · ${item.context.lastService.category}` : ''}
-                        </span>
-                      </p>
-                    )}
-                    {item.context.services && item.context.services.length > 0 && (
-                      <p>
-                        Service
-                        <br />
-                        <span className="text-slate-700 font-medium">
-                          {item.context.services.map((s) => s.name).join(', ')}
-                        </span>
-                      </p>
-                    )}
-                    {item.context.staffName && <p className="text-slate-400">with {item.context.staffName}</p>}
-                  </div>
+    <div className="min-w-0">
+      <p className="text-xs font-bold text-slate-900 truncate">
+        {item.customer.name}
+      </p>
 
-                  <div className="flex-1 min-w-0 space-y-2">
-                    <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200/60 px-2.5 py-1 rounded-full">
-                      <MessageCircleHeart className="w-3.5 h-3.5" />
-                      {item.suggestion.title} · {item.suggestion.description}
-                    </div>
-                    <p className="text-[11px] text-slate-600 bg-slate-50/80 border border-slate-100 rounded-xl p-2.5 leading-relaxed">
-                      {item.message}
-                    </p>
-                  </div>
+      <p className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
+        <Phone className="w-3 h-3 text-slate-400 shrink-0" />
+        <span className="truncate">{item.customer.phone}</span>
+      </p>
 
-                  <div className="flex flex-row md:flex-col items-stretch gap-2 md:w-40 shrink-0">
-                    <button
-                      onClick={() => handleOpenWhatsApp(item)}
-                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs transition-colors"
-                    >
-                      Open WhatsApp
-                    </button>
-                    <button
-                      onClick={() => handleCopyMessage(item, index)}
-                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-semibold transition-colors"
-                    >
-                      {copiedId === index ? (
-                        <>
-                          <Check className="w-3.5 h-3.5 text-emerald-600" />
-                          Copied
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-3.5 h-3.5" />
-                          Copy Message
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
+      <span className="inline-block mt-1.5 text-[10px] font-semibold text-purple-700 bg-purple-50 border border-purple-200/60 px-2 py-0.5 rounded-full">
+        {item.reason.label}
+      </span>
+    </div>
+  </div>
+
+  {/* Context */}
+  <div className="min-w-0 text-[11px] text-slate-500 space-y-1">
+    {item.context.lastVisitDate && (
+      <p>
+        Last visit
+        <br />
+        <span className="text-slate-700 font-medium">
+          {formatDate(item.context.lastVisitDate)}
+        </span>
+      </p>
+    )}
+
+    {item.context.lastService && (
+      <p>
+        Last service
+        <br />
+        <span className="text-slate-700 font-medium">
+          {item.context.lastService.name}
+          {item.context.lastService.category
+            ? ` · ${item.context.lastService.category}`
+            : ''}
+        </span>
+      </p>
+    )}
+
+    {item.context.services?.length||0 > 0 && (
+      <p>
+        Service
+        <br />
+        <span className="text-slate-700 font-medium">
+          {item.context.services?.map((s) => s.name).join(', ') || 'N/A'}
+        </span>
+      </p>
+    )}
+
+    {item.context.staffName && (
+      <p className="text-slate-400">
+        with {item.context.staffName}
+      </p>
+    )}
+  </div>
+
+  {/* Message / suggestion */}
+  <div className="min-w-0 space-y-2">
+    <div className="inline-flex max-w-full items-center gap-1.5 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200/60 px-2.5 py-1 rounded-full">
+      <MessageCircleHeart className="w-3.5 h-3.5 shrink-0" />
+
+      <span className="truncate">
+        {item.suggestion.title} · {item.suggestion.description}
+      </span>
+    </div>
+
+    <p className="text-[11px] text-slate-600 bg-slate-50/80 border border-slate-100 rounded-xl p-2.5 leading-relaxed">
+      {item.message}
+    </p>
+  </div>
+
+  {/* Actions */}
+  <div className="flex flex-row lg:flex-col items-stretch gap-2 min-w-0">
+    <button
+      onClick={() => handleOpenWhatsApp(item)}
+      className="
+        inline-flex items-center justify-center gap-1.5
+        px-3 py-2 rounded-xl
+        bg-emerald-600 hover:bg-emerald-700
+        text-white text-xs font-semibold
+        shadow-xs transition-colors
+        whitespace-nowrap
+      "
+    >
+      Open WhatsApp
+    </button>
+
+    <button
+      onClick={() => handleCopyMessage(item, index)}
+      className="
+        inline-flex items-center justify-center gap-1.5
+        px-3 py-2 rounded-xl
+        border border-slate-200 hover:bg-slate-50
+        text-slate-600 text-xs font-semibold
+        transition-colors
+        whitespace-nowrap
+      "
+    >
+      {copiedId === index ? (
+        <>
+          <Check className="w-3.5 h-3.5 text-emerald-600" />
+          Copied
+        </>
+      ) : (
+        <>
+          <Copy className="w-3.5 h-3.5" />
+          Copy Message
+        </>
+      )}
+    </button>
+  </div>
+</div>
               ))}
             </div>
           )}

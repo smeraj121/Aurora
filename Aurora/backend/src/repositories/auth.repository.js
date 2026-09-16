@@ -8,7 +8,7 @@ class AuthRepository {
 
     if (tenantId) {
       query = `
-        SELECT id, tenant_id, full_name, phone, email, system_role, is_active, preferred_language
+        SELECT id, tenant_id, full_name, phone, email, system_role as "systemRole", is_active, preferred_language
         FROM users
         WHERE phone = $1 AND tenant_id = $2
         LIMIT 1;
@@ -16,7 +16,7 @@ class AuthRepository {
       params = [phone, tenantId];
     } else {
       query = `
-        SELECT id, tenant_id, full_name, phone, email, system_role, is_active, preferred_language
+        SELECT id, tenant_id, full_name, phone, email, system_role as "systemRole", is_active, preferred_language
         FROM users
         WHERE phone = $1;
       `;
@@ -30,7 +30,7 @@ class AuthRepository {
   async findUserById(id, client = pool) {
     const query = `
       SELECT u.id, u.tenant_id, u.full_name as "fullName", u.phone, u.email, u.birthday, u.gender,
-             profile_image_url, preferred_language, system_role, is_active, last_login_at
+             profile_image_url, preferred_language, system_role as "systemRole", is_active, last_login_at
              , c.id AS "customerId"
       FROM users u
       LEFT JOIN customers c ON c.user_id = u.id AND c.tenant_id = u.tenant_id
@@ -42,7 +42,7 @@ class AuthRepository {
 
   async findUserTenants(phone, client = pool) {
     const query = `
-      SELECT u.id as user_id, u.full_name, u.email, u.tenant_id, u.system_role,
+      SELECT u.id as user_id, u.full_name, u.email, u.tenant_id, u.system_role as "systemRole",
              c.id AS customer_id, t.name as tenant_name, t.logo_url
       FROM users u
       INNER JOIN tenants t ON u.tenant_id = t.id
@@ -61,7 +61,7 @@ class AuthRepository {
         tenant_id, full_name, phone, email, system_role, preferred_language, otp_verified, is_active
       )
       VALUES ($1, $2, $3, $4, $5, $6, $7, true)
-      RETURNING id, tenant_id, full_name, phone, email, system_role, preferred_language, is_active, created_at;
+      RETURNING id, tenant_id, full_name , phone, email, system_role as "systemRole", preferred_language, is_active, created_at;
     `;
 
     const values = [tenantId || null, fullName, phone, email || null, systemRole, preferredLanguage || 'en', otpVerified];
@@ -188,7 +188,7 @@ class AuthRepository {
       full_name,
       phone,
       email,
-      system_role
+      system_role as "systemRole"
     FROM users
     WHERE phone = $1
       AND system_role = 'SuperAdmin'

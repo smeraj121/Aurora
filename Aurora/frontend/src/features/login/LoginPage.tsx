@@ -1,20 +1,26 @@
 // src/pages/Login/LoginPage.tsx
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { OtpStep } from './OtpStep';
 import { PhoneStep } from './PhoneStep';
 import { apiService } from '../../services/api';
+import backgroundImage from '../../assets/background.png';
+import auroraLogo from '../../assets/aurora-beauty-wellness-logo.svg';
 
 
 export function LoginPage() {
   const navigate = useNavigate();
   const { login } = useAuth();
+  const location = useLocation();
 
   const [step, setStep] = useState<'phone' | 'otp'>('phone');
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  
+  const from = (location.state as { from?: string } | null)?.from;
 
   // ============================================================
   // Step 1: Request OTP
@@ -49,16 +55,26 @@ export function LoginPage() {
       if (loginResult.requiresTenantSelection && loginResult.tenants) {
         // Navigate to tenant selection
         navigate('/select-tenant', {
-          state: {
-            verificationToken: result.verificationToken,
-            tenants: loginResult.tenants,
-          },
+          state: { verificationToken: result.verificationToken, tenants: loginResult.tenants, from },
         });
         return;
       }
+      navigate(from || '/');
 
-      // Single tenant - go to dashboard
-      navigate('/');
+      // if (loginResult.requiresTenantSelection && loginResult.tenants) {
+      //   // Navigate to tenant selection
+      //   navigate('/select-tenant', {
+      //     state: {
+      //       verificationToken: result.verificationToken,
+      //       tenants: loginResult.tenants,
+      //       from
+      //     },
+      //   });
+      //   return;
+      // }
+
+      // // Single tenant - go to dashboard
+      // navigate('/');
     } catch (err: any) {
       setError(err.message || 'Invalid OTP. Please try again.');
     } finally {
@@ -87,7 +103,7 @@ export function LoginPage() {
   // ============================================================
 
   return (
-    <>
+    <div style={{ backgroundImage: `url(${backgroundImage})`, backgroundSize: 'cover', margin: 0, backgroundPosition: 'center', backgroundAttachment: 'fixed', backgroundRepeat: 'no-repeat' }} className="min-h-screen flex items-center justify-center p-4">
       {step === 'phone' && (
         <PhoneStep
           onSubmit={handlePhoneSubmit}
@@ -106,6 +122,9 @@ export function LoginPage() {
           resendCooldown={45}
         />
       )}
-    </>
+      <div className="absolute top-4 right-4">
+        <img src={auroraLogo} alt="Aurora Logo" className="h-20" />
+      </div>
+    </div>
   );
 }

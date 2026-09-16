@@ -19,6 +19,8 @@ export interface PaymentStatusOption {
 }
 
 export interface BookingFormState {
+  updatedByName: number | null | undefined;
+  updatedAt: any;
   id: number | null;
   customerId: number | null;
   customerName: string;

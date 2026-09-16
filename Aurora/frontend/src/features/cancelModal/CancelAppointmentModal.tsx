@@ -10,7 +10,7 @@ export function CancelAppointmentModal({ onClose, onConfirm }: CancelModalProps)
   const [reason, setReason] = useState('');
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
+    <div className="fixed inset-0 z-103 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
       <div className="bg-white rounded-2xl p-5 w-full max-w-xs space-y-4 shadow-xl border border-slate-100">
         <h5 className="font-bold text-sm text-slate-800">Cancel Appointment</h5>
 

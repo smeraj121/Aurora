@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../../services/api';
 import type { ProfileData } from '../../types/profile.types';
 import { useAuth } from '../../context/AuthContext';
+import type { UserTypes } from '../../shared/types/domain';
 
 export function ProfileView() {
   const navigate = useNavigate();
@@ -18,7 +19,7 @@ export function ProfileView() {
     phone: '',
     birthday: '',
     gender: null,
-    systemRole: '',
+    systemRole: 'Customer' as UserTypes,
   });
 
   useEffect(() => {

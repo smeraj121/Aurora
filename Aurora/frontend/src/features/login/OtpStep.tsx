@@ -121,14 +121,8 @@ export function OtpStep({
   const formattedPhone = phone.replace(/(\d{5})(\d{5})/, '$1 $2');
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4">
       <div className="w-full max-w-md">
-        {/* Brand */}
-        <div className="text-center mb-6">
-          <span className="text-3xl">✨</span>
-          <span className="text-xl font-bold text-slate-800 ml-2">Aurora</span>
-        </div>
-
+        
         {/* Card */}
         <div className="bg-white rounded-2xl shadow-xl p-8">
           {/* Back Button */}
@@ -223,6 +217,5 @@ export function OtpStep({
           </div>
         </div>
       </div>
-    </div>
   );
 }

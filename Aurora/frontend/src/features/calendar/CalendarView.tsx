@@ -30,7 +30,7 @@ export function CalendarView() {
 
   const [pendingPaymentWarning, setPendingPaymentWarning] = useState<{ id: number; due: number } | null>(null);
   const { user } = useAuth();
-  const isCustomerActive = user?.systemRole.toLocaleLowerCase() === 'customer';
+  const isCustomerActive = user?.customerId ? true : false;
 
   const formattedDateString = getLocalDateString(currentDate);
 
@@ -127,6 +127,24 @@ export function CalendarView() {
       throw err;
     }
   };
+
+  const [businessName, setBusinessName] = useState('');
+
+useEffect(() => {
+  api.getBusinessInfo().then((res) => {
+    if (res.success) setBusinessName(res.data.name);
+  }).catch(() => {});
+}, []);
+
+const handleShareInvoice = (apt: ExtendedAppointment) => {
+  const phone = apt.customerPhone?.replace(/\D/g, '');
+  if (!phone) return;
+  const invoiceUrl = `${window.location.origin}/invoice/${apt.id}`;
+  const firstName = (apt.customerName || '').split(' ')[0];
+  const businessLine = businessName ? ` ${businessName}` : ' us';
+  const message = `Hi ${firstName},\n\nThank you for visiting${businessLine}.\nYour invoice is available here:\n${invoiceUrl}`;
+  window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
+};
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -270,6 +288,7 @@ export function CalendarView() {
                         onFinish={handleFinishAppointment}
                         onCancel={handleCancelAppointment}
                         isCustomerActive={isCustomerActive}
+                        onShareInvoice={handleShareInvoice}
                       />
                     </div>
                   ))}
@@ -283,7 +302,7 @@ export function CalendarView() {
 
       {/* Pending Balance Confirmation Dialog */}
       {pendingPaymentWarning && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-103 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl border border-slate-100 space-y-4">
             <div className="flex items-center gap-3 text-amber-600">
               <div className="p-2 bg-amber-50 rounded-xl border border-amber-100">

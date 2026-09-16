@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="1000" height="300" viewBox="0 0 1000 300">
+  <title>Aurora Beauty Wellness You</title>
+  <desc>Minimalist Aurora beauty and wellness logo with perfectly spaced letters.</desc>
+
+  <!-- Main AURORA wordmark -->
+  <!-- Increased stroke-width to 6.5 for a thicker, bolder look -->
+  <g fill="none" stroke="#7c668a" stroke-width="6.5"
+     stroke-linecap="round" stroke-linejoin="round">
+
+    <!-- A (Width: 80, Gap to next: 45) -->
+    <path d="M 115 150 L 155 50 L 195 150"/>
+    
+    <!-- U (Width: 80, Gap to next: 45) -->
+    <path d="M 240 50 L 240 120
+             C 240 140 250 150 280 150
+             C 310 150 320 140 320 120
+             L 320 50"/>
+             
+    <!-- R (Width: 80, Gap to next: 45) -->
+    <path d="M 365 150 L 365 50 L 405 50
+             C 425 50 435 60 435 75
+             C 435 90 425 100 405 100
+             L 365 100
+             M 405 100 L 445 150"/>
+             
+    <!-- O (Width: 90, Gap to next: 45) -->
+    <ellipse cx="535" cy="100" rx="45" ry="50"/>
+    
+    <!-- R (Width: 80, Gap to next: 45) -->
+    <path d="M 625 150 L 625 50 L 665 50
+             C 685 50 695 60 695 75
+             C 695 90 685 100 665 100
+             L 625 100
+             M 665 100 L 705 150"/>
+             
+    <!-- A (Width: 80) -->
+    <path d="M 750 150 L 790 50 L 830 150"/>
+  </g>
+
+  <!-- Tagline (Kept exactly as you liked it) -->
+  <text x="500" y="240"
+        text-anchor="middle"
+        fill="#7c668a"
+        font-family="Montserrat, 'Helvetica Neue', Arial, sans-serif"
+        font-size="24"
+        font-weight="300"
+        letter-spacing="8">
+    BEAUTY • WELLNESS • YOU
+  </text>
+</svg>

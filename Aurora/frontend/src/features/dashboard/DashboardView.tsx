@@ -1,14 +1,16 @@
 // DashboardView.jsx
 import { useState, useEffect } from 'react';
 import { MetricCard } from './components/MetricCard';
-import { AIOpportunityFeed } from './components/AIOpportunityFeed';
+//import { AIOpportunityFeed } from './components/AIOpportunityFeed';
 import { RevenueChart } from './components/RevenueChart';
 import { DatePickerDropdown } from '../../shared/components/DatePickerDropdown';
 import { ScheduleTimeline } from './ScheduleTimeline/ScheduleTimeline';
 import { fetchDashboardData, fetchDashboardRevenue } from './data/dashboardService';
+import { useAuth } from '../../context/AuthContext';
 import type { DashboardMetric, Revenue } from './types/dashboard.types';
 
 export function DashboardView() {
+  const { user } = useAuth();
   const [selectedDashboardDate, setSelectedDashboardDate] = useState(new Date());
   const [metricsData, setMetricsData] = useState<DashboardMetric[]>([]);
   const [revenueData, setRevenueData] = useState<Revenue[]>([]);
@@ -40,7 +42,7 @@ export function DashboardView() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">
-            Good Morning, Saba 👋
+            Good Morning, {user?.fullName || 'Guest'} 👋
           </h2>
           <p className="text-xs text-slate-500 mt-1">
             Here is what’s happening with your business today.
@@ -63,8 +65,8 @@ export function DashboardView() {
         ))}
       </div>
 
-      {/* AI Opportunity Feed Banner */}
-      <AIOpportunityFeed />
+      {/* AI Opportunity Feed Banner 
+      <AIOpportunityFeed />*/}
 
       {/* Main Grid: Today's Schedule + Revenue Performance */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
