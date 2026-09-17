@@ -128,6 +128,7 @@ class AppointmentRepository {
       a.total_price AS "amount",
       a.paid_amount AS "paidAmount",
       a.payment_status AS "paymentStatus",
+      a.is_package_appointment AS "isPackageAppointment",
 
       a.updated_at AS "updatedAt",
       ub.full_name AS "updatedByName"

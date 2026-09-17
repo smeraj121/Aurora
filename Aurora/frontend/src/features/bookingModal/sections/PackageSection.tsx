@@ -16,6 +16,7 @@ interface PackageSectionProps {
   onSelectPackage: (packageId: string) => void;
   onTogglePackageService: (service: CustomerPackageServiceItem) => void;
   onRemovePackage: () => void;
+  disabled?: boolean;
 }
 
 export function PackageSection({
@@ -32,6 +33,7 @@ export function PackageSection({
   onSelectPackage,
   onTogglePackageService,
   onRemovePackage,
+  disabled = false,
 }: PackageSectionProps) {
   if (!isExistingCustomer || customerPackages.length === 0) {
     return null;
@@ -53,30 +55,32 @@ export function PackageSection({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Package className="w-4 h-4 text-purple-600" />
-          <span className="text-xs font-semibold text-purple-900">Use Package</span>
+          <span className="text-xs font-semibold text-purple-900">{isEditing ? 'Used Package' : 'Use Package'}</span>
           {isPackageAppointment && (
             <span className="text-[10px] bg-emerald-100 text-emerald-700 font-medium px-2 py-0.5 rounded-full">
               Active
             </span>
           )}
         </div>
-        <button
-          type="button"
-          onClick={handleToggle}
-          className={`text-xs font-medium px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
-            isPackageAppointment
-              ? 'bg-rose-100 text-rose-700 hover:bg-rose-200'
-              : 'bg-purple-600 text-white hover:bg-purple-700'
-          }`}
-        >
-          {isPackageAppointment ? 'Remove Package' : 'Apply Package'}
-        </button>
+        {!disabled && (
+          <button
+            type="button"
+            onClick={handleToggle}
+            className={`text-xs font-medium px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
+              isPackageAppointment
+                ? 'bg-rose-100 text-rose-700 hover:bg-rose-200'
+                : 'bg-purple-600 text-white hover:bg-purple-700'
+            }`}
+          >
+            {isPackageAppointment ? 'Remove Package' : 'Apply Package'}
+          </button>
+        )}
       </div>
 
       {/* Package Selector Cards (When applying) */}
-      {showPackageSelector && !isPackageAppointment && (
+      {showPackageSelector && !isPackageAppointment && !disabled && (
         <div className="space-y-2">
-          {customerPackages.map((pkg) => (
+          {customerPackages.filter((pkg) => pkg.packageStatus === 'active').map((pkg) => (
             <button
               key={pkg.id}
               type="button"
@@ -102,10 +106,10 @@ export function PackageSection({
 
       {/* Active Package Service Selector */}
       {isPackageAppointment && activePackage && (
-        <div className="bg-white rounded-xl p-3 border border-purple-200 space-y-2">
-          <p className="text-[11px] font-bold text-slate-700 flex items-center justify-between">
+        <div className={`rounded-xl p-3 border space-y-2 ${disabled ? 'bg-slate-50 border-slate-200' : 'bg-white border-purple-200'}`}>
+          <p className={`text-[11px] font-bold flex items-center justify-between ${disabled ? 'text-slate-600' : 'text-slate-700'}`}>
             <span>Select Included Services for Today:</span>
-            <span className="text-[10px] font-normal text-purple-700">{activePackage.packageName}</span>
+            <span className={`text-[10px] font-normal ${disabled ? 'text-slate-500' : 'text-purple-700'}`}>{activePackage.packageName}</span>
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -117,16 +121,16 @@ export function PackageSection({
                 isEditing &&
                 selectedPackageId === originalPackageId &&
                 originalPackageServiceIds.includes(svc.serviceId);
-              const isDisabled = isServiceInactive || (isExhausted && !wasOriginallySelectedByThisAppointment);
+              const isDisabledByLogic = isServiceInactive || (isExhausted && !wasOriginallySelectedByThisAppointment) || disabled;
 
               return (
                 <button
                   key={svc.serviceId}
                   type="button"
-                  disabled={isDisabled}
-                  onClick={() => onTogglePackageService(svc)}
+                  disabled={isDisabledByLogic}
+                  onClick={() => !disabled && onTogglePackageService(svc)}
                   className={`flex items-center justify-between p-2.5 rounded-lg border text-xs text-left transition-all ${
-                    isDisabled
+                    isDisabledByLogic
                       ? 'bg-slate-50 border-slate-200 opacity-60 cursor-not-allowed'
                       : isSelected
                       ? 'bg-purple-50 border-purple-500 ring-1 ring-purple-500/20 cursor-pointer'

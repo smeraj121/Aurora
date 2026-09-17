@@ -76,6 +76,10 @@ export function BookingModal({
   const { user } = useAuth();
   const isCustomerActive = user?.customerId ? true : false;
   const canEditFields = !isCustomerActive;
+  
+  // Customer read-only mode: existing appointment with Confirmed or beyond status
+  const isCustomerReadOnly = isCustomerActive && appointmentId && formState.status !== 'scheduled';
+  
   //const currentStatusConfig = getStatusConfig(formState.status || 'scheduled');
   //const StatusIcon = currentStatusConfig.icon;
 
@@ -184,7 +188,13 @@ export function BookingModal({
 
     const fetchPackages = async () => {
       try {
-        const response = await api.getCustomerPackages(formState.customerId!);
+        // Existing appointments may reference a package that has since expired
+        // or been exhausted. Include it only to preserve that appointment's
+        // current package details; PackageSection still limits new selections
+        // to active packages.
+        const response = await api.getCustomerPackages(formState.customerId!, {
+          includeExpired: Boolean(appointmentId),
+        });
         if (isSubscribed) {
           setCustomerPackages(response.success ? response.data : []);
         }
@@ -201,7 +211,7 @@ export function BookingModal({
     return () => {
       isSubscribed = false;
     };
-  }, [formState.customerId]);
+  }, [formState.customerId, appointmentId]);
 
   // Handlers
   const handleSelectCustomer = useCallback(
@@ -362,7 +372,7 @@ const handleFinish = async () => {
     <>
       {/* Left Action: Cancel / Close */}
       {appointmentId ? (
-        !!onCancelAppointment && !isCustomerActive || formState.status === 'scheduled' &&
+        !!onCancelAppointment && (!isCustomerActive || (isCustomerActive && formState.status === 'scheduled')) &&
         <button
           type="button"
           onClick={() => setShowCancelModal(true)}
@@ -386,7 +396,7 @@ const handleFinish = async () => {
           !!appointmentId && !isCustomerActive &&
           formState.status !== 'completed' &&
           formState.status !== 'cancelled' && !!onFinishAppointment;
-        const hasUpdateButton = !isCustomerActive || formState.status === 'scheduled';
+        const hasUpdateButton = !isCustomerActive || (isCustomerActive && formState.status === 'scheduled');
 
         return (
             <div className="flex items-center gap-2">
@@ -471,9 +481,11 @@ const handleFinish = async () => {
               onStartTimeChange={(startTime) =>
                 setFormState((prev) => ({ ...prev, startTime }))
               }
+              disabled={!!isCustomerReadOnly}
             />
 
             {/* 3. Service Packages */}
+            {(!isCustomerActive || !formState.id || (formState.id && formState.isPackageAppointment)) && (
             <PackageSection
               isExistingCustomer={isExistingCustomer}
               customerPackages={customerPackages}
@@ -520,7 +532,9 @@ const handleFinish = async () => {
                   durationMinutes: isDurationOverridden ? prev.durationMinutes : 0,
                 }));
               }}
+              disabled={!!isCustomerReadOnly}
             />
+            )}
 
             {/* 4. Instant Service Search & Selected Items */}
             <ServiceSection
@@ -530,6 +544,7 @@ const handleFinish = async () => {
               isPackageAppointment={formState.isPackageAppointment}
               onAddService={handleAddService}
               onRemoveService={handleRemoveService}
+              disabled={!!isCustomerReadOnly}
             />
 
 

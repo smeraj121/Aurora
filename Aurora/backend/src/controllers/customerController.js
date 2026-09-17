@@ -1,5 +1,6 @@
 const customerService = require('../services/customerService');
 const customerPackageService = require('../services/customerPackageService');
+const invoiceService = require('../services/invoiceService');
 
 // ============================================================
 // GET /customers - List all customers (with search)
@@ -39,6 +40,17 @@ async function getCustomerPackages(req, res, next) {
   const { id } = req.params;
   const includeExpired = req.query.includeExpired === 'true';
   const packages = await customerPackageService.getCustomerPackages(tenantId, parseInt(id, 10), includeExpired);
+  res.json({ success: true, data: packages });
+}
+
+// ============================================================
+// GET /customers/my-packages?status=active|history — customer's own packages
+// ============================================================
+async function getMyPackages(req, res, next) {
+  const { tenantId, userId } = req.user;
+  const status = req.query.status === 'history' ? 'history' : 'active';
+  const customerId = await customerService.getCustomerIdForUser(tenantId, userId);
+  const packages = await customerPackageService.getMyPackages(tenantId, customerId, status);
   res.json({ success: true, data: packages });
 }
 
@@ -160,11 +172,22 @@ async function usePackageSession(req, res, next) {
   });
 }
 
+// ============================================================
+// GET /customers/packages/:id/invoice - Download package purchase invoice
+// ============================================================
+async function getPackageInvoice(req, res, next) {
+  const { tenantId, userId } = req.user;
+  const { id } = req.params;
+  const { pkg, tenant } = await invoiceService.getPackageInvoiceData(tenantId, userId, parseInt(id, 10));
+  await invoiceService.streamPackageInvoicePdf(res, { tenant, pkg });
+}
+
 module.exports = {
   getCustomers,
   getCustomer,
   getCustomerHistory,
   getCustomerPackages,
+  getMyPackages,
   getCustomerStats,
   createCustomer,
   updateCustomer,
@@ -174,5 +197,7 @@ module.exports = {
   assignPackageToCustomer,
   getCustomerPackageById,
   updateCustomerPackage,
-  usePackageSession
+  usePackageSession,
+  getPackageInvoice
+
 };

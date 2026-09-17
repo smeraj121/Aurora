@@ -28,5 +28,6 @@ export interface CustomerPackage {
   paymentStatus: PaymentStatus;
   paymentMethod?: string;
   notes?: string;
+  packageStatus?: 'active' | 'expired' | 'exhausted';
   services: CustomerPackageServiceItem[];
 }

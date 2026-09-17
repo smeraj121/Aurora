@@ -11,6 +11,7 @@ interface ServiceSectionProps {
   isPackageAppointment: boolean;
   onAddService: (serviceId: number) => void;
   onRemoveService: (serviceId: number) => void;
+  disabled?: boolean;
 }
 
 export function ServiceSection({
@@ -19,6 +20,7 @@ export function ServiceSection({
   isPackageAppointment,
   onAddService,
   onRemoveService,
+  disabled = false,
 }: ServiceSectionProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [isOpen, setIsOpen] = useState(false);
@@ -40,16 +42,19 @@ export function ServiceSection({
           <input
             type="text"
             value={searchTerm}
-            onFocus={() => setIsOpen(true)}
+            onFocus={() => !disabled && setIsOpen(true)}
             onChange={(e) => {
-              setSearchTerm(e.target.value);
-              setIsOpen(true);
+              if (!disabled) {
+                setSearchTerm(e.target.value);
+                setIsOpen(true);
+              }
             }}
+            disabled={disabled}
             placeholder="Search service (e.g., Haircut)..."
-            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-purple-600"
+            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-purple-600 disabled:opacity-60 disabled:cursor-not-allowed"
           />
 
-          {isOpen && filteredServices.length > 0 && (
+          {isOpen && filteredServices.length > 0 && !disabled && (
             <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-40 max-h-40 overflow-y-auto divide-y divide-slate-100 hide-scrollbar">
               {filteredServices.map((srv) => (
                 <div
@@ -79,11 +84,11 @@ export function ServiceSection({
           {services.map((service) => (
             <span
               key={service.serviceId}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-purple-50 text-purple-700 border border-purple-200"
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium ${disabled ? 'bg-slate-100 text-slate-600 border-slate-200' : 'bg-purple-50 text-purple-700 border-purple-200'} border`}
             >
-              <Check className="w-3 h-3 text-purple-600" />
+              <Check className={`w-3 h-3 ${disabled ? 'text-slate-400' : 'text-purple-600'}`} />
               {service.serviceName} (₹{service.price})
-              {!isPackageAppointment && (
+              {!isPackageAppointment && !disabled && (
                 <button
                   type="button"
                   onClick={() => onRemoveService(service.serviceId)}

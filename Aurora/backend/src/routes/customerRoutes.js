@@ -20,6 +20,12 @@ router.get('/recent', asyncHandler(customerController.getRecentCustomers));
 // GET /customers/packages/:id - Get a specific customer package
 router.get('/packages/:id', asyncHandler(customerController.getCustomerPackageById));
 
+// GET /customers/packages/:id/invoice - Download package purchase invoice
+router.get('/packages/:id/invoice', asyncHandler(customerController.getPackageInvoice));
+
+// GET /customers/my-packages?status=active|history - Customer's own packages
+router.get('/my-packages', asyncHandler(customerController.getMyPackages));
+
 // PUT /customers/packages/:id - Update a customer package
 router.put('/packages/:id', asyncHandler(customerController.updateCustomerPackage));
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { CalendarClock, MapPin, Edit2, X, FileText, Lock, Plus, Download, Loader2 } from 'lucide-react';
+import { CalendarClock, MapPin, Edit2, X, FileText, Lock, Plus, Download, Loader2, Package } from 'lucide-react';
 import { api } from '../../services/api';
 import { BookingModal } from '../bookingModal/BookingModal';
 import type { MyAppointmentItem } from '../../types/myAppointments.types';
@@ -176,7 +176,15 @@ const handleDownloadInvoice = async (id: number) => {
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-slate-900 truncate">{serviceNames(item)}</p>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <p className="text-sm font-bold text-slate-900 truncate">{serviceNames(item)}</p>
+                    {item.isPackageAppointment && (
+                      <span className="inline-flex items-center gap-1 shrink-0 px-1.5 py-0.5 rounded-md bg-purple-50 border border-purple-200 text-[10px] font-semibold text-purple-700">
+                        <Package className="w-3 h-3" />
+                        Package
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-slate-500 mt-0.5">
                     {item.staffName ? `with ${item.staffName}` : ''}
                   </p>

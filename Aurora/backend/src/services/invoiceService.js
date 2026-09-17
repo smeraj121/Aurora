@@ -4,6 +4,7 @@ const PDFDocument = require('pdfkit');
 const appointmentRepository = require('../repositories/appointmentRepository');
 const tenantRepository = require('../repositories/tenantRepository');
 const customerService = require('./customerService');
+const customerPackageRepository = require('../repositories/customerPackageRepository');
 const { NotFoundError, ForbiddenError, ValidationError } = require('../errors');
 
 // Visual Design Tokens
@@ -23,13 +24,6 @@ function registerFonts(doc) {
     doc.registerFont('AuroraSans-Bold', FONT_BOLD_PATH);
     return { regular: 'AuroraSans', bold: 'AuroraSans-Bold' };
   }
-
-  console.log('Invoice fonts:', {
-  regular: FONT_REGULAR_PATH,
-  regularExists: fs.existsSync(FONT_REGULAR_PATH),
-  bold: FONT_BOLD_PATH,
-  boldExists: fs.existsSync(FONT_BOLD_PATH),
-    });
 
   // Fallback to standard Helvetica if font files are missing in dev
   return { regular: 'Helvetica', bold: 'Helvetica-Bold' };
@@ -410,4 +404,245 @@ async function streamInvoicePdf(res, { tenant, appointment }) {
   doc.end();
 }
 
-module.exports = { getInvoiceData, streamInvoicePdf };
+// ============================================================
+// PACKAGE PURCHASE INVOICE — FETCH + AUTHORIZE
+// ============================================================
+async function getPackageInvoiceData(tenantId, userId, packageId) {
+  const customerId = await customerService.getCustomerIdForUser(tenantId, userId);
+  const pkg = await customerPackageRepository.getCustomerPackageForInvoice(tenantId, customerId, packageId);
+  if (!pkg) {
+    throw new NotFoundError('Package not found.');
+  }
+  const tenant = await tenantRepository.getBillingInfo(tenantId);
+  return { pkg, tenant };
+}
+
+// ============================================================
+// PACKAGE PURCHASE INVOICE — PDF RENDER
+// Mirrors the appointment invoice's visual language exactly (same
+// fonts, dividers, spacing constants) but represents what was
+// PURCHASED (totalQuantity per service), never usage/history.
+// ============================================================
+function renderPackageInvoicePdf(doc, { tenant, pkg }) {
+  const fonts = registerFonts(doc);
+  const left = doc.page.margins.left;
+  const width = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+
+  const GAP_HEADER_BOTTOM = 22;
+  const GAP_SECTION_DIVIDER = 18;
+  const GAP_SECTION_CONTENT = 14;
+  const GAP_ROW = 8;
+
+  // ------------------------------------------------------------
+  // 1. HEADER
+  // ------------------------------------------------------------
+  const headerTopY = doc.y;
+  const leftColWidth = width * 0.58;
+  const rightColWidth = width * 0.38;
+  const rightColX = left + width - rightColWidth;
+
+  doc.font(fonts.bold).fontSize(22).fillColor(INK);
+  doc.text(tenant.name || 'Your Business', left, headerTopY, { width: leftColWidth });
+
+  doc.moveDown(0.3);
+  doc.font(fonts.regular).fontSize(10.5).fillColor(MUTED);
+  buildTenantAddressLines(tenant).forEach((line) => {
+    doc.text(line, left, doc.y, { width: leftColWidth });
+  });
+  const leftHeaderEndY = doc.y;
+
+  doc.font(fonts.bold).fontSize(18).fillColor(PURPLE);
+  doc.text('INVOICE', rightColX, headerTopY, { width: rightColWidth, align: 'right' });
+
+  doc.moveDown(0.2);
+  doc.font(fonts.regular).fontSize(10).fillColor(MUTED);
+  doc.text(formatInvoiceDate(pkg.purchaseDate), rightColX, doc.y, { width: rightColWidth, align: 'right' });
+  const rightHeaderEndY = doc.y;
+
+  doc.y = Math.max(leftHeaderEndY, rightHeaderEndY) + GAP_HEADER_BOTTOM;
+
+  drawFullDivider(doc);
+  doc.y += GAP_SECTION_DIVIDER;
+
+  // ------------------------------------------------------------
+  // 2. CUSTOMER / PACKAGE
+  // ------------------------------------------------------------
+  const custColWidth = width * 0.48;
+  const pkgColX = left + width - custColWidth;
+  const metaSectionTopY = doc.y;
+
+  doc.font(fonts.bold).fontSize(9.5).fillColor(PURPLE);
+  doc.text('CUSTOMER', left, metaSectionTopY, { characterSpacing: 0.8 });
+  doc.moveDown(0.4);
+
+  doc.font(fonts.bold).fontSize(13.5).fillColor(INK);
+  doc.text(pkg.customerName || 'Customer', left, doc.y, { width: custColWidth });
+
+  if (pkg.customerPhone) {
+    doc.moveDown(0.2);
+    doc.font(fonts.regular).fontSize(10.5).fillColor(MUTED);
+    doc.text(pkg.customerPhone, left, doc.y, { width: custColWidth });
+  }
+  const custColEndY = doc.y;
+
+  doc.font(fonts.bold).fontSize(9.5).fillColor(PURPLE);
+  doc.text('PACKAGE', pkgColX, metaSectionTopY, { characterSpacing: 0.8 });
+  doc.moveDown(0.4);
+
+  doc.font(fonts.bold).fontSize(13.5).fillColor(INK);
+  doc.text(pkg.packageName || 'Package', pkgColX, doc.y, { width: custColWidth });
+
+  if (pkg.packageDescription) {
+    doc.moveDown(0.2);
+    doc.font(fonts.regular).fontSize(10).fillColor(MUTED);
+    doc.text(pkg.packageDescription, pkgColX, doc.y, { width: custColWidth });
+  }
+
+  doc.moveDown(0.2);
+  doc.font(fonts.regular).fontSize(10).fillColor(MUTED);
+  doc.text(`Purchased: ${formatInvoiceDate(pkg.purchaseDate)}`, pkgColX, doc.y, { width: custColWidth });
+  if (pkg.expiryDate) {
+    doc.moveDown(0.15);
+    doc.text(`Valid until: ${formatInvoiceDate(pkg.expiryDate)}`, pkgColX, doc.y, { width: custColWidth });
+  }
+  const pkgColEndY = doc.y;
+
+  doc.y = Math.max(custColEndY, pkgColEndY) + GAP_SECTION_CONTENT;
+
+  drawFullDivider(doc);
+  doc.y += GAP_SECTION_DIVIDER;
+
+  // ------------------------------------------------------------
+  // 3. INCLUDED SERVICES — totalQuantity, never usedQuantity/remaining
+  // ------------------------------------------------------------
+  doc.font(fonts.bold).fontSize(9.5).fillColor(PURPLE);
+  doc.text('INCLUDED SERVICES', left, doc.y, { characterSpacing: 0.8 });
+  doc.y += GAP_SECTION_CONTENT;
+
+  const serviceNameWidth = width * 0.72;
+  const qtyWidth = width * 0.25;
+  const qtyX = left + width - qtyWidth;
+
+  const services = pkg.services?.length > 0 ? pkg.services : [];
+  services.forEach((svc) => {
+    ensureSpace(doc, 24);
+    const rowY = doc.y;
+
+    doc.font(fonts.regular).fontSize(11).fillColor(INK);
+    doc.text(svc.serviceName || 'Service', left, rowY, { width: serviceNameWidth });
+    const nameEndY = doc.y;
+
+    doc.font(fonts.regular).fontSize(11).fillColor(INK);
+    doc.text(String(svc.totalQuantity ?? ''), qtyX, rowY, { width: qtyWidth, align: 'right' });
+    const qtyEndY = doc.y;
+
+    doc.y = Math.max(nameEndY, qtyEndY) + GAP_ROW;
+  });
+
+  doc.y += GAP_SECTION_CONTENT;
+
+  drawFullDivider(doc);
+  doc.y += GAP_SECTION_DIVIDER;
+
+  // ------------------------------------------------------------
+  // 4. TOTALS
+  // NOTE: customer_packages has no paid_amount column — only
+  // payment_status. paid/balance are derived, not stored:
+  //   paid = payment_status === 'paid' ? effectivePrice : 0
+  // This cannot represent a true partial amount for 'partial' status;
+  // it's the best available without inventing a new field.
+  // ------------------------------------------------------------
+  ensureSpace(doc, 170);
+
+  const totalsColWidth = width * 0.48;
+  const totalsX = left + width - totalsColWidth;
+  const labelWidth = totalsColWidth * 0.55;
+  const valueWidth = totalsColWidth * 0.45;
+  const valX = totalsX + labelWidth;
+
+  function drawTotalsRow(label, valueText, opts = {}) {
+    const currentY = doc.y;
+    const fontName = opts.bold ? fonts.bold : fonts.regular;
+    const fontSize = opts.size || 11;
+    const textColor = opts.color || INK;
+
+    doc.font(fontName).fontSize(fontSize).fillColor(textColor);
+    doc.text(label, totalsX, currentY, { width: labelWidth });
+
+    doc.font(opts.valBold !== undefined ? (opts.valBold ? fonts.bold : fonts.regular) : fontName)
+       .fontSize(fontSize)
+       .fillColor(opts.valColor || textColor);
+    doc.text(valueText, valX, currentY, { width: valueWidth, align: 'right' });
+
+    doc.y = Math.max(doc.y, currentY + fontSize + 4);
+  }
+
+  const subtotal = Number(pkg.effectivePrice) || 0;
+  const paid = pkg.paymentStatus === 'paid' ? subtotal : 0;
+  const balanceDue = Math.max(subtotal - paid, 0);
+
+  drawTotalsRow('Subtotal', formatINR(subtotal));
+  doc.y += 6;
+
+  doc.save().strokeColor(LIGHT_BORDER).lineWidth(0.75)
+    .moveTo(totalsX, doc.y).lineTo(totalsX + totalsColWidth, doc.y).stroke().restore();
+  doc.y += 8;
+
+  drawTotalsRow('Total', formatINR(subtotal), { bold: true, size: 12.5 });
+  doc.y += 4;
+
+  drawTotalsRow('Amount Paid', formatINR(paid));
+  doc.y += 8;
+
+  doc.save().strokeColor(PURPLE).lineWidth(1)
+    .moveTo(totalsX, doc.y).lineTo(totalsX + totalsColWidth, doc.y).stroke().restore();
+  doc.y += 8;
+
+  drawTotalsRow('Balance Due', formatINR(balanceDue), { bold: true, size: 13 });
+  doc.y += 4;
+
+  doc.save().strokeColor(PURPLE).lineWidth(1)
+    .moveTo(totalsX, doc.y).lineTo(totalsX + totalsColWidth, doc.y).stroke().restore();
+  doc.y += 10;
+
+  const statusColor = pkg.paymentStatus === 'paid' ? '#059669'
+    : pkg.paymentStatus === 'refunded' ? '#E11D48' : PURPLE;
+
+  drawTotalsRow('Payment Status', capitalize(pkg.paymentStatus), {
+    valColor: statusColor,
+    valBold: true,
+  });
+
+  doc.y += GAP_SECTION_CONTENT + 10;
+
+  drawFullDivider(doc);
+  doc.y += GAP_SECTION_DIVIDER;
+
+  // ------------------------------------------------------------
+  // 5. FOOTER
+  // ------------------------------------------------------------
+  ensureSpace(doc, 50);
+
+  doc.font(fonts.regular).fontSize(12.5).fillColor(PURPLE);
+  doc.text('Thank you for your purchase.', left, doc.y, { width, align: 'center' });
+
+  doc.y += 10;
+  doc.font(fonts.regular).fontSize(8.5).fillColor(SUBTLE_GRAY);
+  doc.text('Powered by Aurora', left, doc.y, { width, align: 'center' });
+}
+
+async function streamPackageInvoicePdf(res, { tenant, pkg }) {
+  const doc = new PDFDocument({
+    size: 'A4',
+    margins: { top: 50, bottom: 50, left: 54, right: 54 },
+  });
+
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="package-invoice-${pkg.id}.pdf"`);
+
+  doc.pipe(res);
+  renderPackageInvoicePdf(doc, { tenant, pkg });
+  doc.end();
+}
+
+module.exports = { getInvoiceData, streamInvoicePdf, getPackageInvoiceData, streamPackageInvoicePdf };

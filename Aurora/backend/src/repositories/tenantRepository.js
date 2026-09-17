@@ -38,6 +38,10 @@ class TenantRepository {
         t.slug,
         t.phone,
         t.email,
+        t.address,
+        t.city,
+        t.state,
+        t.postal_code AS "postalCode",
         t.business_type_id AS "businessTypeId",
         t.is_active AS "isActive",
         t.created_at AS "createdAt",
@@ -84,11 +88,15 @@ class TenantRepository {
           email,
           is_active,
           business_type_id,
+          address,
+      city,
+      state,
+      postal_code,
           created_at,
           created_by,
           updated_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, $7, CURRENT_TIMESTAMP)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP, $10, CURRENT_TIMESTAMP)
         RETURNING
           id,
           name,
@@ -96,6 +104,10 @@ class TenantRepository {
           phone,
           email,
           business_type_id,
+          address,
+          city,
+          state,
+          postal_code,
           is_active AS "isActive",
           created_at AS "createdAt",
           created_by AS "createdBy",
@@ -106,8 +118,12 @@ class TenantRepository {
         data.slug,
         data.phone || null,
         data.email,
-        data.isActive ?? true,
+        true,
         data.business_type_id,
+        data.address || null,
+        data.city || null,
+        data.state || null,
+        data.postal_code || null,
         data.createdBy || 1
       ];
       const tenantResult = await client.query(tenantQuery, tenantValues);
@@ -184,15 +200,22 @@ class TenantRepository {
           slug = $2,
           phone = $3,
           email = $4,
-          is_active = $5,
+          address = $5,
+          city = $6,
+          state = $7,
+          postal_code = $8,
           updated_at = CURRENT_TIMESTAMP
-        WHERE id = $6
+        WHERE id = $9
         RETURNING
           id,
           name,
           slug,
           phone,
           email,
+          address,
+          city,
+          state,
+          postal_code AS "postalCode",
           is_active AS "isActive",
           created_at AS "createdAt",
           updated_at AS "updatedAt"
@@ -202,7 +225,10 @@ class TenantRepository {
         data.slug,
         data.phone,
         data.email,
-        data.isActive,
+        data.address || null,
+        data.city || null,
+        data.state || null,
+        data.postalCode || null,
         id
       ];
       const tenantResult = await client.query(tenantQuery, tenantValues);

@@ -41,6 +41,7 @@ export function CustomersView() {
   const [editingCustomerPackage, setEditingCustomerPackage] = useState<CustomerPackage | null>(null);
   const [appointmentId, setAppointmentId] = useState<number | null>(null);
   const [pageLoading, setLoading] = useState(true);
+  const [includeHistoricalPackages, setIncludeHistoricalPackages] = useState(false);
   // Load initial customers
   useEffect(() => {
     loadCustomers();
@@ -64,10 +65,32 @@ export function CustomersView() {
 
   const loadCustomer = async (id: number) => {
     try {
+      setIncludeHistoricalPackages(false);
       const { data } = await api.getCustomerDetails(id);
       setSelectedCustomer(data || null);
     } catch (error) {
       console.error('Failed to load customer details', error);
+    }
+  };
+
+  const handlePackageVisibilityChange = async (includeHistorical: boolean) => {
+    setIncludeHistoricalPackages(includeHistorical);
+    if (!selectedCustomer) return;
+
+    const customerId = selectedCustomer.id;
+    try {
+      const response = await api.getCustomerPackages(customerId, {
+        includeExpired: includeHistorical,
+      });
+      if (response.success) {
+        setSelectedCustomer((current) =>
+          current?.id === customerId
+            ? { ...current, packages: response.data || [] }
+            : current
+        );
+      }
+    } catch (error) {
+      console.error('Failed to load customer packages', error);
     }
   };
 
@@ -527,25 +550,48 @@ const handleSearch = (value: string) => {
                     <Package className="w-4 h-4 text-purple-600" />
                     <span>Packages</span>
                   </div>
-                  <button
-                    onClick={handleOpenAssignPackageModal}
-                    className="text-xs font-semibold text-purple-600 hover:text-purple-700 transition-colors flex items-center gap-1"
-                  >
-                    <Plus className="w-3 h-3" />
-                    Assign Package
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-1.5 text-[11px] text-slate-500 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={includeHistoricalPackages}
+                        onChange={(event) => handlePackageVisibilityChange(event.target.checked)}
+                        className="h-3.5 w-3.5 rounded border-slate-300 text-purple-600 focus:ring-purple-500"
+                      />
+                      Include expired &amp; exhausted
+                    </label>
+                    <button
+                      onClick={handleOpenAssignPackageModal}
+                      className="text-xs font-semibold text-purple-600 hover:text-purple-700 transition-colors flex items-center gap-1"
+                    >
+                      <Plus className="w-3 h-3" />
+                      Assign Package
+                    </button>
+                  </div>
                 </div>
 
                 {selectedCustomer.packages && selectedCustomer.packages.length > 0 ? (
                   <div className="space-y-2">
-                    {selectedCustomer.packages.map((pkg) => (
+                    {selectedCustomer.packages.map((pkg) => {
+                      const isHistorical = pkg.packageStatus !== 'active';
+                      return (
                       <div
                         key={pkg.id}
-                        className="p-3 rounded-xl bg-slate-50/70 border border-slate-200/60 flex items-center justify-between text-xs"
+                        className={cn(
+                          'p-3 rounded-xl border flex items-center justify-between text-xs',
+                          isHistorical
+                            ? 'bg-slate-50/40 border-slate-200/50 opacity-75'
+                            : 'bg-slate-50/70 border-slate-200/60'
+                        )}
                       >
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
                             <span className="font-bold text-slate-900">{pkg.packageName}</span>
+                            {isHistorical && (
+                              <span className="text-[10px] text-slate-500 font-semibold bg-slate-200/70 px-1.5 py-0.2 rounded-md capitalize">
+                                {pkg.packageStatus}
+                              </span>
+                            )}
                             {pkg.customPrice && pkg.customPrice < pkg.totalPrice && (
                               <span className="text-[10px] text-emerald-600 font-semibold bg-emerald-50 px-1.5 py-0.2 rounded-md">
                                 Custom {formatCurrency(pkg.customPrice)}
@@ -558,7 +604,7 @@ const handleSearch = (value: string) => {
                         </div>
 
                         <div className="text-right space-y-1">
-                          <p className="text-xs font-semibold text-purple-700">
+                          <p className={cn('text-xs font-semibold', isHistorical ? 'text-slate-600' : 'text-purple-700')}>
                             {pkg.remainingSessions} {pkg.remainingSessions === 1 ? 'session' : 'sessions'} left
                           </p>
                           <div className="flex items-center justify-end gap-2 text-[11px] text-slate-500">
@@ -574,7 +620,8 @@ const handleSearch = (value: string) => {
                           </div>
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="p-3 rounded-xl bg-slate-50/50 border border-slate-200/60 border-dashed text-center text-xs text-slate-400">

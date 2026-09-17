@@ -8,7 +8,9 @@ import {
   History,
   Send,
   BarChart3,
-  CalendarDays
+  CalendarDays,
+  ListChecks,
+  PackageIcon
 } from 'lucide-react';
 
 export interface NavItem {
@@ -26,7 +28,7 @@ const STAFF_NAV_ITEMS: NavItem[] = [
   {
     label: 'Calendar',
     path: '/calendar',
-    icon: CalendarRange,
+    icon: CalendarDays,
   },
   {
     label: 'Customers',
@@ -36,7 +38,7 @@ const STAFF_NAV_ITEMS: NavItem[] = [
   {
     label: 'Appointments',
     path: '/appointments',
-    icon: CalendarDays,
+    icon: ListChecks,
   },
   {
     label: 'Customer Engagement',
@@ -88,6 +90,7 @@ const CUSTOMER_NAV_ITEMS: NavItem[] = [
     path: '/my-appointments',
     icon: History 
   },
+  { label: 'My Packages', path: '/my-packages', icon: PackageIcon },
 ];
 
 const SUPER_ADMIN_NAV_ITEMS: NavItem[] = [

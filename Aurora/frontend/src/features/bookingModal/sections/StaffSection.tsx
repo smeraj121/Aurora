@@ -10,6 +10,7 @@ interface StaffSectionProps {
   onDateChange: (date: string) => void;
   startTime: string;
   onStartTimeChange: (time: string) => void;
+  disabled?: boolean;
 }
 
 export function StaffSection({
@@ -20,6 +21,7 @@ export function StaffSection({
   onDateChange,
   startTime,
   onStartTimeChange,
+  disabled = false,
 }: StaffSectionProps) {
   return (
     <div className="grid grid-cols-3 gap-2">
@@ -30,7 +32,8 @@ export function StaffSection({
         <select
           value={staffId || ''}
           onChange={(e) => onStaffChange(parseInt(e.target.value, 10) || null)}
-          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-purple-600"
+          disabled={disabled}
+          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-purple-600 disabled:opacity-60 disabled:cursor-not-allowed"
         >
           <option value="">Select Staff</option>
           {staffList.map((s) => (
@@ -49,7 +52,8 @@ export function StaffSection({
           type="date"
           value={date}
           onChange={(e) => onDateChange(e.target.value)}
-          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-purple-600"
+          disabled={disabled}
+          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-purple-600 disabled:opacity-60 disabled:cursor-not-allowed"
         />
       </div>
 
@@ -60,7 +64,8 @@ export function StaffSection({
         <select
           value={startTime}
           onChange={(e) => onStartTimeChange(e.target.value)}
-          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-purple-600"
+          disabled={disabled}
+          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-purple-600 disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {TIME_SLOTS.map((slot) => (
             <option key={slot} value={slot}>

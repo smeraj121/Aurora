@@ -57,6 +57,8 @@ export function AppointmentCard({
 
   const currentStatus =
     localStatus || appointment.status || 'scheduled';
+    //console.log(localStatus, appointment.status, currentStatus); // Debugging line
+    //console.log('Current Status:', currentStatus); // Debugging line
 
   const isCancelled = currentStatus === 'cancelled';
 
@@ -99,6 +101,15 @@ export function AppointmentCard({
           iconColor: 'text-amber-600',
           border: 'border-amber-200',
           icon: Clock,
+        };
+      case 'confirmed':
+        return {
+          label: 'Confirmed',
+          bar: 'bg-blue-500',
+          iconBg: 'bg-blue-50',
+          iconColor: 'text-blue-600',
+          border: 'border-blue-200',
+          icon: Check,
         };
       case 'scheduled':
       default:

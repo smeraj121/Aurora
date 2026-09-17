@@ -15,6 +15,13 @@ async function getCustomerPackages(tenantId, customerId, includeExpired = false)
 }
 
 // ============================================================
+// GET MY PACKAGES
+// ============================================================
+async function getMyPackages(tenantId, customerId, status) {
+  return customerPackageRepository.getMyPackages(tenantId, customerId, status);
+}
+
+// ============================================================
 // GET CUSTOMER PACKAGE BY ID
 // ============================================================
 async function getCustomerPackageById(tenantId, packageId) {
@@ -116,6 +123,7 @@ async function usePackageSession(tenantId, customerPackageId) {
 
 module.exports = {
   getCustomerPackages,
+  getMyPackages,
   getCustomerPackageById,
   assignPackageToCustomer,
   updateCustomerPackage,

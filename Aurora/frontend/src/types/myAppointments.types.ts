@@ -21,6 +21,7 @@ export interface MyAppointmentItem {
   amount: number;
   paidAmount: number;
   paymentStatus: PaymentStatus;
+  isPackageAppointment: boolean;
   updatedAt: string | null;
   updatedByName: string | null;
   services: MyAppointmentService[];

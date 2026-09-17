@@ -16,6 +16,11 @@ class CustomerPackageRepository {
         cp.total_sessions AS "totalSessions",
         cp.used_sessions AS "usedSessions",
         cp.total_sessions - cp.used_sessions AS "remainingSessions",
+        CASE
+          WHEN cp.expiry_date IS NOT NULL AND cp.expiry_date < CURRENT_DATE THEN 'expired'
+          WHEN cp.used_sessions >= cp.total_sessions THEN 'exhausted'
+          ELSE 'active'
+        END AS "packageStatus",
         COALESCE(cp.custom_price, cp.total_price) AS "effectivePrice",
         cp.payment_status AS "paymentStatus",
         p.name AS "packageName",
@@ -40,7 +45,10 @@ class CustomerPackageRepository {
     `;
 
     if (!includeExpired) {
-      query += ` AND (cp.expiry_date IS NULL OR cp.expiry_date >= CURRENT_DATE)`;
+      query += `
+        AND (cp.expiry_date IS NULL OR cp.expiry_date >= CURRENT_DATE)
+        AND cp.used_sessions < cp.total_sessions
+      `;
     }
 
     query += `
@@ -398,6 +406,107 @@ async updateCustomerPackage(tenantId, id, data, updatedBy = null, client = db) {
       VALUES ${placeholders.join(', ')}
     `;
     await client.query(query, values);
+  }
+
+    // ============================================================
+  // GET MY PACKAGES (customer-facing) — explicit active/history semantics
+  // active:  not expired AND overall sessions remain
+  // history: expired OR overall sessions exhausted
+  // Per-service usage (customer_package_services) is always included so the
+  // UI renders service-level progress, never one overall session bar.
+  // ============================================================
+  async getMyPackages(tenantId, customerId, status = 'active') {
+    const condition = status === 'history'
+      ? `(
+          (cp.expiry_date IS NOT NULL AND cp.expiry_date < CURRENT_DATE)
+          OR cp.used_sessions >= cp.total_sessions
+        )`
+      : `(
+          (cp.expiry_date IS NULL OR cp.expiry_date >= CURRENT_DATE)
+          AND cp.used_sessions < cp.total_sessions
+        )`;
+
+    const query = `
+      SELECT 
+        cp.id,
+        cp.customer_id AS "customerId",
+        TO_CHAR(cp.purchase_date, 'YYYY-MM-DD') AS "purchaseDate",
+        TO_CHAR(cp.expiry_date, 'YYYY-MM-DD') AS "expiryDate",
+        cp.total_sessions AS "totalSessions",
+        cp.used_sessions AS "usedSessions",
+        cp.total_sessions - cp.used_sessions AS "remainingSessions",
+        COALESCE(cp.custom_price, cp.total_price) AS "effectivePrice",
+        cp.payment_status AS "paymentStatus",
+        p.name AS "packageName",
+        p.description AS "packageDescription",
+        CASE
+          WHEN cp.expiry_date IS NOT NULL AND cp.expiry_date < CURRENT_DATE THEN 'expired'
+          WHEN cp.used_sessions >= cp.total_sessions THEN 'exhausted'
+          ELSE 'active'
+        END AS "packageStatus",
+        COALESCE(
+          json_agg(DISTINCT jsonb_build_object(
+            'serviceId', s.id,
+            'serviceName', s.name,
+            'servicePrice', s.price,
+            'isActive', s.is_active,
+            'totalQuantity', cps.total_quantity,
+            'usedQuantity', cps.used_quantity
+          )) FILTER (WHERE s.id IS NOT NULL),
+          '[]'::json
+        ) AS services
+      FROM customer_packages cp
+      JOIN packages p ON cp.package_id = p.id
+      LEFT JOIN customer_package_services cps ON cps.customer_package_id = cp.id
+      LEFT JOIN services s ON s.id = cps.service_id
+      WHERE cp.customer_id = $1 
+        AND cp.tenant_id = $2
+        AND ${condition}
+      GROUP BY cp.id, p.id
+      ORDER BY cp.expiry_date NULLS LAST, cp.purchase_date DESC
+    `;
+
+    const { rows } = await db.query(query, [customerId, tenantId]);
+    return rows;
+  }
+
+    // ============================================================
+  // GET CUSTOMER PACKAGE FOR INVOICE (purchase invoice)
+  // Sources services from customer_package_services (the snapshot taken
+  // at purchase), NOT package_services (the template, which can drift).
+  // Scoped by customerId directly — a non-owned package simply returns
+  // null, so ownership never leaks via a different error.
+  // ============================================================
+  async getCustomerPackageForInvoice(tenantId, customerId, id) {
+    const query = `
+      SELECT 
+        cp.id,
+        TO_CHAR(cp.purchase_date, 'YYYY-MM-DD') AS "purchaseDate",
+        TO_CHAR(cp.expiry_date, 'YYYY-MM-DD') AS "expiryDate",
+        COALESCE(cp.custom_price, cp.total_price) AS "effectivePrice",
+        cp.payment_status AS "paymentStatus",
+        p.name AS "packageName",
+        p.description AS "packageDescription",
+        u.full_name AS "customerName",
+        u.phone AS "customerPhone",
+        COALESCE(
+          json_agg(DISTINCT jsonb_build_object(
+            'serviceName', s.name,
+            'totalQuantity', cps.total_quantity
+          )) FILTER (WHERE cps.id IS NOT NULL),
+          '[]'::json
+        ) AS services
+      FROM customer_packages cp
+      JOIN packages p ON cp.package_id = p.id
+      JOIN customers c ON cp.customer_id = c.id
+      JOIN users u ON c.user_id = u.id
+      LEFT JOIN customer_package_services cps ON cps.customer_package_id = cp.id
+      LEFT JOIN services s ON s.id = cps.service_id
+      WHERE cp.id = $1 AND cp.tenant_id = $2 AND cp.customer_id = $3
+      GROUP BY cp.id, p.id, u.id
+    `;
+    const { rows } = await db.query(query, [id, tenantId, customerId]);
+    return rows[0] || null;
   }
 }
 

@@ -31,7 +31,6 @@ class TenantService {
       slug,
       phone,
       email,
-      isActive = true,
       businessTypeId
     } = data;
 
@@ -60,7 +59,10 @@ class TenantService {
       email: email?.trim().toLowerCase() || null,
       business_type_id: businessTypeId,
       createdBy: 1,
-      isActive
+      address: address?.trim() || null,
+      city: city?.trim() || null,
+      state: state?.trim() || null,
+      postalCode: postalCode?.trim() || null
     });
   }
 
@@ -80,7 +82,10 @@ class TenantService {
       slug,
       phone,
       email,
-      isActive
+      address,
+      city,
+      state,
+      postalCode
     } = data;
 
     if (!name?.trim()) {
@@ -109,10 +114,10 @@ class TenantService {
       slug: normalizedSlug,
       phone: phone?.trim() || null,
       email: email?.trim().toLowerCase() || null,
-      isActive:
-        typeof isActive === 'boolean'
-          ? isActive
-          : existing.isActive
+      address: address?.trim() || null,
+      city: city?.trim() || null,
+      state: state?.trim() || null,
+      postalCode: postalCode?.trim() || null
     });
   }
 

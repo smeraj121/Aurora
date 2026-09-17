@@ -173,7 +173,8 @@ async function createAppointment(tenantId, role, data, userId) {
       throw new ValidationError('At least one service is required.');
     }
 
-    const initialStatus = data.status || 'scheduled';
+    const isCustomer = role?.trim().toLowerCase() === 'customer';
+    const initialStatus = data.status || (isCustomer ? 'scheduled' : 'confirmed');
     if (initialStatus === 'cancelled') {
       throw new ValidationError('New appointments cannot be created with a "cancelled" status.');
     }
@@ -181,7 +182,6 @@ async function createAppointment(tenantId, role, data, userId) {
       throw new ValidationError('Customers can only create appointments with a "scheduled" status.');
     }
 
-    const isCustomer = role?.trim().toLowerCase() === 'customer';
     // A customer books against their linked customer profile, not their users.id.
     // Ignore the UI's customerId for this normal customer booking path.
     const customerId = isCustomer
@@ -260,7 +260,8 @@ async function updateAppointment(tenantId, role, id, data, userId) {
     }
 
     // Customer-specific restrictions
-    const customerId = role?.trim().toLowerCase() === 'customer'
+    const isCustomer = role?.trim().toLowerCase() === 'customer';
+    const customerId = isCustomer
       ? await customerService.getCustomerIdForUser(tenantId, userId, client)
       : userId;
     validateCustomerUpdate(role, customerId, existing, data);
@@ -317,7 +318,13 @@ async function updateAppointment(tenantId, role, id, data, userId) {
     // (Here we rely on durationMinutes from data or existing; you may extend this)
 
     const fullPayment = { ...payment, ...paymentCalc };
-    const finalStatus = updateData.status || existing.status;
+    // A normal staff edit confirms a customer-requested appointment. Explicit
+    // staff status transitions still take precedence and are validated above.
+    const finalStatus = updateData.status && updateData.status !== existing.status
+      ? updateData.status
+      : !isCustomer && existing.status === 'scheduled'
+        ? 'confirmed'
+        : existing.status;
 
     const payload = buildBookingPayload(
       updateData,      // use sanitized update data

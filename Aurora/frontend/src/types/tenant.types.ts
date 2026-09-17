@@ -6,11 +6,15 @@ export interface Tenant {
   slug: string;
   phone?: string | null;
   email?: string | null;
-  isActive: boolean;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  postalCode?: string | null;
   createdAt?: string;
   updatedAt?: string;
   customerCount?: number;
   staffCount?: number;
+  isActive: any;
 }
 
 export interface TenantFormData {
@@ -18,5 +22,9 @@ export interface TenantFormData {
   slug: string;
   phone: string;
   email: string;
+  address: string;
+  city: string;
+  state: string;
+  postalCode: string;
   businessTypeId: number;
 }

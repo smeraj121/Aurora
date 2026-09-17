@@ -19,6 +19,7 @@ import { CustomerEngagementView } from './features/customerEngagement/CustomerEn
 import { MyAppointmentsView } from './features/myAppointments/MyAppointmentsView';
 import { AppointmentsView } from './features/appointments/AppointmentsView';
 import { InvoiceRedirectView } from './features/invoice/InvoiceRedirectView';
+import { MyPackagesView } from './features/myPackages/MyPackagesView';
 
 function PlaceholderView({ title }: { title: string }) {
   return (
@@ -178,6 +179,7 @@ function AppRoutes() {
           />
 
           <Route path="my-appointments" element={<MyAppointmentsView />} />
+          <Route path="my-packages" element={<MyPackagesView />} />
 
           <Route
             path="profile"

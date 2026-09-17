@@ -423,6 +423,30 @@ export class ApiService {
     return this.get<CustomerPackage[]>(`/customers/${customerId}/packages`, options);
   }
 
+  // ============================================================
+  // MY PACKAGES (customer-facing)
+  // ============================================================
+  async getMyPackages(status: 'active' | 'history'): Promise<ApiResponse<CustomerPackage[]>> {
+    return this.get<CustomerPackage[]>('/customers/my-packages', { status });
+  }
+  async downloadPackageInvoice(packageId: number): Promise<Blob> {
+    const url = this.buildUrl(`/customers/packages/${packageId}/invoice`);
+    const headers: Record<string, string> = {};
+    const token = this.getAuthToken();
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const response = await fetch(url, { headers });
+    if (!response.ok) {
+      let message = `Request failed with status ${response.status}`;
+      try {
+        const data = await response.json();
+        message = data?.message || message;
+      } catch { /* non-JSON error body */ }
+      throw new ApiError(message, response.status);
+    }
+    return response.blob();
+  }
+
   async getCustomerPackageById(id: number): Promise<ApiResponse<CustomerPackage>> {
     return this.get<CustomerPackage>(`/customers/packages/${id}`);
   }
