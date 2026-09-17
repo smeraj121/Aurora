@@ -26,8 +26,7 @@ class OtpService {
     const expiresAt = getOtpExpiry();
 
     await authRepository.storeOtp(phone, otp, purpose, expiresAt);
-    //await this.smsProvider.sendOtp(phone, otp, purpose);
-    console.log(`OTP for ${purpose} sent to ${phone}: ${otp}`); // For debugging; remove in production
+    await this.smsProvider.sendOtp(phone, otp, purpose);
 
     return { message: 'OTP sent successfully' };
   }
